@@ -4,7 +4,6 @@ extern crate biome;
 extern crate dprint;
 extern crate rustfmt;
 extern crate ruff;
-extern crate kt;
 extern crate stylua;
 extern crate shfmt;
 
@@ -105,8 +104,6 @@ fn format_file(file_path: &std::path::PathBuf) -> anyhow::Result<bool> {
             .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
         fama_common::FileType::Python => ruff::format_python(&content, path_str)
             .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
-        fama_common::FileType::Kotlin => kt::format_kotlin(&content, path_str)
-            .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
         fama_common::FileType::Lua => stylua::format_lua(&content, path_str)
             .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
         fama_common::FileType::Shell => shfmt::format_shell(&content, path_str)
@@ -162,10 +159,6 @@ max_line_length = 100
 [*.py]
 indent_size = 4
 max_line_length = 88
-
-[*.{kt,kts}]
-indent_size = 4
-max_line_length = 120
 
 [*.lua]
 indent_size = 2

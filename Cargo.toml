@@ -6,7 +6,6 @@ members = [
     "formatters/dprint",
     "formatters/rustfmt",
     "formatters/python",
-    "formatters/kotlin",
     "formatters/lua",
     "formatters/shfmt",
 ]

@@ -25,7 +25,6 @@ pub enum FileType {
     Dockerfile,
     Rust,
     Python,
-    Kotlin,
     Lua,
     Shell,
     Unknown,
@@ -51,7 +50,6 @@ pub fn detect_file_type(path: &str) -> FileType {
         Some("md") | Some("markdown") => FileType::Markdown,
         Some("rs") => FileType::Rust,
         Some("py") => FileType::Python,
-        Some("kt") | Some("kts") => FileType::Kotlin,
         Some("lua") => FileType::Lua,
         Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
         _ => {
@@ -130,12 +128,6 @@ mod tests {
     #[test]
     fn test_detect_python() {
         assert_eq!(detect_file_type("test.py"), FileType::Python);
-    }
-
-    #[test]
-    fn test_detect_kotlin() {
-        assert_eq!(detect_file_type("test.kt"), FileType::Kotlin);
-        assert_eq!(detect_file_type("test.kts"), FileType::Kotlin);
     }
 
     #[test]

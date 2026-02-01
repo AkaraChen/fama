@@ -9,7 +9,6 @@ biome = { path = "../formatters/biome" }
 dprint = { path = "../formatters/dprint" }
 rustfmt = { path = "../formatters/rustfmt" }
 ruff = { path = "../formatters/python" }
-kt = { path = "../formatters/kotlin", package = "kt" }
 stylua = { path = "../formatters/lua", package = "stylua" }
 shfmt = { path = "../formatters/shfmt", package = "shfmt" }
 fama-common = { path = "../common" }
