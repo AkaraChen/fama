@@ -56,29 +56,29 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Build Go shared library (Unix)
+      - name: Build Go static library (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           cd formatters/shfmt/go
           if [[ "${{ matrix.target }}" == "x86_64-apple-darwin" ]]; then
-            CGO_ENABLED=1 GOARCH=amd64 go build -buildmode=c-shared -o libshformatter.dylib formatter.go
+            CGO_ENABLED=1 GOARCH=amd64 go build -buildmode=c-archive -o libshformatter.a formatter.go
           elif [[ "${{ matrix.target }}" == "aarch64-apple-darwin" ]]; then
-            CGO_ENABLED=1 GOARCH=arm64 go build -buildmode=c-shared -o libshformatter.dylib formatter.go
+            CGO_ENABLED=1 GOARCH=arm64 go build -buildmode=c-archive -o libshformatter.a formatter.go
           elif [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
-            CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc GOOS=linux GOARCH=arm64 go build -buildmode=c-shared -o libshformatter.so formatter.go
+            CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc GOOS=linux GOARCH=arm64 go build -buildmode=c-archive -o libshformatter.a formatter.go
           else
-            CGO_ENABLED=1 GOARCH=amd64 go build -buildmode=c-shared -o libshformatter.so formatter.go
+            CGO_ENABLED=1 GOARCH=amd64 go build -buildmode=c-archive -o libshformatter.a formatter.go
           fi
 
-      - name: Build Go shared library (Windows)
+      - name: Build Go static library (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           cd formatters/shfmt/go
           $env:CGO_ENABLED = "1"
           $env:GOARCH = "amd64"
-          go build -buildmode=c-shared -o shformatter.dll formatter.go
+          go build -buildmode=c-archive -o libshformatter.a formatter.go
 
       - name: Build (Unix)
         if: runner.os != 'Windows'

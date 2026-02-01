@@ -10,9 +10,9 @@ Fama is a unified cross-language code formatter written in Rust that aggregates 
 
 ```bash
 make build      # Debug build
-make release    # Optimized release build (includes macOS dylib fix)
+make release    # Optimized release build
 make test       # Run all tests (cargo test)
-make dev        # Debug build with dylib fix
+make dev        # Debug build
 make install    # Install to /usr/local/bin (requires sudo)
 make clean      # Remove build artifacts
 ```
@@ -29,6 +29,7 @@ fama --export    # Generate .editorconfig and rustfmt.toml files
 ### Workspace Structure
 
 The project is a Cargo workspace with 8 crates:
+
 - `cli/` - Main CLI application with file discovery and routing
 - `common/` - Shared types: `FileType` enum, `FormatConfig`, indentation/quote styles
 - `formatters/` - Language-specific formatter implementations:
@@ -51,6 +52,7 @@ The project is a Cargo workspace with 8 crates:
 ### Formatter Interface
 
 All formatters implement the same pattern:
+
 ```rust
 pub fn format_file(content: &str, path: &str, file_type: FileType) -> Result<String, String>
 ```
@@ -58,6 +60,7 @@ pub fn format_file(content: &str, path: &str, file_type: FileType) -> Result<Str
 ### Configuration
 
 Centralized `FormatConfig` in `common/src/lib.rs` with go-fmt style defaults:
+
 - Tabs for indentation (width: 4)
 - 80 character line width
 - LF line endings
@@ -66,12 +69,11 @@ Centralized `FormatConfig` in `common/src/lib.rs` with go-fmt style defaults:
 ### Go FFI (shfmt)
 
 The shell formatter wraps mvdan/sh via CGO:
+
 - Go source in `formatters/shfmt/go/`
-- Compiled as platform-specific shared library (.dylib/.so/.dll)
+- Compiled as static library (`libshformatter.a`) and linked into the binary
 - Rust FFI bindings in `formatters/shfmt/src/lib.rs`
 - `build.rs` handles Go compilation and library linking
-
-The macOS build requires `install_name_tool` to fix dylib paths (handled by `make release`).
 
 ## Testing
 

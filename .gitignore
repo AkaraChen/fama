@@ -2,3 +2,9 @@
 /.omc
 /test-project
 /test-python-format
+
+# Generated Go libraries
+formatters/shfmt/go/libshformatter.a
+formatters/shfmt/go/libshformatter.h
+formatters/shfmt/go/libshformatter.dylib
+formatters/shfmt/go/libshformatter.so
