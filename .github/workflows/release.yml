@@ -88,6 +88,7 @@ jobs:
   release:
     name: Create Release
     needs: build
+    if: ${{ !contains(github.ref_name, 'alpha') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'rc') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
