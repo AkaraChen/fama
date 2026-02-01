@@ -4,7 +4,18 @@ use fama_common::{FormatConfig, IndentStyle, LineEnding};
 
 /// Format TOML source code using Taplo formatter
 pub fn format_toml(source: &str, _file_path: &str) -> Result<String, String> {
-	use taplo::formatter::{format, Options};
+	use taplo::formatter::{format_syntax, Options};
+	use taplo::parser::parse;
+
+	let parsed = parse(source);
+	if !parsed.errors.is_empty() {
+		return Err(parsed
+			.errors
+			.iter()
+			.map(|e| e.message.as_str())
+			.collect::<Vec<_>>()
+			.join("; "));
+	}
 
 	let fmt_config = FormatConfig::default();
 
@@ -33,7 +44,7 @@ pub fn format_toml(source: &str, _file_path: &str) -> Result<String, String> {
 		..Default::default()
 	};
 
-	Ok(format(source, options))
+	Ok(format_syntax(parsed.into_syntax(), options))
 }
 
 #[cfg(test)]
@@ -62,5 +73,12 @@ mod tests {
 		let source = "[package]\nname = \"test\"";
 		let result = format_toml(source, "test.toml").unwrap();
 		assert!(result.ends_with('\n'));
+	}
+
+	#[test]
+	fn test_format_toml_invalid_syntax() {
+		let source = "[package\nname = ";
+		let result = format_toml(source, "test.toml");
+		assert!(result.is_err());
 	}
 }
