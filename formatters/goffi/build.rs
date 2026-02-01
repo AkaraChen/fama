@@ -37,10 +37,10 @@ fn main() {
 			.current_dir(&go_dir)
 			.env("CGO_ENABLED", "1");
 
-		// On Windows, explicitly set CC to gcc for CGO
+		// On Windows, use MSVC (cl.exe) for CGO to match Rust's MSVC toolchain
 		#[cfg(target_os = "windows")]
 		{
-			cmd.env("CC", "gcc");
+			cmd.env("CC", "cl");
 		}
 
 		let output = cmd.output();
