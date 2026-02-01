@@ -28,15 +28,22 @@ fn main() {
 			println!("cargo:warning=Building Go CGO library on Windows - ensure MinGW-w64 or MSVC is installed");
 		}
 
-		let output = Command::new("go")
-			.arg("build")
+		let mut cmd = Command::new("go");
+		cmd.arg("build")
 			.arg("-buildmode=c-archive")
 			.arg("-o")
 			.arg(&lib_src)
 			.arg("formatter.go")
 			.current_dir(&go_dir)
-			.env("CGO_ENABLED", "1")
-			.output();
+			.env("CGO_ENABLED", "1");
+
+		// On Windows, explicitly set CC to gcc for CGO
+		#[cfg(target_os = "windows")]
+		{
+			cmd.env("CC", "gcc");
+		}
+
+		let output = cmd.output();
 
 		match output {
 			Ok(o) if o.status.success() => {
