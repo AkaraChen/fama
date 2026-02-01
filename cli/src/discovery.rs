@@ -39,7 +39,7 @@ fn collect_from_glob(pattern: &str) -> Result<Vec<PathBuf>, String> {
 		.map_err(|e| format!("Failed to get current directory: {}", e))?;
 
 	// Build gitignore matcher for filtering results
-	let gitignore = Gitignore::new(&current_dir.join(".gitignore")).0;
+	let gitignore = Gitignore::new(current_dir.join(".gitignore")).0;
 
 	// Convert to absolute path if relative
 	let glob_pattern = if Path::new(pattern).is_absolute() {
@@ -55,10 +55,7 @@ fn collect_from_glob(pattern: &str) -> Result<Vec<PathBuf>, String> {
 		.filter(|path| has_supported_extension(path))
 		.filter(|path| {
 			// Check if file is ignored
-			match gitignore.matched(path, false) {
-				ignore::Match::Ignore(_) => false,
-				_ => true,
-			}
+			!matches!(gitignore.matched(path, false), ignore::Match::Ignore(_))
 		})
 		.collect();
 
