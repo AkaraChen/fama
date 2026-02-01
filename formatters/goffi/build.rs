@@ -12,7 +12,7 @@ fn main() {
 	println!("cargo:rerun-if-changed={}/formatter.go", go_dir.display());
 
 	// Static library name
-	let lib_name = "libshformatter.a";
+	let lib_name = "libgoffi.a";
 	let lib_src = go_dir.join(lib_name);
 
 	// Build the Go static library if it doesn't exist
@@ -53,7 +53,7 @@ fn main() {
 
 	// Tell cargo where to find the library for linking
 	println!("cargo:rustc-link-search=native={}", out_dir.display());
-	println!("cargo:rustc-link-lib=static=shformatter");
+	println!("cargo:rustc-link-lib=static=goffi");
 
 	// Link Go runtime dependencies
 	#[cfg(target_os = "macos")]

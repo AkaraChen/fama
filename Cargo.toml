@@ -7,7 +7,7 @@ members = [
     "formatters/rustfmt",
     "formatters/python",
     "formatters/lua",
-    "formatters/shfmt",
+    "formatters/goffi",
     "formatters/dockerfile",
 ]
 resolver = "2"

@@ -5,9 +5,9 @@ mod formatter;
 extern crate biome;
 extern crate dockerfile;
 extern crate dprint;
+extern crate goffi;
 extern crate ruff;
 extern crate rustfmt;
-extern crate shfmt;
 extern crate stylua;
 
 use clap::Parser;

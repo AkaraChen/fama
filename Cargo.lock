@@ -1133,10 +1133,10 @@ dependencies = [
  "dprint",
  "fama-common",
  "glob",
+ "goffi",
  "ignore",
  "ruff",
  "rustfmt",
- "shfmt",
  "stylua 0.1.0",
 ]
 
@@ -1290,6 +1290,15 @@ dependencies = [
  "log",
  "regex-automata",
  "regex-syntax 0.8.8",
+]
+
+[[package]]
+name = "goffi"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "fama-common",
+ "libc",
 ]
 
 [[package]]
@@ -2546,15 +2555,6 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
-]
-
-[[package]]
-name = "shfmt"
-version = "0.1.0"
-dependencies = [
- "cc",
- "fama-common",
- "libc",
 ]
 
 [[package]]

@@ -1,11 +1,11 @@
 [package]
-name = "shfmt"
+name = "goffi"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "shfmt"
+name = "goffi"
 crate-type = ["rlib"]
 
 [dependencies]

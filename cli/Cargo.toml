@@ -10,7 +10,7 @@ dprint = { path = "../formatters/dprint" }
 rustfmt = { path = "../formatters/rustfmt" }
 ruff = { path = "../formatters/python" }
 stylua = { path = "../formatters/lua", package = "stylua" }
-shfmt = { path = "../formatters/shfmt", package = "shfmt" }
+goffi = { path = "../formatters/goffi", package = "goffi" }
 dockerfile = { path = "../formatters/dockerfile" }
 fama-common = { path = "../common" }
 ignore = "0.4"
