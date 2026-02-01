@@ -1,13 +1,13 @@
 [package]
-name = "rust-formatter"
+name = "rustfmt"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "rust_formatter"
+name = "rustfmt"
 crate-type = ["rlib"]
 
 [dependencies]
-fama-common = { path = "../fama-common" }
+fama-common = { path = "../../common" }
 rust-format = "0.3"

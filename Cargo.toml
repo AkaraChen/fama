@@ -1,5 +1,15 @@
 [workspace]
-members = ["fama", "fama-common", "biome-web-formatter", "dprint-formatter", "rust-formatter", "ruff-formatter", "kotlin-formatter", "lua-formatter", "sh-formatter"]
+members = [
+    "cli",
+    "common",
+    "formatters/biome",
+    "formatters/dprint",
+    "formatters/rustfmt",
+    "formatters/python",
+    "formatters/kotlin",
+    "formatters/lua",
+    "formatters/shfmt",
+]
 resolver = "2"
 
 [workspace.dependencies]

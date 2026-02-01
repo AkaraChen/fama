@@ -1,6 +1,12 @@
 mod discovery;
 
-extern crate dprint_formatter;
+extern crate biome;
+extern crate dprint;
+extern crate rustfmt;
+extern crate ruff;
+extern crate kt;
+extern crate stylua;
+extern crate shfmt;
 
 use clap::Parser;
 use fama_common;
@@ -71,7 +77,7 @@ fn format_file(file_path: &std::path::PathBuf) -> anyhow::Result<bool> {
 
     // Route to appropriate formatter based on file type
     let formatted_content = match file_type {
-        // Web files -> biome-web-formatter
+        // Web files -> biome
         fama_common::FileType::JavaScript
         | fama_common::FileType::TypeScript
         | fama_common::FileType::Jsx
@@ -80,10 +86,10 @@ fn format_file(file_path: &std::path::PathBuf) -> anyhow::Result<bool> {
         | fama_common::FileType::Vue
         | fama_common::FileType::Svelte
         | fama_common::FileType::Astro => {
-            biome_web_formatter::format_file(&content, path_str, file_type)
+            biome::format_file(&content, path_str, file_type)
                 .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
         }
-        // Data + Style files -> dprint-formatter
+        // Data + Style files -> dprint
         fama_common::FileType::Yaml
         | fama_common::FileType::Markdown
         | fama_common::FileType::Css
@@ -91,19 +97,19 @@ fn format_file(file_path: &std::path::PathBuf) -> anyhow::Result<bool> {
         | fama_common::FileType::Less
         | fama_common::FileType::Sass
         | fama_common::FileType::Dockerfile => {
-            dprint_formatter::format_file(&content, path_str, file_type)
+            dprint::format_file(&content, path_str, file_type)
                 .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
         }
         // Individual language formatters
-        fama_common::FileType::Rust => rust_formatter::format_rust(&content, path_str)
+        fama_common::FileType::Rust => rustfmt::format_rust(&content, path_str)
             .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
-        fama_common::FileType::Python => ruff_formatter::format_python(&content, path_str)
+        fama_common::FileType::Python => ruff::format_python(&content, path_str)
             .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
-        fama_common::FileType::Kotlin => kotlin_formatter::format_kotlin(&content, path_str)
+        fama_common::FileType::Kotlin => kt::format_kotlin(&content, path_str)
             .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
-        fama_common::FileType::Lua => lua_formatter::format_lua(&content, path_str)
+        fama_common::FileType::Lua => stylua::format_lua(&content, path_str)
             .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
-        fama_common::FileType::Shell => sh_formatter::format_shell(&content, path_str)
+        fama_common::FileType::Shell => shfmt::format_shell(&content, path_str)
             .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
         fama_common::FileType::Unknown => {
             return Err(anyhow::anyhow!(

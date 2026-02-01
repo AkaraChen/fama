@@ -1,0 +1,15 @@
+[package]
+name = "kt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "kt"
+crate-type = ["rlib"]
+
+[dependencies]
+fama-common = { path = "../../common" }
+topiary-core = "0.7"
+topiary-tree-sitter-facade = "0.7"
+tree-sitter-kotlin-ng = "1"

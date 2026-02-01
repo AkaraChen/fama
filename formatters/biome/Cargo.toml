@@ -1,5 +1,5 @@
 [package]
-name = "biome-web-formatter"
+name = "biome"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,7 +8,7 @@ license.workspace = true
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
-fama-common = { path = "../fama-common" }
+fama-common = { path = "../../common" }
 
 # Lock all biome crates to git commit for HTML support compatibility
 # Commit: 871b45e66824dea905579d5270911cfed0254433 (2025-01-30)

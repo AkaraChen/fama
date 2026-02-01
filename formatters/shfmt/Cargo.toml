@@ -1,15 +1,15 @@
 [package]
-name = "sh-formatter"
+name = "shfmt"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "sh_formatter"
+name = "shfmt"
 crate-type = ["rlib"]
 
 [dependencies]
-fama-common = { path = "../fama-common" }
+fama-common = { path = "../../common" }
 libc = "0.2"
 
 [build-dependencies]

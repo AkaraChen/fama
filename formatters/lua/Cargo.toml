@@ -1,0 +1,13 @@
+[package]
+name = "stylua"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "stylua"
+crate-type = ["rlib"]
+
+[dependencies]
+stylua = "0.20"
+fama-common = { path = "../../common" }

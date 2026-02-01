@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 fn main() {
     // Build the Go shared library
-    let go_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("../sh-formatter-go");
+    let go_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("go");
 
     println!("cargo:rerun-if-changed={}", go_dir.display());
 
@@ -55,5 +55,8 @@ fn main() {
     // On macOS, we need to ensure the library path is set for runtime
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-env=DYLD_LIBRARY_PATH={}", go_dir.display());
+        // Add rpath so the binary can find the library at runtime
+        // Use @loader_path to allow the binary to find the library relative to its location
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
     }
 }

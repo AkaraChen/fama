@@ -1,8 +1,12 @@
 [package]
-name = "ruff-formatter"
+name = "ruff"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+
+[lib]
+name = "ruff"
+crate-type = ["rlib"]
 
 [dependencies]
 serde_json = "1.0"

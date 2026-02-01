@@ -1,5 +1,5 @@
 [package]
-name = "dprint-formatter"
+name = "dprint"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,7 +8,7 @@ license.workspace = true
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
-fama-common = { path = "../fama-common" }
+fama-common = { path = "../../common" }
 
 dprint-plugin-markdown = "0.20"
 dprint-core = "0.67"
