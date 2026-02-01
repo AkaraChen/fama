@@ -1,25 +1,34 @@
 // editorconfig.rs - EditorConfig export
 
-use fama_common::FormatConfig;
+use fama_common::{FormatConfig, IndentStyle, LineEnding};
 
 /// Export EditorConfig based on FormatConfig defaults
 pub fn export() {
     let config = FormatConfig::default();
-    let indent_size = config.indent_width;
-    let line_width = config.line_width;
+
+    let indent_style = match config.indent_style {
+        IndentStyle::Tabs => "tab",
+        IndentStyle::Spaces => "space",
+    };
+
+    let end_of_line = match config.line_ending {
+        LineEnding::Lf => "lf",
+        LineEnding::Crlf => "crlf",
+    };
 
     let editorconfig = format!(
         r#"root = true
 
 [*]
 charset = utf-8
-end_of_line = lf
+end_of_line = {end_of_line}
 insert_final_newline = true
 trim_trailing_whitespace = true
-indent_style = tab
-indent_size = {indent_size}
-max_line_length = {line_width}
-"#
+indent_style = {indent_style}
+indent_size = {}
+max_line_length = {}
+"#,
+        config.indent_width, config.line_width
     );
 
     println!("{}", editorconfig);
