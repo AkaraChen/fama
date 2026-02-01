@@ -5,7 +5,9 @@
 
 #![allow(clippy::all)]
 
-use fama_common::{FileType, FormatConfig, IndentStyle, LineEnding, QuoteStyle};
+use fama_common::{
+	FileType, FormatConfig, IndentStyle, LineEnding, QuoteStyle,
+};
 
 /// Format Markdown source code with specified options
 pub fn format_markdown(

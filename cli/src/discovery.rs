@@ -4,7 +4,7 @@ use std::path::PathBuf;
 const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts", "json", "jsonc", "css",
 	"scss", "less", "html", "vue", "svelte", "astro", "yaml", "yml", "md",
-	"rs", "py", "lua", "sh", "bash", "zsh", "go", "toml"
+	"rs", "py", "lua", "sh", "bash", "zsh", "go", "toml",
 ];
 
 /// Discover files in the current directory respecting .gitignore rules.

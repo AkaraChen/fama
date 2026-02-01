@@ -62,7 +62,8 @@ mod tests {
 
 	#[test]
 	fn test_format_toml_with_array() {
-		let source = "[dependencies]\nserde = {version=\"1.0\",features=[\"derive\"]}";
+		let source =
+			"[dependencies]\nserde = {version=\"1.0\",features=[\"derive\"]}";
 		let result = format_toml(source, "Cargo.toml").unwrap();
 		assert!(result.contains("[dependencies]"));
 		assert!(result.contains("serde"));
