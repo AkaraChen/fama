@@ -94,8 +94,7 @@ fn format_file(file_path: &std::path::PathBuf) -> anyhow::Result<bool> {
         | fama_common::FileType::Css
         | fama_common::FileType::Scss
         | fama_common::FileType::Less
-        | fama_common::FileType::Sass
-        | fama_common::FileType::Dockerfile => {
+        | fama_common::FileType::Sass => {
             dprint::format_file(&content, path_str, file_type)
                 .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
         }

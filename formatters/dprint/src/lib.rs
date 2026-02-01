@@ -1,7 +1,7 @@
 // dprint-formatter - Dprint plugin formatting library
 //
-// Provides formatting API for Markdown, YAML, CSS, SCSS, LESS, SASS,
-// and Dockerfile using dprint plugins and Malva.
+// Provides formatting API for Markdown, YAML, CSS, SCSS, LESS, and SASS
+// using dprint plugins and Malva.
 
 #![allow(clippy::all)]
 
@@ -89,15 +89,6 @@ pub fn format_sass(source: &str, _file_path: &str) -> Result<String, String> {
     format_text(source, Syntax::Sass, &options).map_err(|e| format!("SASS formatting error: {}", e))
 }
 
-/// Format Dockerfile source code
-/// Note: Currently returns source unchanged due to dprint-core version conflicts
-/// Dockerfile plugin uses dprint-core 0.65 which is incompatible with dprint-core 0.67 used by Markdown
-pub fn format_dockerfile(source: &str, _file_path: &str) -> Result<String, String> {
-    // For now, return the source unchanged
-    // TODO: Resolve dprint-core version conflict or use alternative Dockerfile formatter
-    Ok(source.to_string())
-}
-
 /// Format a file based on its file type
 pub fn format_file(source: &str, file_path: &str, file_type: FileType) -> Result<String, String> {
     match file_type {
@@ -107,7 +98,6 @@ pub fn format_file(source: &str, file_path: &str, file_type: FileType) -> Result
         FileType::Scss => format_scss(source, file_path),
         FileType::Less => format_less(source, file_path),
         FileType::Sass => format_sass(source, file_path),
-        FileType::Dockerfile => format_dockerfile(source, file_path),
         _ => Err(format!(
             "File type {:?} is not supported by dprint-formatter",
             file_type
@@ -160,14 +150,6 @@ mod tests {
         let source = ".foo\n  margin: 0";
         let result = format_sass(source, "test.sass").unwrap();
         assert!(result.contains("margin"));
-    }
-
-    #[test]
-    fn test_format_dockerfile() {
-        let source = "FROM ubuntu";
-        let result = format_dockerfile(source, "Dockerfile").unwrap();
-        // Dockerfile formatting returns source unchanged (placeholder)
-        assert_eq!(result, source);
     }
 
     #[test]

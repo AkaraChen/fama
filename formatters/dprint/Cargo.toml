@@ -16,10 +16,5 @@ pretty_yaml = "0.6"
 anyhow = "1.0"
 malva = "0.10"
 
-# Note: Dockerfile plugin is disabled due to dprint-core version conflicts
-# Dockerfile uses dprint-core 0.65, Markdown uses 0.67
-# These have incompatible NewLineKind types
-# dprint-plugin-dockerfile = "0.3"
-
 # Note: CSS formatting now uses Malva crate instead of dprint-plugin-css
 # Malva is a native Rust formatter that supports CSS, SCSS, Sass, and Less

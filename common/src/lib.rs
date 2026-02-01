@@ -22,7 +22,6 @@ pub enum FileType {
     Astro,
     Yaml,
     Markdown,
-    Dockerfile,
     Rust,
     Python,
     Lua,
@@ -52,14 +51,7 @@ pub fn detect_file_type(path: &str) -> FileType {
         Some("py") => FileType::Python,
         Some("lua") => FileType::Lua,
         Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
-        _ => {
-            // Check for Dockerfile by name
-            if path.file_name().and_then(|n| n.to_str()) == Some("Dockerfile") {
-                FileType::Dockerfile
-            } else {
-                FileType::Unknown
-            }
-        }
+        _ => FileType::Unknown,
     }
 }
 
@@ -128,12 +120,6 @@ mod tests {
     #[test]
     fn test_detect_python() {
         assert_eq!(detect_file_type("test.py"), FileType::Python);
-    }
-
-    #[test]
-    fn test_detect_dockerfile() {
-        assert_eq!(detect_file_type("Dockerfile"), FileType::Dockerfile);
-        assert_eq!(detect_file_type("path/to/Dockerfile"), FileType::Dockerfile);
     }
 
     #[test]
