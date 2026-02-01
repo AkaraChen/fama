@@ -68,4 +68,4 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          working-directory: formatters/shfmt/go
+          working-directory: formatters/goffi/go

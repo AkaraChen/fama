@@ -90,6 +90,8 @@ extern char* FormatShell(char* source, size_t sourceLen, unsigned int indent);
 extern char** FormatShellBatch(char** sources, size_t* lengths, size_t count, unsigned int indent);
 extern void FreeString(char* str);
 extern void FreeStringArray(char** arr, size_t count);
+extern char* FormatGo(char* source, size_t sourceLen);
+extern char** FormatGoBatch(char** sources, size_t* lengths, size_t count);
 
 #ifdef __cplusplus
 }

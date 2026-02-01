@@ -125,6 +125,7 @@ pub enum FileType {
 	Python,
 	Lua,
 	Shell,
+	Go,
 	Dockerfile,
 	Unknown,
 }
@@ -151,6 +152,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("py") => FileType::Python,
 		Some("lua") => FileType::Lua,
 		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
+		Some("go") => FileType::Go,
 		_ => {
 			// Check for Dockerfile by filename (Dockerfile or Dockerfile.*)
 			if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -240,6 +242,13 @@ mod tests {
 		assert_eq!(detect_file_type("test.sh"), FileType::Shell);
 		assert_eq!(detect_file_type("test.bash"), FileType::Shell);
 		assert_eq!(detect_file_type("test.zsh"), FileType::Shell);
+	}
+
+	#[test]
+	fn test_detect_go() {
+		assert_eq!(detect_file_type("test.go"), FileType::Go);
+		assert_eq!(detect_file_type("main.go"), FileType::Go);
+		assert_eq!(detect_file_type("path/to/file.go"), FileType::Go);
 	}
 
 	#[test]

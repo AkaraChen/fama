@@ -14,10 +14,10 @@ release:
 # Clean build artifacts
 clean:
 	cargo clean
-	rm -f formatters/shfmt/go/libshformatter.a
-	rm -f formatters/shfmt/go/libshformatter.h
-	rm -f formatters/shfmt/go/libshformatter.dylib
-	rm -f formatters/shfmt/go/libshformatter.so
+	rm -f formatters/goffi/go/libgoffi.a
+	rm -f formatters/goffi/go/libgoffi.h
+	rm -f formatters/goffi/go/libgoffi.dylib
+	rm -f formatters/goffi/go/libgoffi.so
 
 # Run tests
 test:

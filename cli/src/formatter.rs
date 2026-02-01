@@ -50,7 +50,8 @@ fn format_content(
 		FileType::Rust => rustfmt::format_rust(content, path),
 		FileType::Python => ruff::format_python(content, path),
 		FileType::Lua => stylua::format_lua(content, path),
-		FileType::Shell => shfmt::format_shell(content, path),
+		FileType::Shell => goffi::format_shell(content, path),
+		FileType::Go => goffi::format_go(content, path),
 		FileType::Dockerfile => dockerfile::format_dockerfile(content, path),
 
 		FileType::Unknown => Err("Unknown file type".to_string()),

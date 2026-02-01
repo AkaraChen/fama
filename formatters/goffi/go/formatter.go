@@ -5,6 +5,7 @@ import "C"
 
 import (
 	"bytes"
+	"go/format"
 	"unsafe"
 
 	"mvdan.cc/sh/v3/syntax"
@@ -81,6 +82,50 @@ func FreeStringArray(arr **C.char, count C.size_t) {
 		C.free(unsafe.Pointer(slice[i]))
 	}
 	C.free(unsafe.Pointer(arr))
+}
+
+//export FormatGo
+func FormatGo(source *C.char, sourceLen C.size_t) *C.char {
+	goSource := C.GoBytes(unsafe.Pointer(source), C.int(sourceLen))
+
+	formatted, err := format.Source(goSource)
+	if err != nil {
+		// Return original source on error
+		return C.CString(string(goSource))
+	}
+
+	return C.CString(string(formatted))
+}
+
+//export FormatGoBatch
+func FormatGoBatch(sources **C.char, lengths *C.size_t, count C.size_t) **C.char {
+	goSources := make([][]byte, int(count))
+	sourcesSlice := (*[1 << 28]*C.char)(unsafe.Pointer(sources))[:count]
+	lengthsSlice := (*[1 << 28]C.size_t)(unsafe.Pointer(lengths))[:count]
+
+	for i := 0; i < int(count); i++ {
+		goSources[i] = C.GoBytes(unsafe.Pointer(sourcesSlice[i]), C.int(lengthsSlice[i]))
+	}
+
+	results := make([]string, int(count))
+
+	for i, src := range goSources {
+		formatted, err := format.Source(src)
+		if err != nil {
+			results[i] = string(src)
+			continue
+		}
+		results[i] = string(formatted)
+	}
+
+	cResults := C.malloc(C.size_t(count) * C.size_t(unsafe.Sizeof(unsafe.Pointer(nil))))
+	cResultsSlice := (*[1 << 28]*C.char)(unsafe.Pointer(cResults))[:count]
+
+	for i, result := range results {
+		cResultsSlice[i] = C.CString(result)
+	}
+
+	return (**C.char)(cResults)
 }
 
 func main() {}
