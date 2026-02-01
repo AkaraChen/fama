@@ -56,13 +56,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Build Go shared library
+      - name: Build Go shared library (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           cd formatters/shfmt/go
-          if [[ "${{ matrix.target }}" == "x86_64-pc-windows-msvc" ]]; then
-            CGO_ENABLED=1 GOARCH=amd64 go build -buildmode=c-shared -o shformatter.dll formatter.go
-          elif [[ "${{ matrix.target }}" == "x86_64-apple-darwin" ]]; then
+          if [[ "${{ matrix.target }}" == "x86_64-apple-darwin" ]]; then
             CGO_ENABLED=1 GOARCH=amd64 go build -buildmode=c-shared -o libshformatter.dylib formatter.go
           elif [[ "${{ matrix.target }}" == "aarch64-apple-darwin" ]]; then
             CGO_ENABLED=1 GOARCH=arm64 go build -buildmode=c-shared -o libshformatter.dylib formatter.go
@@ -72,13 +71,28 @@ jobs:
             CGO_ENABLED=1 GOARCH=amd64 go build -buildmode=c-shared -o libshformatter.so formatter.go
           fi
 
-      - name: Build
+      - name: Build Go shared library (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cd formatters/shfmt/go
+          $env:CGO_ENABLED = "1"
+          $env:GOARCH = "amd64"
+          go build -buildmode=c-shared -o shformatter.dll formatter.go
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           if [[ "${{ matrix.cross }}" == "true" ]]; then
             export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
           fi
           cargo build --release --target ${{ matrix.target }}
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Package (Unix)
         if: runner.os != 'Windows'
