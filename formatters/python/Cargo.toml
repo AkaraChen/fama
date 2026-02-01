@@ -10,6 +10,6 @@ crate-type = ["rlib"]
 
 [dependencies]
 fama-common = { path = "../../common" }
-ruff_python_formatter = { git = "https://github.com/astral-sh/ruff.git" }
-ruff_python_ast = { git = "https://github.com/astral-sh/ruff.git" }
-ruff_formatter = { git = "https://github.com/astral-sh/ruff.git" }
+ruff_python_formatter = { git = "https://github.com/astral-sh/ruff.git", rev = "8d4d782e16b126d89a2a6d43bdcaa5450d67b804" }
+ruff_python_ast = { git = "https://github.com/astral-sh/ruff.git", rev = "8d4d782e16b126d89a2a6d43bdcaa5450d67b804" }
+ruff_formatter = { git = "https://github.com/astral-sh/ruff.git", rev = "8d4d782e16b126d89a2a6d43bdcaa5450d67b804" }

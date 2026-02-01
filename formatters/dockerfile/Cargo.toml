@@ -10,5 +10,5 @@ crate-type = ["rlib"]
 
 [dependencies]
 fama-common = { path = "../../common" }
-dprint-plugin-dockerfile = { git = "https://github.com/dprint/dprint-plugin-dockerfile.git" }
+dprint-plugin-dockerfile = { git = "https://github.com/dprint/dprint-plugin-dockerfile.git", rev = "c20fd3ee7851e1c0263c0b04322303ac24373e52" }
 dprint-core = "0.65"
