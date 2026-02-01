@@ -11,49 +11,26 @@ import (
 )
 
 //export FormatShell
-func FormatShell(source *C.char, sourceLen C.size_t) *C.char {
-	return FormatShellWithConfig(source, sourceLen, 0)
-}
-
-//export FormatShellWithConfig
-func FormatShellWithConfig(source *C.char, sourceLen C.size_t, indent C.uint) *C.char {
-	// Convert C string to Go string
+func FormatShell(source *C.char, sourceLen C.size_t, indent C.uint) *C.char {
 	goSource := C.GoBytes(unsafe.Pointer(source), C.int(sourceLen))
 
-	// Parse the shell script
 	parser := syntax.NewParser()
 	file, err := parser.Parse(bytes.NewReader(goSource), "")
 	if err != nil {
-		// Return copy of original on parse error (caller must free)
 		return C.CString(string(goSource))
 	}
 
-	// Format the parsed syntax tree with config
 	var buf bytes.Buffer
 	printer := syntax.NewPrinter(syntax.Indent(uint(indent)))
 	if err := printer.Print(&buf, file); err != nil {
-		// Return copy of original on print error (caller must free)
 		return C.CString(string(goSource))
 	}
 
-	// Convert formatted result back to C string (caller must free)
-	result := buf.String()
-	return C.CString(result)
-}
-
-//export FreeString
-func FreeString(str *C.char) {
-	C.free(unsafe.Pointer(str))
+	return C.CString(buf.String())
 }
 
 //export FormatShellBatch
-func FormatShellBatch(sources **C.char, lengths *C.size_t, count C.size_t) **C.char {
-	return FormatShellBatchWithConfig(sources, lengths, count, 0)
-}
-
-//export FormatShellBatchWithConfig
-func FormatShellBatchWithConfig(sources **C.char, lengths *C.size_t, count C.size_t, indent C.uint) **C.char {
-	// Create a slice of Go strings from the C arrays
+func FormatShellBatch(sources **C.char, lengths *C.size_t, count C.size_t, indent C.uint) **C.char {
 	goSources := make([][]byte, int(count))
 	sourcesSlice := (*[1 << 28]*C.char)(unsafe.Pointer(sources))[:count]
 	lengthsSlice := (*[1 << 28]C.size_t)(unsafe.Pointer(lengths))[:count]
@@ -62,7 +39,6 @@ func FormatShellBatchWithConfig(sources **C.char, lengths *C.size_t, count C.siz
 		goSources[i] = C.GoBytes(unsafe.Pointer(sourcesSlice[i]), C.int(lengthsSlice[i]))
 	}
 
-	// Format each source
 	results := make([]string, int(count))
 	parser := syntax.NewParser()
 	printer := syntax.NewPrinter(syntax.Indent(uint(indent)))
@@ -70,14 +46,12 @@ func FormatShellBatchWithConfig(sources **C.char, lengths *C.size_t, count C.siz
 	for i, src := range goSources {
 		file, err := parser.Parse(bytes.NewReader(src), "")
 		if err != nil {
-			// Return original on parse error
 			results[i] = string(src)
 			continue
 		}
 
 		var buf bytes.Buffer
 		if err := printer.Print(&buf, file); err != nil {
-			// Return original on print error
 			results[i] = string(src)
 			continue
 		}
@@ -85,7 +59,6 @@ func FormatShellBatchWithConfig(sources **C.char, lengths *C.size_t, count C.siz
 		results[i] = buf.String()
 	}
 
-	// Convert results back to C array
 	cResults := C.malloc(C.size_t(count) * C.size_t(unsafe.Sizeof(unsafe.Pointer(nil))))
 	cResultsSlice := (*[1 << 28]*C.char)(unsafe.Pointer(cResults))[:count]
 
@@ -94,6 +67,11 @@ func FormatShellBatchWithConfig(sources **C.char, lengths *C.size_t, count C.siz
 	}
 
 	return (**C.char)(cResults)
+}
+
+//export FreeString
+func FreeString(str *C.char) {
+	C.free(unsafe.Pointer(str))
 }
 
 //export FreeStringArray
@@ -105,6 +83,4 @@ func FreeStringArray(arr **C.char, count C.size_t) {
 	C.free(unsafe.Pointer(arr))
 }
 
-func main() {
-	// Required for c-shared buildmode
-}
+func main() {}

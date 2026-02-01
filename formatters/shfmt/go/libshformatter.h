@@ -86,11 +86,9 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern char* FormatShell(char* source, size_t sourceLen);
-extern char* FormatShellWithConfig(char* source, size_t sourceLen, unsigned int indent);
+extern char* FormatShell(char* source, size_t sourceLen, unsigned int indent);
+extern char** FormatShellBatch(char** sources, size_t* lengths, size_t count, unsigned int indent);
 extern void FreeString(char* str);
-extern char** FormatShellBatch(char** sources, size_t* lengths, size_t count);
-extern char** FormatShellBatchWithConfig(char** sources, size_t* lengths, size_t count, unsigned int indent);
 extern void FreeStringArray(char** arr, size_t count);
 
 #ifdef __cplusplus
