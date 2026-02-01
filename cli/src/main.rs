@@ -16,9 +16,9 @@ use clap::Parser;
 #[command(name = "fama")]
 #[command(about = "A code formatter for frontend projects", long_about = None)]
 struct Cli {
-	/// Glob pattern to match files
-	#[arg(default_value = "**/*")]
-	pattern: String,
+	/// Glob patterns to match files
+	#[arg(default_values_t = ["**/*".to_string()])]
+	pattern: Vec<String>,
 
 	/// Export EditorConfig to stdout
 	#[arg(long, short)]
@@ -36,9 +36,24 @@ fn main() -> anyhow::Result<()> {
 	run(&cli.pattern)
 }
 
-fn run(pattern: &str) -> anyhow::Result<()> {
-	let files = discovery::discover_files(Some(pattern))
-		.map_err(|e| anyhow::anyhow!("Failed to discover files: {}", e))?;
+fn run(patterns: &[String]) -> anyhow::Result<()> {
+	let mut all_files: Vec<std::path::PathBuf> = Vec::new();
+
+	for pattern in patterns {
+		let files = discovery::discover_files(Some(pattern))
+			.map_err(|e| anyhow::anyhow!("Failed to discover files: {}", e))?;
+		if files.is_empty() {
+			eprintln!("Warning: pattern '{}' matched 0 files", pattern);
+		}
+		all_files.extend(files);
+	}
+
+	// Remove duplicates while preserving order
+	let mut seen = std::collections::HashSet::new();
+	let files: Vec<_> = all_files
+		.into_iter()
+		.filter(|p| seen.insert(p.clone()))
+		.collect();
 
 	let (mut formatted, mut unchanged, mut errors) = (0, 0, 0);
 
