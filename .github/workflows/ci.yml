@@ -30,6 +30,10 @@ jobs:
         with:
           go-version: 'stable'
 
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 

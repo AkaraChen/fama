@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -15,7 +16,7 @@ fn main() {
     } else if cfg!(target_os = "linux") {
         "libshformatter.so"
     } else if cfg!(target_os = "windows") {
-        "libshformatter.dll"
+        "shformatter.dll"
     } else {
         panic!("Unsupported platform for sh-formatter");
     };
@@ -65,6 +66,60 @@ fn main() {
                 .arg(format!("@rpath/{}", lib_name))
                 .arg(&lib_dst)
                 .status();
+        }
+    }
+
+    // On Windows, we need to create an import library (.lib) for MSVC linker
+    #[cfg(target_os = "windows")]
+    {
+        let def_path = out_dir.join("shformatter.def");
+        let lib_path = out_dir.join("shformatter.lib");
+
+        // Create a .def file with the exported functions
+        let def_content = r#"LIBRARY shformatter
+EXPORTS
+    FormatShell
+    FormatShellBatch
+    FreeString
+    FreeStringArray
+"#;
+        let mut def_file = fs::File::create(&def_path).expect("Failed to create .def file");
+        def_file
+            .write_all(def_content.as_bytes())
+            .expect("Failed to write .def file");
+
+        // Use lib.exe to create the import library
+        // lib.exe is part of MSVC toolchain
+        let status = Command::new("lib.exe")
+            .arg(format!("/DEF:{}", def_path.display()))
+            .arg(format!("/OUT:{}", lib_path.display()))
+            .arg("/MACHINE:X64")
+            .status();
+
+        match status {
+            Ok(s) if s.success() => {
+                println!("cargo:warning=Successfully created import library");
+            }
+            _ => {
+                // Try dlltool as fallback (MinGW)
+                let status = Command::new("dlltool")
+                    .arg("-d")
+                    .arg(&def_path)
+                    .arg("-l")
+                    .arg(&lib_path)
+                    .status();
+
+                match status {
+                    Ok(s) if s.success() => {
+                        println!("cargo:warning=Successfully created import library using dlltool");
+                    }
+                    _ => {
+                        panic!(
+                            "Failed to create import library. Ensure lib.exe (MSVC) or dlltool (MinGW) is available."
+                        );
+                    }
+                }
+            }
         }
     }
 
