@@ -4,6 +4,7 @@ members = [
     "common",
     "formatters/biome",
     "formatters/dprint",
+    "formatters/toml",
     "formatters/rustfmt",
     "formatters/python",
     "formatters/lua",

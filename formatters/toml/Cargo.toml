@@ -1,0 +1,8 @@
+[package]
+name = "toml-fmt"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+fama-common = { path = "../../common" }
+taplo = "0.14"
