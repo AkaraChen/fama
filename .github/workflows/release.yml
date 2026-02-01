@@ -50,12 +50,6 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install MinGW (Windows)
-        if: runner.os == 'Windows'
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
-
       - name: Install cross-compilation tools (Linux ARM64)
         if: matrix.cross
         run: |
@@ -79,12 +73,10 @@ jobs:
 
       - name: Build Go static library (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
+        shell: bash
         run: |
           cd formatters/goffi/go
-          $env:CGO_ENABLED = "1"
-          $env:GOARCH = "amd64"
-          go build -buildmode=c-archive -o libgoffi.a formatter.go
+          CGO_ENABLED=1 CC=gcc GOARCH=amd64 go build -buildmode=c-archive -o libgoffi.a formatter.go
 
       - name: Build (Unix)
         if: runner.os != 'Windows'
