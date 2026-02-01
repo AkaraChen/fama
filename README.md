@@ -30,11 +30,11 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Convention over configuration.** There is one style. It works. Use it.
 
-**Universal.** One tool formats your JavaScript, Python, Rust, Markdown, YAML, Shell scripts, and more. Same command everywhere.
+**Universal.** One tool formats your JavaScript, TypeScript, JSX, TSX, JSON, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, YAML, TOML, Markdown, Rust, Python, Lua, Shell, Go, and Dockerfile. Same command everywhere.
 
 **Fast.** Formatting should never be the thing you're waiting for.
 
-**Small.** A single binary. No runtime dependencies. No package managers. No plugins.
+**Small.** A single 13 MB binary. Download is just a 5 MB tar.gz. No runtime dependencies. No package managers. No plugins. Drop it in your PATH and it just works. Update anytime by running the install script again.
 
 **Quiet.** It formats what changed and tells you what it did. Nothing more.
 
@@ -77,7 +77,7 @@ Download from [Releases](https://github.com/AkaraChen/fama/releases), extract `f
 
 ## Why "Fama"?
 
-```
+```plaintext
 format
    ↓     too long, programmers are lazy
   fmt
