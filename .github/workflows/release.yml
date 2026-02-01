@@ -29,7 +29,7 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             archive: tar.gz
-          - target: x86_64-pc-windows-msvc
+          - target: x86_64-pc-windows-gnu
             os: windows-latest
             archive: zip
 
@@ -46,39 +46,11 @@ jobs:
         with:
           go-version: 'stable'
 
-      - name: Setup MSVC (Windows)
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-
       - name: Install cross-compilation tools (Linux ARM64)
         if: matrix.cross
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
-
-      - name: Build Go static library (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          cd formatters/goffi/go
-          if [[ "${{ matrix.target }}" == "x86_64-apple-darwin" ]]; then
-            CGO_ENABLED=1 GOARCH=amd64 go build -buildmode=c-archive -o libgoffi.a formatter.go
-          elif [[ "${{ matrix.target }}" == "aarch64-apple-darwin" ]]; then
-            CGO_ENABLED=1 GOARCH=arm64 go build -buildmode=c-archive -o libgoffi.a formatter.go
-          elif [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
-            CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc GOOS=linux GOARCH=arm64 go build -buildmode=c-archive -o libgoffi.a formatter.go
-          else
-            CGO_ENABLED=1 GOARCH=amd64 go build -buildmode=c-archive -o libgoffi.a formatter.go
-          fi
-
-      - name: Build Go static library (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cd formatters/goffi/go
-          $env:CGO_ENABLED = "1"
-          $env:GOARCH = "amd64"
-          go build -buildmode=c-archive -o libgoffi.a formatter.go
 
       - name: Build (Unix)
         if: runner.os != 'Windows'

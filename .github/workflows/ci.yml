@@ -24,24 +24,32 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'Windows' && 'x86_64-pc-windows-gnu' || '' }}
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
 
-      - name: Setup MSVC (Windows)
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Build
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
         run: cargo build
 
-      - name: Run tests
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: cargo build --target x86_64-pc-windows-gnu
+
+      - name: Run tests (Unix)
+        if: runner.os != 'Windows'
         run: cargo test
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        run: cargo test --target x86_64-pc-windows-gnu
 
   lint:
     name: Lint
