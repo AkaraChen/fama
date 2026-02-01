@@ -191,6 +191,9 @@ dependencies = [
  "biome_js_formatter",
  "biome_js_parser",
  "biome_js_syntax",
+ "biome_json_formatter",
+ "biome_json_parser",
+ "biome_json_syntax",
  "biome_parser",
  "biome_rowan",
  "biome_text_size",
@@ -441,6 +444,21 @@ source = "git+https://github.com/biomejs/biome?rev=871b45e66824dea905579d5270911
 dependencies = [
  "biome_json_syntax",
  "biome_rowan",
+]
+
+[[package]]
+name = "biome_json_formatter"
+version = "0.5.7"
+source = "git+https://github.com/biomejs/biome?rev=871b45e66824dea905579d5270911cfed0254433#871b45e66824dea905579d5270911cfed0254433"
+dependencies = [
+ "biome_deserialize",
+ "biome_deserialize_macros",
+ "biome_diagnostics",
+ "biome_formatter",
+ "biome_json_syntax",
+ "biome_rowan",
+ "biome_suppression",
+ "camino",
 ]
 
 [[package]]
@@ -950,7 +968,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1141,7 +1159,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2447,7 +2465,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3235,7 +3253,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
