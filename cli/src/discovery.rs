@@ -25,11 +25,10 @@ pub fn discover_files(pattern: Option<&str>) -> Result<Vec<PathBuf>, String> {
 
     let mut files: Vec<PathBuf> = walk_builder
         .build()
-        .into_iter()
         .filter_map(|entry| entry.ok())
         .filter(|entry| {
             // Only include regular files
-            if !entry.file_type().map_or(false, |ft| ft.is_file()) {
+            if !entry.file_type().is_some_and(|ft| ft.is_file()) {
                 return false;
             }
 
@@ -38,7 +37,7 @@ pub fn discover_files(pattern: Option<&str>) -> Result<Vec<PathBuf>, String> {
                 .path()
                 .extension()
                 .and_then(|ext| ext.to_str())
-                .map_or(false, |ext| SUPPORTED_EXTENSIONS.contains(&ext))
+                .is_some_and(|ext| SUPPORTED_EXTENSIONS.contains(&ext))
         })
         .map(|entry| entry.path().to_path_buf())
         .collect();
