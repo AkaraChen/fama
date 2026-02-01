@@ -4,8 +4,8 @@
 /test-python-format
 
 # Generated Go libraries
-formatters/goffi/go/libgoffi.a
-formatters/goffi/go/libgoffi.h
+formatters/goffi/go/libgoffi*.a
+formatters/goffi/go/libgoffi*.h
 formatters/goffi/go/libgoffi.dylib
 formatters/goffi/go/libgoffi.so
 formatters/goffi/libshformatter.dylib

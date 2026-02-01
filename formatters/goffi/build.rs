@@ -11,15 +11,36 @@ fn main() {
 	println!("cargo:rerun-if-changed={}", go_dir.display());
 	println!("cargo:rerun-if-changed={}/formatter.go", go_dir.display());
 
-	// Static library name
-	let lib_name = "libgoffi.a";
-	let lib_src = go_dir.join(lib_name);
+	// Determine target architecture for cross-compilation
+	let target = env::var("TARGET").unwrap();
+	let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+	let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
 
-	// Build the Go static library if it doesn't exist
+	// Map Rust target to Go environment variables
+	let goarch = match target_arch.as_str() {
+		"x86_64" => "amd64",
+		"aarch64" => "arm64",
+		"x86" => "386",
+		"arm" => "arm",
+		_ => panic!("Unsupported architecture: {}", target_arch),
+	};
+
+	let goos = match target_os.as_str() {
+		"linux" => "linux",
+		"macos" => "darwin",
+		"windows" => "windows",
+		_ => panic!("Unsupported OS: {}", target_os),
+	};
+
+	// Use target-specific library name to avoid conflicts
+	let lib_name = format!("libgoffi-{}.a", target);
+	let lib_src = go_dir.join(&lib_name);
+
+	// Always rebuild when target changes or library doesn't exist
 	if !lib_src.exists() {
 		println!(
-			"cargo:warning=Go static library not found at {}, attempting to build...",
-			lib_src.display()
+			"cargo:warning=Building Go static library for target {} (GOOS={}, GOARCH={})...",
+			target, goos, goarch
 		);
 
 		// On Windows, CGO requires a C compiler. Check if CGO is available.
@@ -35,7 +56,18 @@ fn main() {
 			.arg(&lib_src)
 			.arg("formatter.go")
 			.current_dir(&go_dir)
-			.env("CGO_ENABLED", "1");
+			.env("CGO_ENABLED", "1")
+			.env("GOOS", goos)
+			.env("GOARCH", goarch);
+
+		// Set cross-compiler for CGO based on target
+		if let Ok(cc) = env::var("CC") {
+			cmd.env("CC", cc);
+		} else if target.contains("aarch64-unknown-linux") {
+			cmd.env("CC", "aarch64-linux-gnu-gcc");
+		} else if target.contains("x86_64-unknown-linux") {
+			cmd.env("CC", "x86_64-linux-gnu-gcc");
+		}
 
 		// On Windows, use GCC for CGO (Go CGO doesn't work well with MSVC due to flag incompatibilities)
 		// The resulting .a library can still be linked by MSVC linker
@@ -72,8 +104,8 @@ fn main() {
 		}
 	}
 
-	// Copy the library to OUT_DIR for linking
-	let lib_dst = out_dir.join(lib_name);
+	// Copy the library to OUT_DIR for linking (always use libgoffi.a for linker)
+	let lib_dst = out_dir.join("libgoffi.a");
 	if lib_src.exists() {
 		fs::copy(&lib_src, &lib_dst).expect("Failed to copy static library");
 	}
