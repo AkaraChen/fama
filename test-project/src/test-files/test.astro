@@ -1,0 +1,52 @@
+---
+// Unformatted Astro file for testing fama
+const    title:string='Test Astro Page';
+const    items:Array<{name:string;description:string}>=[
+    {name:"Item 1",description:"Description for item 1"},
+    {name:"Item 2",description:"Description for item 2"},
+    {name:"Item 3",description:"Description for item 3"}
+];
+
+function    formatDate(date:Date):string{
+    return    date.toLocaleDateString();
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+</head>
+<body>
+    <div class="container">
+        <h1>{title}</h1>
+        <p>Date:{formatDate(new Date())}</p>
+        <ul>
+            {items.map((item)=>
+            <li>
+                <strong>{item.name}</strong>:{item.description}
+            </li>
+            )}
+        </ul>
+    </div>
+</body>
+</html>
+
+<style>
+.container    {
+    max-width:800px;
+    margin:0 auto;
+    padding:20px;
+}
+h1    {
+    color:#333;
+    border-bottom:2px solid #eee;
+    padding-bottom:10px;
+}
+li    {
+    margin-bottom:10px;
+    line-height:1.5;
+}
+</style>
