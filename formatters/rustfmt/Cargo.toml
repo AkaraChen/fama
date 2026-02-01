@@ -6,7 +6,7 @@ license.workspace = true
 
 [lib]
 name = "rustfmt"
-crate-type = ["rlib"]
+crate-type = [ "rlib" ]
 
 [dependencies]
 fama-common = { path = "../../common" }

@@ -1,15 +1,15 @@
 [workspace]
 members = [
-    "cli",
-    "common",
-    "formatters/biome",
-    "formatters/dprint",
-    "formatters/toml",
-    "formatters/rustfmt",
-    "formatters/python",
-    "formatters/lua",
-    "formatters/goffi",
-    "formatters/dockerfile",
+	"cli",
+	"common",
+	"formatters/biome",
+	"formatters/dprint",
+	"formatters/toml",
+	"formatters/rustfmt",
+	"formatters/python",
+	"formatters/lua",
+	"formatters/goffi",
+	"formatters/dockerfile",
 ]
 resolver = "2"
 

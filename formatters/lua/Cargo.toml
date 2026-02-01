@@ -6,7 +6,7 @@ license.workspace = true
 
 [lib]
 name = "stylua"
-crate-type = ["rlib"]
+crate-type = [ "rlib" ]
 
 [dependencies]
 stylua = "0.20"
