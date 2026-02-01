@@ -18,29 +18,48 @@ fn main() {
 	// Build the Go static library if it doesn't exist
 	if !lib_src.exists() {
 		println!(
-            "cargo:warning=Go static library not found at {}, attempting to build...",
-            lib_src.display()
-        );
+			"cargo:warning=Go static library not found at {}, attempting to build...",
+			lib_src.display()
+		);
 
-		let status = Command::new("go")
+		// On Windows, CGO requires a C compiler. Check if CGO is available.
+		#[cfg(target_os = "windows")]
+		{
+			println!("cargo:warning=Building Go CGO library on Windows - ensure MinGW-w64 or MSVC is installed");
+		}
+
+		let output = Command::new("go")
 			.arg("build")
 			.arg("-buildmode=c-archive")
 			.arg("-o")
 			.arg(&lib_src)
 			.arg("formatter.go")
 			.current_dir(&go_dir)
-			.status();
+			.env("CGO_ENABLED", "1")
+			.output();
 
-		match status {
-			Ok(s) if s.success() => {
+		match output {
+			Ok(o) if o.status.success() => {
 				println!("cargo:warning=Successfully built Go static library");
 			}
-			_ => {
+			Ok(o) => {
+				let stderr = String::from_utf8_lossy(&o.stderr);
+				let stdout = String::from_utf8_lossy(&o.stdout);
 				panic!(
-                    "Failed to build Go static library. Please run: cd {} && go build -buildmode=c-archive -o {} formatter.go",
-                    go_dir.display(),
-                    lib_name
-                );
+					"Failed to build Go static library.\nstdout: {}\nstderr: {}\nPlease run: cd {} && go build -buildmode=c-archive -o {} formatter.go",
+					stdout,
+					stderr,
+					go_dir.display(),
+					lib_name
+				);
+			}
+			Err(e) => {
+				panic!(
+					"Failed to execute Go build: {}\nPlease ensure Go is installed and in PATH.\nThen run: cd {} && go build -buildmode=c-archive -o {} formatter.go",
+					e,
+					go_dir.display(),
+					lib_name
+				);
 			}
 		}
 	}
