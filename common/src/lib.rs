@@ -1,9 +1,59 @@
 // fama-common - Shared types and utilities for fama formatters
 //
-// Provides common file type detection and shared enums used across
-// all formatter crates.
+// Provides common file type detection, format configuration, and shared
+// enums used across all formatter crates.
 
 use std::path::Path;
+
+/// Indent style for formatting
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum IndentStyle {
+    #[default]
+    Spaces,
+    Tabs,
+}
+
+/// Line ending style
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LineEnding {
+    #[default]
+    Lf,
+    Crlf,
+}
+
+/// Quote style for strings (JS/TS)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum QuoteStyle {
+    Single,
+    #[default]
+    Double,
+}
+
+/// Centralized format configuration
+///
+/// All formatters should use this config to ensure consistent formatting
+/// across the codebase. Use `FormatConfig::default()` for sensible defaults,
+/// or `FormatConfig::for_file_type()` for language-specific settings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FormatConfig {
+    pub indent_width: u8,
+    pub line_width: u16,
+    pub indent_style: IndentStyle,
+    pub line_ending: LineEnding,
+    pub quote_style: QuoteStyle,
+}
+
+impl Default for FormatConfig {
+    fn default() -> Self {
+        Self {
+            indent_width: 2,
+            line_width: 80,
+            indent_style: IndentStyle::Tabs,
+            line_ending: LineEnding::Lf,
+            quote_style: QuoteStyle::Double,
+        }
+    }
+}
 
 /// File type enum for language detection
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,5 +188,15 @@ mod tests {
     fn test_detect_unknown() {
         assert_eq!(detect_file_type("unknown.xyz"), FileType::Unknown);
         assert_eq!(detect_file_type("test.unknown"), FileType::Unknown);
+    }
+
+    #[test]
+    fn test_format_config_default() {
+        let config = FormatConfig::default();
+        assert_eq!(config.indent_width, 2);
+        assert_eq!(config.line_width, 80);
+        assert_eq!(config.indent_style, IndentStyle::Tabs);
+        assert_eq!(config.line_ending, LineEnding::Lf);
+        assert_eq!(config.quote_style, QuoteStyle::Double);
     }
 }

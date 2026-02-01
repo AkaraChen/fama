@@ -13,20 +13,33 @@ use biome_js_syntax::JsFileSource;
 use biome_html_parser::parse_html;
 use biome_js_parser::parse;
 
-use fama_common::FileType;
+use fama_common::{FileType, FormatConfig};
 
-/// Hard-coded formatting options
-const INDENT_WIDTH: u8 = 2;
-const LINE_WIDTH: u16 = 80;
+/// Convert fama_common config to biome indent style
+fn to_biome_indent_style(style: fama_common::IndentStyle) -> IndentStyle {
+    match style {
+        fama_common::IndentStyle::Spaces => IndentStyle::Space,
+        fama_common::IndentStyle::Tabs => IndentStyle::Tab,
+    }
+}
+
+/// Convert fama_common quote style to biome quote style
+fn to_biome_quote_style(style: fama_common::QuoteStyle) -> QuoteStyle {
+    match style {
+        fama_common::QuoteStyle::Single => QuoteStyle::Single,
+        fama_common::QuoteStyle::Double => QuoteStyle::Double,
+    }
+}
 
 /// Format JavaScript source code
 pub fn format_javascript(source: &str, _file_path: &str) -> Result<String, String> {
+    let config = FormatConfig::default();
     let source_type = JsFileSource::js_module();
     let options = JsFormatOptions::new(source_type)
-        .with_indent_style(IndentStyle::Space)
-        .with_indent_width(IndentWidth::try_from(INDENT_WIDTH).unwrap())
-        .with_line_width(LineWidth::try_from(LINE_WIDTH).unwrap())
-        .with_quote_style(QuoteStyle::Double);
+        .with_indent_style(to_biome_indent_style(config.indent_style))
+        .with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
+        .with_line_width(LineWidth::try_from(config.line_width).unwrap())
+        .with_quote_style(to_biome_quote_style(config.quote_style));
 
     let parsed = parse(source, source_type, Default::default());
 
@@ -47,12 +60,13 @@ pub fn format_javascript(source: &str, _file_path: &str) -> Result<String, Strin
 
 /// Format TypeScript source code
 pub fn format_typescript(source: &str, _file_path: &str) -> Result<String, String> {
+    let config = FormatConfig::default();
     let source_type = JsFileSource::ts();
     let options = JsFormatOptions::new(source_type)
-        .with_indent_style(IndentStyle::Space)
-        .with_indent_width(IndentWidth::try_from(INDENT_WIDTH).unwrap())
-        .with_line_width(LineWidth::try_from(LINE_WIDTH).unwrap())
-        .with_quote_style(QuoteStyle::Double);
+        .with_indent_style(to_biome_indent_style(config.indent_style))
+        .with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
+        .with_line_width(LineWidth::try_from(config.line_width).unwrap())
+        .with_quote_style(to_biome_quote_style(config.quote_style));
 
     let parsed = parse(source, source_type, Default::default());
 
@@ -73,12 +87,13 @@ pub fn format_typescript(source: &str, _file_path: &str) -> Result<String, Strin
 
 /// Format JSX source code
 pub fn format_jsx(source: &str, _file_path: &str) -> Result<String, String> {
+    let config = FormatConfig::default();
     let source_type = JsFileSource::jsx();
     let options = JsFormatOptions::new(source_type)
-        .with_indent_style(IndentStyle::Space)
-        .with_indent_width(IndentWidth::try_from(INDENT_WIDTH).unwrap())
-        .with_line_width(LineWidth::try_from(LINE_WIDTH).unwrap())
-        .with_quote_style(QuoteStyle::Double);
+        .with_indent_style(to_biome_indent_style(config.indent_style))
+        .with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
+        .with_line_width(LineWidth::try_from(config.line_width).unwrap())
+        .with_quote_style(to_biome_quote_style(config.quote_style));
 
     let parsed = parse(source, source_type, Default::default());
 
@@ -99,12 +114,13 @@ pub fn format_jsx(source: &str, _file_path: &str) -> Result<String, String> {
 
 /// Format TSX source code
 pub fn format_tsx(source: &str, _file_path: &str) -> Result<String, String> {
+    let config = FormatConfig::default();
     let source_type = JsFileSource::tsx();
     let options = JsFormatOptions::new(source_type)
-        .with_indent_style(IndentStyle::Space)
-        .with_indent_width(IndentWidth::try_from(INDENT_WIDTH).unwrap())
-        .with_line_width(LineWidth::try_from(LINE_WIDTH).unwrap())
-        .with_quote_style(QuoteStyle::Double);
+        .with_indent_style(to_biome_indent_style(config.indent_style))
+        .with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
+        .with_line_width(LineWidth::try_from(config.line_width).unwrap())
+        .with_quote_style(to_biome_quote_style(config.quote_style));
 
     let parsed = parse(source, source_type, Default::default());
 
@@ -125,10 +141,11 @@ pub fn format_tsx(source: &str, _file_path: &str) -> Result<String, String> {
 
 /// Format HTML source code
 pub fn format_html(source: &str, _file_path: &str) -> Result<String, String> {
+    let config = FormatConfig::default();
     let options = biome_html_formatter::context::HtmlFormatOptions::default()
-        .with_indent_style(IndentStyle::Space)
-        .with_indent_width(IndentWidth::try_from(INDENT_WIDTH).unwrap())
-        .with_line_width(LineWidth::try_from(LINE_WIDTH).unwrap());
+        .with_indent_style(to_biome_indent_style(config.indent_style))
+        .with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
+        .with_line_width(LineWidth::try_from(config.line_width).unwrap());
 
     let parsed = parse_html(source, Default::default());
 

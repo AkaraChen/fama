@@ -5,16 +5,22 @@
 
 #![allow(clippy::all)]
 
-use fama_common::FileType;
+use fama_common::{FileType, FormatConfig, LineEnding};
 
 /// Format Markdown source code with specified options
 pub fn format_markdown(source: &str, _file_path: &str) -> Result<String, String> {
     use dprint_core::configuration::NewLineKind;
     use dprint_plugin_markdown::configuration::*;
 
+    let fmt_config = FormatConfig::default();
+    let new_line_kind = match fmt_config.line_ending {
+        LineEnding::Lf => NewLineKind::LineFeed,
+        LineEnding::Crlf => NewLineKind::CarriageReturnLineFeed,
+    };
+
     let config = Configuration {
-        line_width: 80,
-        new_line_kind: NewLineKind::LineFeed,
+        line_width: fmt_config.line_width as u32,
+        new_line_kind,
         text_wrap: TextWrap::Maintain,
         emphasis_kind: EmphasisKind::Underscores,
         strong_kind: StrongKind::Asterisks,
@@ -45,11 +51,17 @@ pub fn format_markdown(source: &str, _file_path: &str) -> Result<String, String>
 pub fn format_yaml(source: &str, _file_path: &str) -> Result<String, String> {
     use pretty_yaml::config::{FormatOptions, LanguageOptions, LayoutOptions, LineBreak};
 
+    let fmt_config = FormatConfig::default();
+    let line_break = match fmt_config.line_ending {
+        LineEnding::Lf => LineBreak::Lf,
+        LineEnding::Crlf => LineBreak::Crlf,
+    };
+
     let config = FormatOptions {
         layout: LayoutOptions {
-            print_width: 80,
-            indent_width: 2,
-            line_break: LineBreak::Lf,
+            print_width: fmt_config.line_width as usize,
+            indent_width: fmt_config.indent_width as usize,
+            line_break,
         },
         language: LanguageOptions::default(),
     };
@@ -57,36 +69,47 @@ pub fn format_yaml(source: &str, _file_path: &str) -> Result<String, String> {
     pretty_yaml::format_text(source, &config).map_err(|e| format!("YAML formatting error: {}", e))
 }
 
+/// Create Malva options from format config
+fn malva_options() -> malva::config::FormatOptions {
+    let fmt_config = FormatConfig::default();
+    let line_break = match fmt_config.line_ending {
+        LineEnding::Lf => malva::config::LineBreak::Lf,
+        LineEnding::Crlf => malva::config::LineBreak::Crlf,
+    };
+
+    malva::config::FormatOptions {
+        layout: malva::config::LayoutOptions {
+            print_width: fmt_config.line_width as usize,
+            use_tabs: matches!(fmt_config.indent_style, fama_common::IndentStyle::Tabs),
+            indent_width: fmt_config.indent_width as usize,
+            line_break,
+        },
+        ..Default::default()
+    }
+}
+
 /// Format CSS source code using Malva formatter
 pub fn format_css(source: &str, _file_path: &str) -> Result<String, String> {
-    use malva::{config::FormatOptions, format_text, Syntax};
-
-    let options = FormatOptions::default();
-    format_text(source, Syntax::Css, &options).map_err(|e| format!("CSS formatting error: {}", e))
+    use malva::{format_text, Syntax};
+    format_text(source, Syntax::Css, &malva_options()).map_err(|e| format!("CSS formatting error: {}", e))
 }
 
 /// Format SCSS source code using Malva formatter
 pub fn format_scss(source: &str, _file_path: &str) -> Result<String, String> {
-    use malva::{config::FormatOptions, format_text, Syntax};
-
-    let options = FormatOptions::default();
-    format_text(source, Syntax::Scss, &options).map_err(|e| format!("SCSS formatting error: {}", e))
+    use malva::{format_text, Syntax};
+    format_text(source, Syntax::Scss, &malva_options()).map_err(|e| format!("SCSS formatting error: {}", e))
 }
 
 /// Format LESS source code using Malva formatter
 pub fn format_less(source: &str, _file_path: &str) -> Result<String, String> {
-    use malva::{config::FormatOptions, format_text, Syntax};
-
-    let options = FormatOptions::default();
-    format_text(source, Syntax::Less, &options).map_err(|e| format!("LESS formatting error: {}", e))
+    use malva::{format_text, Syntax};
+    format_text(source, Syntax::Less, &malva_options()).map_err(|e| format!("LESS formatting error: {}", e))
 }
 
 /// Format SASS source code using Malva formatter
 pub fn format_sass(source: &str, _file_path: &str) -> Result<String, String> {
-    use malva::{config::FormatOptions, format_text, Syntax};
-
-    let options = FormatOptions::default();
-    format_text(source, Syntax::Sass, &options).map_err(|e| format!("SASS formatting error: {}", e))
+    use malva::{format_text, Syntax};
+    format_text(source, Syntax::Sass, &malva_options()).map_err(|e| format!("SASS formatting error: {}", e))
 }
 
 /// Format a file based on its file type

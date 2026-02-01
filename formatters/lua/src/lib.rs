@@ -1,8 +1,8 @@
 // lua-formatter - Lua code formatter using StyLua
 //
 // Provides Lua code formatting using the stylua crate.
-// Uses 2-space indentation (Lua convention).
 
+use fama_common::{FormatConfig, IndentStyle, LineEnding};
 use stylua_lib::{format_code, Config, IndentType, LineEndings, OutputVerification};
 
 /// Format Lua source code using StyLua
@@ -15,15 +15,26 @@ use stylua_lib::{format_code, Config, IndentType, LineEndings, OutputVerificatio
 /// * `Ok(String)` - Formatted Lua code
 /// * `Err(String)` - Error message if formatting fails
 pub fn format_lua(source: &str, _file_path: &str) -> Result<String, String> {
-    // Configure StyLua with Lua conventions
+    let fmt_config = FormatConfig::default();
+
+    let indent_type = match fmt_config.indent_style {
+        IndentStyle::Spaces => IndentType::Spaces,
+        IndentStyle::Tabs => IndentType::Tabs,
+    };
+
+    let line_endings = match fmt_config.line_ending {
+        LineEnding::Lf => LineEndings::Unix,
+        LineEnding::Crlf => LineEndings::Windows,
+    };
+
     let config = Config {
-        indent_type: IndentType::Spaces,
-        indent_width: 2,
-        line_endings: LineEndings::Unix,
+        indent_type,
+        indent_width: fmt_config.indent_width as usize,
+        line_endings,
+        column_width: fmt_config.line_width as usize,
         ..Config::default()
     };
 
-    // Format the code
     format_code(source, config, None, OutputVerification::None)
         .map_err(|e| format!("StyLua error: {}", e))
 }
