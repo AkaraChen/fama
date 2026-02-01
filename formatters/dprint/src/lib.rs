@@ -91,25 +91,29 @@ fn malva_options() -> malva::config::FormatOptions {
 /// Format CSS source code using Malva formatter
 pub fn format_css(source: &str, _file_path: &str) -> Result<String, String> {
     use malva::{format_text, Syntax};
-    format_text(source, Syntax::Css, &malva_options()).map_err(|e| format!("CSS formatting error: {}", e))
+    format_text(source, Syntax::Css, &malva_options())
+        .map_err(|e| format!("CSS formatting error: {}", e))
 }
 
 /// Format SCSS source code using Malva formatter
 pub fn format_scss(source: &str, _file_path: &str) -> Result<String, String> {
     use malva::{format_text, Syntax};
-    format_text(source, Syntax::Scss, &malva_options()).map_err(|e| format!("SCSS formatting error: {}", e))
+    format_text(source, Syntax::Scss, &malva_options())
+        .map_err(|e| format!("SCSS formatting error: {}", e))
 }
 
 /// Format LESS source code using Malva formatter
 pub fn format_less(source: &str, _file_path: &str) -> Result<String, String> {
     use malva::{format_text, Syntax};
-    format_text(source, Syntax::Less, &malva_options()).map_err(|e| format!("LESS formatting error: {}", e))
+    format_text(source, Syntax::Less, &malva_options())
+        .map_err(|e| format!("LESS formatting error: {}", e))
 }
 
 /// Format SASS source code using Malva formatter
 pub fn format_sass(source: &str, _file_path: &str) -> Result<String, String> {
     use malva::{format_text, Syntax};
-    format_text(source, Syntax::Sass, &malva_options()).map_err(|e| format!("SASS formatting error: {}", e))
+    format_text(source, Syntax::Sass, &malva_options())
+        .map_err(|e| format!("SASS formatting error: {}", e))
 }
 
 /// Format a file based on its file type

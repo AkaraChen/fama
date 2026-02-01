@@ -199,7 +199,10 @@ mod tests {
         assert_eq!(detect_file_type("Dockerfile.dev"), FileType::Dockerfile);
         assert_eq!(detect_file_type("Dockerfile.prod"), FileType::Dockerfile);
         assert_eq!(detect_file_type("path/to/Dockerfile"), FileType::Dockerfile);
-        assert_eq!(detect_file_type("path/to/Dockerfile.test"), FileType::Dockerfile);
+        assert_eq!(
+            detect_file_type("path/to/Dockerfile.test"),
+            FileType::Dockerfile
+        );
     }
 
     #[test]

@@ -3,8 +3,8 @@
 // Provides Python code formatting using the ruff formatter library directly.
 
 use fama_common::{FormatConfig, IndentStyle, LineEnding};
-use ruff_formatter::{IndentStyle as RuffIndentStyle, IndentWidth, LineWidth};
 use ruff_formatter::printer::LineEnding as RuffLineEnding;
+use ruff_formatter::{IndentStyle as RuffIndentStyle, IndentWidth, LineWidth};
 use ruff_python_formatter::{format_module_source, PyFormatOptions};
 
 /// Format Python source code using ruff formatter

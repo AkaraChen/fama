@@ -2,10 +2,10 @@
 //
 // Provides Dockerfile formatting using the dprint dockerfile plugin.
 
-use fama_common::{FormatConfig, LineEnding};
 use dprint_core::configuration::NewLineKind;
 use dprint_plugin_dockerfile::configuration::ConfigurationBuilder;
 use dprint_plugin_dockerfile::format_text;
+use fama_common::{FormatConfig, LineEnding};
 use std::path::PathBuf;
 
 /// Format Dockerfile source code
