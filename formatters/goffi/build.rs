@@ -37,10 +37,11 @@ fn main() {
 			.current_dir(&go_dir)
 			.env("CGO_ENABLED", "1");
 
-		// On Windows, use MSVC (cl.exe) for CGO to match Rust's MSVC toolchain
+		// On Windows, use GCC for CGO (Go CGO doesn't work well with MSVC due to flag incompatibilities)
+		// The resulting .a library can still be linked by MSVC linker
 		#[cfg(target_os = "windows")]
 		{
-			cmd.env("CC", "cl");
+			cmd.env("CC", "gcc");
 		}
 
 		let output = cmd.output();

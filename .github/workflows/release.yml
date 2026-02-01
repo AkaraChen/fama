@@ -29,7 +29,7 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             archive: tar.gz
-          - target: x86_64-pc-windows-msvc
+          - target: x86_64-pc-windows-gnu
             os: windows-latest
             archive: zip
 
@@ -45,10 +45,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
-
-      - name: Setup MSVC (Windows)
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install cross-compilation tools (Linux ARM64)
         if: matrix.cross
