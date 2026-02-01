@@ -6,8 +6,9 @@
 #![allow(clippy::all)]
 
 // Biome formatter imports
-use biome_formatter::{IndentStyle, IndentWidth, LineWidth, QuoteStyle};
-use biome_js_formatter::context::JsFormatOptions;
+use biome_formatter::{BracketSpacing, IndentStyle, IndentWidth, LineWidth, QuoteStyle};
+use biome_js_formatter::context::trailing_commas::TrailingCommas;
+use biome_js_formatter::context::{JsFormatOptions, Semicolons};
 use biome_js_syntax::JsFileSource;
 
 use biome_html_parser::parse_html;
@@ -31,6 +32,22 @@ fn to_biome_quote_style(style: fama_common::QuoteStyle) -> QuoteStyle {
     }
 }
 
+/// Convert fama_common trailing comma to biome trailing commas
+fn to_biome_trailing_commas(style: fama_common::TrailingComma) -> TrailingCommas {
+    match style {
+        fama_common::TrailingComma::All => TrailingCommas::All,
+        fama_common::TrailingComma::None => TrailingCommas::None,
+    }
+}
+
+/// Convert fama_common semicolons to biome semicolons
+fn to_biome_semicolons(style: fama_common::Semicolons) -> Semicolons {
+    match style {
+        fama_common::Semicolons::Always => Semicolons::Always,
+        fama_common::Semicolons::AsNeeded => Semicolons::AsNeeded,
+    }
+}
+
 /// Format JavaScript source code
 pub fn format_javascript(source: &str, _file_path: &str) -> Result<String, String> {
     let config = FormatConfig::default();
@@ -39,7 +56,10 @@ pub fn format_javascript(source: &str, _file_path: &str) -> Result<String, Strin
         .with_indent_style(to_biome_indent_style(config.indent_style))
         .with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
         .with_line_width(LineWidth::try_from(config.line_width).unwrap())
-        .with_quote_style(to_biome_quote_style(config.quote_style));
+        .with_quote_style(to_biome_quote_style(config.quote_style))
+        .with_trailing_commas(to_biome_trailing_commas(config.trailing_comma))
+        .with_semicolons(to_biome_semicolons(config.semicolons))
+        .with_bracket_spacing(BracketSpacing::from(config.bracket_spacing));
 
     let parsed = parse(source, source_type, Default::default());
 
@@ -66,7 +86,10 @@ pub fn format_typescript(source: &str, _file_path: &str) -> Result<String, Strin
         .with_indent_style(to_biome_indent_style(config.indent_style))
         .with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
         .with_line_width(LineWidth::try_from(config.line_width).unwrap())
-        .with_quote_style(to_biome_quote_style(config.quote_style));
+        .with_quote_style(to_biome_quote_style(config.quote_style))
+        .with_trailing_commas(to_biome_trailing_commas(config.trailing_comma))
+        .with_semicolons(to_biome_semicolons(config.semicolons))
+        .with_bracket_spacing(BracketSpacing::from(config.bracket_spacing));
 
     let parsed = parse(source, source_type, Default::default());
 
@@ -93,7 +116,10 @@ pub fn format_jsx(source: &str, _file_path: &str) -> Result<String, String> {
         .with_indent_style(to_biome_indent_style(config.indent_style))
         .with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
         .with_line_width(LineWidth::try_from(config.line_width).unwrap())
-        .with_quote_style(to_biome_quote_style(config.quote_style));
+        .with_quote_style(to_biome_quote_style(config.quote_style))
+        .with_trailing_commas(to_biome_trailing_commas(config.trailing_comma))
+        .with_semicolons(to_biome_semicolons(config.semicolons))
+        .with_bracket_spacing(BracketSpacing::from(config.bracket_spacing));
 
     let parsed = parse(source, source_type, Default::default());
 
@@ -120,7 +146,10 @@ pub fn format_tsx(source: &str, _file_path: &str) -> Result<String, String> {
         .with_indent_style(to_biome_indent_style(config.indent_style))
         .with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
         .with_line_width(LineWidth::try_from(config.line_width).unwrap())
-        .with_quote_style(to_biome_quote_style(config.quote_style));
+        .with_quote_style(to_biome_quote_style(config.quote_style))
+        .with_trailing_commas(to_biome_trailing_commas(config.trailing_comma))
+        .with_semicolons(to_biome_semicolons(config.semicolons))
+        .with_bracket_spacing(BracketSpacing::from(config.bracket_spacing));
 
     let parsed = parse(source, source_type, Default::default());
 

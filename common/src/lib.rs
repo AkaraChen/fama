@@ -2,14 +2,19 @@
 //
 // Provides common file type detection, format configuration, and shared
 // enums used across all formatter crates.
+//
+// Configuration follows go-fmt style defaults:
+// - Tabs for indentation
+// - 80 character line width
+// - LF line endings
 
 use std::path::Path;
 
 /// Indent style for formatting
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum IndentStyle {
-    #[default]
     Spaces,
+    #[default]
     Tabs,
 }
 
@@ -21,7 +26,7 @@ pub enum LineEnding {
     Crlf,
 }
 
-/// Quote style for strings (JS/TS)
+/// Quote style for strings
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum QuoteStyle {
     Single,
@@ -29,28 +34,84 @@ pub enum QuoteStyle {
     Double,
 }
 
+/// Trailing comma style (JS/TS/Python)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TrailingComma {
+    /// Add trailing commas everywhere (default)
+    #[default]
+    All,
+    /// Never add trailing commas
+    None,
+}
+
+/// Semicolon style (JS/TS)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Semicolons {
+    /// Always add semicolons (default)
+    #[default]
+    Always,
+    /// Only add semicolons when necessary (ASI)
+    AsNeeded,
+}
+
 /// Centralized format configuration
 ///
 /// All formatters should use this config to ensure consistent formatting
-/// across the codebase. Use `FormatConfig::default()` for sensible defaults,
-/// or `FormatConfig::for_file_type()` for language-specific settings.
+/// across the codebase. Defaults follow go-fmt style:
+/// - Tabs for indentation
+/// - 80 character line width
+/// - LF line endings
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FormatConfig {
-    pub indent_width: u8,
-    pub line_width: u16,
+    // === Core options (all formatters) ===
+    /// Indent style: tabs or spaces (default: Tabs)
     pub indent_style: IndentStyle,
+    /// Indent width when using spaces (default: 4)
+    pub indent_width: u8,
+    /// Maximum line width (default: 80)
+    pub line_width: u16,
+    /// Line ending style (default: Lf)
     pub line_ending: LineEnding,
+
+    // === String options (JS/TS/CSS/Lua) ===
+    /// Quote style for strings (default: Double)
     pub quote_style: QuoteStyle,
+
+    // === JS/TS options (Biome) ===
+    /// Trailing comma style (default: All)
+    pub trailing_comma: TrailingComma,
+    /// Semicolon style (default: Always)
+    pub semicolons: Semicolons,
+    /// Spaces inside brackets in objects (default: true)
+    pub bracket_spacing: bool,
+
+    // === Shell options (shfmt) ===
+    /// Binary operators may start a line (default: false)
+    pub binary_next_line: bool,
+    /// Indent switch cases (default: false)
+    pub switch_case_indent: bool,
+    /// Space after redirect operators (default: false)
+    pub space_redirects: bool,
 }
 
 impl Default for FormatConfig {
     fn default() -> Self {
         Self {
-            indent_width: 2,
-            line_width: 80,
+            // Core - go-fmt style
             indent_style: IndentStyle::Tabs,
+            indent_width: 4,
+            line_width: 80,
             line_ending: LineEnding::Lf,
+            // Strings
             quote_style: QuoteStyle::Double,
+            // JS/TS
+            trailing_comma: TrailingComma::All,
+            semicolons: Semicolons::Always,
+            bracket_spacing: true,
+            // Shell
+            binary_next_line: false,
+            switch_case_indent: false,
+            space_redirects: false,
         }
     }
 }
@@ -214,10 +275,20 @@ mod tests {
     #[test]
     fn test_format_config_default() {
         let config = FormatConfig::default();
-        assert_eq!(config.indent_width, 2);
-        assert_eq!(config.line_width, 80);
+        // Core options - go-fmt style
         assert_eq!(config.indent_style, IndentStyle::Tabs);
+        assert_eq!(config.indent_width, 4);
+        assert_eq!(config.line_width, 80);
         assert_eq!(config.line_ending, LineEnding::Lf);
+        // String options
         assert_eq!(config.quote_style, QuoteStyle::Double);
+        // JS/TS options
+        assert_eq!(config.trailing_comma, TrailingComma::All);
+        assert_eq!(config.semicolons, Semicolons::Always);
+        assert!(config.bracket_spacing);
+        // Shell options
+        assert!(!config.binary_next_line);
+        assert!(!config.switch_case_indent);
+        assert!(!config.space_redirects);
     }
 }

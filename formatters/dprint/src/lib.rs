@@ -5,7 +5,7 @@
 
 #![allow(clippy::all)]
 
-use fama_common::{FileType, FormatConfig, LineEnding};
+use fama_common::{FileType, FormatConfig, IndentStyle, LineEnding, QuoteStyle};
 
 /// Format Markdown source code with specified options
 pub fn format_markdown(source: &str, _file_path: &str) -> Result<String, String> {
@@ -71,20 +71,31 @@ pub fn format_yaml(source: &str, _file_path: &str) -> Result<String, String> {
 
 /// Create Malva options from format config
 fn malva_options() -> malva::config::FormatOptions {
+    use malva::config::{LanguageOptions, LayoutOptions, Quotes};
+
     let fmt_config = FormatConfig::default();
+
     let line_break = match fmt_config.line_ending {
         LineEnding::Lf => malva::config::LineBreak::Lf,
         LineEnding::Crlf => malva::config::LineBreak::Crlf,
     };
 
+    let quotes = match fmt_config.quote_style {
+        QuoteStyle::Single => Quotes::AlwaysSingle,
+        QuoteStyle::Double => Quotes::AlwaysDouble,
+    };
+
     malva::config::FormatOptions {
-        layout: malva::config::LayoutOptions {
+        layout: LayoutOptions {
             print_width: fmt_config.line_width as usize,
-            use_tabs: matches!(fmt_config.indent_style, fama_common::IndentStyle::Tabs),
+            use_tabs: matches!(fmt_config.indent_style, IndentStyle::Tabs),
             indent_width: fmt_config.indent_width as usize,
             line_break,
         },
-        ..Default::default()
+        language: LanguageOptions {
+            quotes,
+            ..Default::default()
+        },
     }
 }
 
