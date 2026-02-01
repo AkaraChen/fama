@@ -8,6 +8,7 @@ members = [
     "formatters/python",
     "formatters/lua",
     "formatters/shfmt",
+    "formatters/dockerfile",
 ]
 resolver = "2"
 

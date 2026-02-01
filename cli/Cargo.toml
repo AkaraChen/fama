@@ -11,6 +11,7 @@ rustfmt = { path = "../formatters/rustfmt" }
 ruff = { path = "../formatters/python" }
 stylua = { path = "../formatters/lua", package = "stylua" }
 shfmt = { path = "../formatters/shfmt", package = "shfmt" }
+dockerfile = { path = "../formatters/dockerfile" }
 fama-common = { path = "../common" }
 ignore = "0.4"
 glob = "0.3"

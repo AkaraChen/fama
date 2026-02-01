@@ -76,6 +76,7 @@ pub enum FileType {
     Python,
     Lua,
     Shell,
+    Dockerfile,
     Unknown,
 }
 
@@ -101,7 +102,15 @@ pub fn detect_file_type(path: &str) -> FileType {
         Some("py") => FileType::Python,
         Some("lua") => FileType::Lua,
         Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
-        _ => FileType::Unknown,
+        _ => {
+            // Check for Dockerfile by filename (Dockerfile or Dockerfile.*)
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if name == "Dockerfile" || name.starts_with("Dockerfile.") {
+                    return FileType::Dockerfile;
+                }
+            }
+            FileType::Unknown
+        }
     }
 }
 
@@ -182,6 +191,15 @@ mod tests {
         assert_eq!(detect_file_type("test.sh"), FileType::Shell);
         assert_eq!(detect_file_type("test.bash"), FileType::Shell);
         assert_eq!(detect_file_type("test.zsh"), FileType::Shell);
+    }
+
+    #[test]
+    fn test_detect_dockerfile() {
+        assert_eq!(detect_file_type("Dockerfile"), FileType::Dockerfile);
+        assert_eq!(detect_file_type("Dockerfile.dev"), FileType::Dockerfile);
+        assert_eq!(detect_file_type("Dockerfile.prod"), FileType::Dockerfile);
+        assert_eq!(detect_file_type("path/to/Dockerfile"), FileType::Dockerfile);
+        assert_eq!(detect_file_type("path/to/Dockerfile.test"), FileType::Dockerfile);
     }
 
     #[test]
