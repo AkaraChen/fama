@@ -104,14 +104,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "biome-binding"
+name = "biome-web-formatter"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "biome_console",
- "biome_css_formatter",
- "biome_css_parser",
- "biome_css_syntax",
  "biome_diagnostics",
  "biome_formatter",
  "biome_html_formatter",
@@ -124,10 +120,7 @@ dependencies = [
  "biome_rowan",
  "biome_text_size",
  "biome_unicode_table",
- "dprint-core",
- "dprint-plugin-markdown",
- "serde_json",
- "serde_yaml",
+ "fama-common",
 ]
 
 [[package]]
@@ -165,54 +158,6 @@ dependencies = [
  "termcolor",
  "unicode-segmentation",
  "unicode-width 0.1.14",
-]
-
-[[package]]
-name = "biome_css_factory"
-version = "0.5.7"
-source = "git+https://github.com/biomejs/biome?rev=871b45e66824dea905579d5270911cfed0254433#871b45e66824dea905579d5270911cfed0254433"
-dependencies = [
- "biome_css_syntax",
- "biome_rowan",
-]
-
-[[package]]
-name = "biome_css_formatter"
-version = "0.5.7"
-source = "git+https://github.com/biomejs/biome?rev=871b45e66824dea905579d5270911cfed0254433#871b45e66824dea905579d5270911cfed0254433"
-dependencies = [
- "biome_css_syntax",
- "biome_diagnostics",
- "biome_formatter",
- "biome_rowan",
- "biome_string_case",
- "biome_suppression",
-]
-
-[[package]]
-name = "biome_css_parser"
-version = "0.5.7"
-source = "git+https://github.com/biomejs/biome?rev=871b45e66824dea905579d5270911cfed0254433#871b45e66824dea905579d5270911cfed0254433"
-dependencies = [
- "biome_console",
- "biome_css_factory",
- "biome_css_syntax",
- "biome_diagnostics",
- "biome_parser",
- "biome_rowan",
- "biome_unicode_table",
- "tracing",
-]
-
-[[package]]
-name = "biome_css_syntax"
-version = "0.5.7"
-source = "git+https://github.com/biomejs/biome?rev=871b45e66824dea905579d5270911cfed0254433#871b45e66824dea905579d5270911cfed0254433"
-dependencies = [
- "biome_rowan",
- "biome_string_case",
- "camino",
- "serde",
 ]
 
 [[package]]
@@ -295,7 +240,7 @@ dependencies = [
  "cfg-if",
  "drop_bomb",
  "indexmap",
- "rustc-hash",
+ "rustc-hash 2.1.1",
  "unicode-width 0.1.14",
 ]
 
@@ -394,7 +339,7 @@ dependencies = [
  "drop_bomb",
  "enumflags2",
  "indexmap",
- "rustc-hash",
+ "rustc-hash 2.1.1",
  "serde_json",
  "smallvec",
  "tracing",
@@ -483,7 +428,7 @@ dependencies = [
  "biome_text_edit",
  "biome_text_size",
  "hashbrown 0.15.5",
- "rustc-hash",
+ "rustc-hash 2.1.1",
  "serde",
 ]
 
@@ -613,6 +558,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
+name = "countme"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -668,7 +619,7 @@ dependencies = [
  "bumpalo",
  "hashbrown 0.15.5",
  "indexmap",
- "rustc-hash",
+ "rustc-hash 2.1.1",
  "serde",
  "unicode-width 0.2.2",
 ]
@@ -681,6 +632,18 @@ checksum = "1675ad2b358481f3cc46202040d64ac7a36c4ade414a696df32e0e45421a6e9f"
 dependencies = [
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "dprint-formatter"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dprint-core",
+ "dprint-plugin-markdown",
+ "fama-common",
+ "malva",
+ "pretty_yaml",
 ]
 
 [[package]]
@@ -703,6 +666,12 @@ name = "drop_bomb"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9bda8e21c04aca2ae33ffc2fd8c23134f3cac46db123ba97bd9d3f3b8a4a85e1"
+
+[[package]]
+name = "either"
+version = "1.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
 name = "enumflags2"
@@ -746,11 +715,19 @@ name = "fama"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "biome-binding",
+ "biome-web-formatter",
  "clap",
+ "dprint-formatter",
+ "fama-common",
  "glob",
  "ignore",
+ "ruff-formatter",
+ "rust-formatter",
 ]
+
+[[package]]
+name = "fama-common"
+version = "0.1.0"
 
 [[package]]
 name = "foldhash"
@@ -793,6 +770,12 @@ dependencies = [
  "regex-automata",
  "regex-syntax",
 ]
+
+[[package]]
+name = "hashbrown"
+version = "0.14.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 
 [[package]]
 name = "hashbrown"
@@ -852,6 +835,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -884,6 +876,19 @@ name = "log"
 version = "0.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
+
+[[package]]
+name = "malva"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "484beda6e5d775ed06a8ec0fce79e51d39f49d834ed2a29da3f437079321804f"
+dependencies = [
+ "aho-corasick",
+ "itertools",
+ "memchr",
+ "raffia",
+ "tiny_pretty",
+]
 
 [[package]]
 name = "memchr"
@@ -932,6 +937,17 @@ name = "pin-project-lite"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
+
+[[package]]
+name = "pretty_yaml"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f5db2b0044c0dae209c173c6049f210c9449092b07304c9c8b8d555c606e93e"
+dependencies = [
+ "rowan",
+ "tiny_pretty",
+ "yaml_parser",
+]
 
 [[package]]
 name = "prettyplease"
@@ -994,6 +1010,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "raffia"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fffe6643ba09b12af3816c6d3687d8c16c8a306bdbf60e2804b4bbd2c1f5447e"
+dependencies = [
+ "raffia_macro",
+ "smallvec",
+]
+
+[[package]]
+name = "raffia_macro"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fdb50eb5bf734fa5a770680a61876a6ec77b99c1e0e52d1f18ad6ebfa85759f"
+dependencies = [
+ "heck",
+ "quote",
+ "syn 2.0.114",
+]
+
+[[package]]
 name = "redox_users"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1034,10 +1071,49 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
+name = "rowan"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "417a3a9f582e349834051b8a10c8d71ca88da4211e4093528e36b9845f6b5f21"
+dependencies = [
+ "countme",
+ "hashbrown 0.14.5",
+ "rustc-hash 1.1.0",
+ "text-size",
+]
+
+[[package]]
+name = "ruff-formatter"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "rust-format"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60e7c00b6c3bf5e38a880eec01d7e829d12ca682079f8238a464def3c4b31627"
+
+[[package]]
+name = "rust-formatter"
+version = "0.1.0"
+dependencies = [
+ "fama-common",
+ "rust-format",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b50b8869d9fc858ce7266cce0194bd74df58b9d0e3f6df3a9fc8eb470d95c09d"
+
+[[package]]
+name = "rustc-hash"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc-hash"
@@ -1057,12 +1133,6 @@ dependencies = [
  "linux-raw-sys",
  "windows-sys 0.61.2",
 ]
-
-[[package]]
-name = "ryu"
-version = "1.0.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a50f4cf475b65d88e057964e0e9bb1f0aa9bbb2036dc65c64596b42932536984"
 
 [[package]]
 name = "same-file"
@@ -1114,19 +1184,6 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
-]
-
-[[package]]
-name = "serde_yaml"
-version = "0.9.34+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
-dependencies = [
- "indexmap",
- "itoa",
- "ryu",
- "serde",
- "unsafe-libyaml",
 ]
 
 [[package]]
@@ -1196,6 +1253,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "text-size"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f18aa187839b2bdb1ad2fa35ead8c4c2976b64e4363c386d45ac0f7ee85c9233"
+
+[[package]]
 name = "thiserror"
 version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1214,6 +1277,12 @@ dependencies = [
  "quote",
  "syn 2.0.114",
 ]
+
+[[package]]
+name = "tiny_pretty"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "650d82e943da333637be9f1567d33d605e76810a26464edfd7ae74f7ef181e95"
 
 [[package]]
 name = "tracing"
@@ -1281,12 +1350,6 @@ name = "unicode-width"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
-
-[[package]]
-name = "unsafe-libyaml"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "utf8parse"
@@ -1407,6 +1470,25 @@ name = "windows_x86_64_msvc"
 version = "0.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
+
+[[package]]
+name = "winnow"
+version = "0.7.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a5364e9d77fcdeeaa6062ced926ee3381faa2ee02d3eb83a5c27a8825540829"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "yaml_parser"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71ebb04c72edf699612d543f6c421142527b85ac180156017fa26be49dc0762f"
+dependencies = [
+ "rowan",
+ "winnow",
+]
 
 [[package]]
 name = "zmij"

@@ -1,6 +1,9 @@
 [workspace]
-members = ["fama", "biome-binding"]
+members = ["fama", "fama-common", "biome-web-formatter", "dprint-formatter", "rust-formatter", "ruff-formatter"]
 resolver = "2"
+
+[workspace.dependencies]
+# For workspace members that reference each other, use path dependencies
 
 [workspace.package]
 version = "0.1.0"

@@ -5,7 +5,11 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-biome-binding = { path = "../biome-binding" }
+biome_web_formatter = { path = "../biome-web-formatter", package = "biome-web-formatter" }
+dprint-formatter = { path = "../dprint-formatter" }
+rust-formatter = { path = "../rust-formatter" }
+ruff-formatter = { path = "../ruff-formatter" }
+fama-common = { path = "../fama-common" }
 ignore = "0.4"
 glob = "0.3"
 clap = { version = "4.5", features = ["derive"] }

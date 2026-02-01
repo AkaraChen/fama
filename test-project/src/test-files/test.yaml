@@ -3,9 +3,9 @@ author:
   name: Test Author
 config:
   features:
-  - hotReload
-  - jsxSupport
-  - typeChecking
+    - hotReload
+    - jsxSupport
+    - typeChecking
   host: localhost
   port: 3000
 database:
@@ -21,8 +21,8 @@ dependencies:
   vue: ^3.4.0
 description: A    test project for fama formatters
 devDependencies:
-  '@vitejs/plugin-vue': ^5.0.0
-  '@vitejs/plugin-vue-jsx': ^4.0.0
+  "@vitejs/plugin-vue": ^5.0.0
+  "@vitejs/plugin-vue-jsx": ^4.0.0
 name: test-project
 scripts:
   build: vite build

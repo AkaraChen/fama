@@ -1,6 +1,7 @@
 mod discovery;
 
 use clap::Parser;
+use fama_common;
 use std::fs;
 
 #[derive(Parser)]
@@ -51,19 +52,39 @@ fn format_files(pattern: &str) -> anyhow::Result<()> {
     }
 
     // Print results
-    println!("Formatted {} files, {} unchanged, {} errors", formatted_count, unchanged_count, error_count);
+    println!(
+        "Formatted {} files, {} unchanged, {} errors",
+        formatted_count, unchanged_count, error_count
+    );
     Ok(())
 }
 
 fn format_file(file_path: &std::path::PathBuf) -> anyhow::Result<bool> {
     // Read file content
     let content = fs::read_to_string(file_path)?;
+    let path_str = file_path.to_str().unwrap_or("");
 
-    // Format using biome-binding's format_file function
-    let formatted_content = biome_binding::format_file(
-        &content,
-        file_path.to_str().unwrap_or("")
-    ).map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?;
+    // Detect file type using fama-common
+    let file_type = fama_common::detect_file_type(path_str);
+
+    // Route to appropriate formatter based on file type
+    let formatted_content = match file_type {
+        fama_common::FileType::Rust => {
+            // Use rust-formatter for Rust files
+            rust_formatter::format_rust(&content, path_str)
+                .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
+        }
+        fama_common::FileType::Python => {
+            // Use ruff-formatter for Python files
+            ruff_formatter::format_python(&content, path_str)
+                .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
+        }
+        _ => {
+            // Use biome-web-formatter for all other supported files
+            biome_web_formatter::format_file(&content, path_str, file_type)
+                .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
+        }
+    };
 
     // Only write if content changed
     if formatted_content != content {
@@ -89,7 +110,7 @@ max_line_length = 80
 [*.{js,jsx,ts,tsx,mjs,mjsx,mts}]
 indent_size = 2
 
-[*.{css,scss,less}]
+[*.{css,scss,less,sass}]
 indent_size = 2
 
 [*.{html,vue,svelte,astro}]
@@ -100,6 +121,14 @@ indent_size = 2
 
 [*.{md}]
 indent_size = 2
+
+[*.rs]
+indent_size = 4
+max_line_length = 100
+
+[*.py]
+indent_size = 4
+max_line_length = 88
 "#;
     println!("{}", editorconfig);
 }

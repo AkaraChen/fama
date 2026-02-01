@@ -1,5 +1,5 @@
 [package]
-name = "biome-binding"
+name = "biome-web-formatter"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,14 +8,13 @@ license.workspace = true
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
+fama-common = { path = "../fama-common" }
+
 # Lock all biome crates to git commit for HTML support compatibility
 # Commit: 871b45e66824dea905579d5270911cfed0254433 (2025-01-30)
 biome_js_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_js_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_js_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_css_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_css_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_css_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_html_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_html_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_html_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
@@ -26,10 +25,3 @@ biome_console = { git = "https://github.com/biomejs/biome", rev = "871b45e66824d
 biome_diagnostics = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_text_size = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_unicode_table = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-
-# YAML and Markdown formatting
-serde_yaml = "0.9"
-serde_json = "1.0"
-dprint-plugin-markdown = "0.20"
-dprint-core = "0.67"
-anyhow = "1.0"

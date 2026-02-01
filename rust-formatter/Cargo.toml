@@ -1,0 +1,13 @@
+[package]
+name = "rust-formatter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "rust_formatter"
+crate-type = ["rlib"]
+
+[dependencies]
+fama-common = { path = "../fama-common" }
+rust-format = "0.3"

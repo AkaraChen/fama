@@ -2,10 +2,8 @@ use ignore::WalkBuilder;
 use std::path::PathBuf;
 
 const SUPPORTED_EXTENSIONS: &[&str] = &[
-    "js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts",
-    "css", "scss", "less",
-    "html", "vue", "svelte", "astro",
-    "yaml", "yml", "md",
+    "js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts", "css", "scss", "less", "html", "vue", "svelte",
+    "astro", "yaml", "yml", "md", "rs", "py",
 ];
 
 /// Discover files in the current directory respecting .gitignore rules.
@@ -16,8 +14,8 @@ const SUPPORTED_EXTENSIONS: &[&str] = &[
 /// # Returns
 /// A sorted list of file paths matching the pattern and supported extensions
 pub fn discover_files(pattern: Option<&str>) -> Result<Vec<PathBuf>, String> {
-    let current_dir = std::env::current_dir()
-        .map_err(|e| format!("Failed to get current directory: {}", e))?;
+    let current_dir =
+        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
 
     let _glob_pattern = pattern.unwrap_or("**/*");
 
@@ -36,9 +34,11 @@ pub fn discover_files(pattern: Option<&str>) -> Result<Vec<PathBuf>, String> {
             }
 
             // Check if file has supported extension
-            entry.path().extension().and_then(|ext| ext.to_str()).map_or(false, |ext| {
-                SUPPORTED_EXTENSIONS.contains(&ext)
-            })
+            entry
+                .path()
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map_or(false, |ext| SUPPORTED_EXTENSIONS.contains(&ext))
         })
         .map(|entry| entry.path().to_path_buf())
         .collect();
