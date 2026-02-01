@@ -1,6 +1,5 @@
 use std::env;
 use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -72,6 +71,8 @@ fn main() {
     // On Windows, we need to create an import library (.lib) for MSVC linker
     #[cfg(target_os = "windows")]
     {
+        use std::io::Write;
+
         let def_path = out_dir.join("shformatter.def");
         let lib_path = out_dir.join("shformatter.lib");
 

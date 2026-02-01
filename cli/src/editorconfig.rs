@@ -1,5 +1,6 @@
 // editorconfig.rs - EditorConfig export
 
+use std::fs;
 use std::path::Path;
 
 use fama_common::{FormatConfig, IndentStyle, LineEnding, QuoteStyle};
@@ -57,7 +58,8 @@ indent_size = {indent_size}
         line_width = config.line_width
     );
 
-    println!("{}", editorconfig);
+    fs::write(".editorconfig", editorconfig).expect("Failed to write .editorconfig");
+    println!("Wrote .editorconfig");
 }
 
 /// Export rustfmt.toml based on FormatConfig defaults
@@ -81,5 +83,6 @@ newline_style = "{newline_style}"
         max_width = config.line_width,
     );
 
-    println!("{}", rustfmt_toml);
+    fs::write("rustfmt.toml", rustfmt_toml).expect("Failed to write rustfmt.toml");
+    println!("Wrote rustfmt.toml");
 }
