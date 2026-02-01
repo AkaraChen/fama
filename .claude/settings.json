@@ -1,9 +1,1 @@
-{
-  "enabledPlugins": {
-    "oh-my-claudecode@omc": true
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "node /Users/akrc/.claude/hud/omc-hud.mjs"
-  }
-}
+{}
