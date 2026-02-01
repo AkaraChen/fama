@@ -1,0 +1,16 @@
+[package]
+name = "sh-formatter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "sh_formatter"
+crate-type = ["rlib"]
+
+[dependencies]
+fama-common = { path = "../fama-common" }
+libc = "0.2"
+
+[build-dependencies]
+cc = "1.0"

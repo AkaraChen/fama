@@ -9,6 +9,9 @@ biome_web_formatter = { path = "../biome-web-formatter", package = "biome-web-fo
 dprint-formatter = { path = "../dprint-formatter" }
 rust-formatter = { path = "../rust-formatter" }
 ruff-formatter = { path = "../ruff-formatter" }
+kotlin-formatter = { path = "../kotlin-formatter" }
+lua-formatter = { path = "../lua-formatter" }
+# sh-formatter = { path = "../sh-formatter" }  # Requires Go library to be built first
 fama-common = { path = "../fama-common" }
 ignore = "0.4"
 glob = "0.3"

@@ -25,6 +25,9 @@ pub enum FileType {
     Dockerfile,
     Rust,
     Python,
+    Kotlin,
+    Lua,
+    Shell,
     Unknown,
 }
 
@@ -48,6 +51,9 @@ pub fn detect_file_type(path: &str) -> FileType {
         Some("md") | Some("markdown") => FileType::Markdown,
         Some("rs") => FileType::Rust,
         Some("py") => FileType::Python,
+        Some("kt") | Some("kts") => FileType::Kotlin,
+        Some("lua") => FileType::Lua,
+        Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
         _ => {
             // Check for Dockerfile by name
             if path.file_name().and_then(|n| n.to_str()) == Some("Dockerfile") {
@@ -127,9 +133,27 @@ mod tests {
     }
 
     #[test]
+    fn test_detect_kotlin() {
+        assert_eq!(detect_file_type("test.kt"), FileType::Kotlin);
+        assert_eq!(detect_file_type("test.kts"), FileType::Kotlin);
+    }
+
+    #[test]
     fn test_detect_dockerfile() {
         assert_eq!(detect_file_type("Dockerfile"), FileType::Dockerfile);
         assert_eq!(detect_file_type("path/to/Dockerfile"), FileType::Dockerfile);
+    }
+
+    #[test]
+    fn test_detect_lua() {
+        assert_eq!(detect_file_type("test.lua"), FileType::Lua);
+    }
+
+    #[test]
+    fn test_detect_shell() {
+        assert_eq!(detect_file_type("test.sh"), FileType::Shell);
+        assert_eq!(detect_file_type("test.bash"), FileType::Shell);
+        assert_eq!(detect_file_type("test.zsh"), FileType::Shell);
     }
 
     #[test]

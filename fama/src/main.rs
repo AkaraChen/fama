@@ -79,6 +79,22 @@ fn format_file(file_path: &std::path::PathBuf) -> anyhow::Result<bool> {
             ruff_formatter::format_python(&content, path_str)
                 .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
         }
+        fama_common::FileType::Kotlin => {
+            // Use kotlin-formatter for Kotlin files
+            kotlin_formatter::format_kotlin(&content, path_str)
+                .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
+        }
+        fama_common::FileType::Lua => {
+            // Use lua-formatter for Lua files
+            lua_formatter::format_lua(&content, path_str)
+                .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
+        }
+        fama_common::FileType::Shell => {
+            // Shell formatter requires Go library - temporarily disabled
+            // sh_formatter::format_shell(&content, path_str)
+            //     .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
+            return Err(anyhow::anyhow!("{}: Shell formatting requires sh-formatter library to be built. Run: cd sh-formatter && make build", file_path.display()));
+        }
         _ => {
             // Use biome-web-formatter for all other supported files
             biome_web_formatter::format_file(&content, path_str, file_type)
@@ -129,6 +145,18 @@ max_line_length = 100
 [*.py]
 indent_size = 4
 max_line_length = 88
+
+[*.{kt,kts}]
+indent_size = 4
+max_line_length = 120
+
+[*.lua]
+indent_size = 2
+max_line_length = 120
+
+[*.{sh,bash,zsh}]
+indent_size = 4
+max_line_length = 80
 "#;
     println!("{}", editorconfig);
 }
