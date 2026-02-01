@@ -88,7 +88,6 @@ jobs:
   release:
     name: Create Release
     needs: build
-    if: ${{ !contains(github.ref_name, 'alpha') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'rc') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -105,3 +104,4 @@ jobs:
         with:
           files: artifacts/*
           generate_release_notes: true
+          prerelease: ${{ !contains(github.ref_name, 'alpha') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'rc') }}
