@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Fama is a unified cross-language code formatter written in Rust that aggregates multiple specialized formatters into a single CLI tool. It formats diverse file types (JavaScript, TypeScript, Python, Rust, YAML, Markdown, Shell, Dockerfile, and more) through a unified interface while respecting a centralized configuration.
+Fama is a unified cross-language code formatter written in Rust that aggregates multiple specialized formatters into a single CLI tool. It formats diverse file types (JavaScript, TypeScript, Python, Rust, YAML, Markdown, Shell, Go, Dockerfile, and more) through a unified interface while respecting a centralized configuration.
 
 ## Build Commands
 
@@ -28,17 +28,18 @@ fama --export    # Generate .editorconfig and rustfmt.toml files
 
 ### Workspace Structure
 
-The project is a Cargo workspace with 8 crates:
+The project is a Cargo workspace with 10 crates:
 
 - `cli/` - Main CLI application with file discovery and routing
 - `common/` - Shared types: `FileType` enum, `FormatConfig`, indentation/quote styles
 - `formatters/` - Language-specific formatter implementations:
-  - `biome/` - JS/TS/JSX/TSX/HTML/Vue/Svelte/Astro (via Biome crates)
+  - `biome/` - JS/TS/JSX/TSX/JSON/JSONC/HTML/Vue/Svelte/Astro (via Biome crates)
   - `dprint/` - Markdown, YAML, CSS/SCSS/LESS/Sass (via dprint + Malva)
+  - `toml/` - TOML files (via toml_edit)
   - `rustfmt/` - Rust (via rust-format crate)
   - `python/` - Python (via ruff crates)
   - `lua/` - Lua (via stylua crate)
-  - `shfmt/` - Shell scripts (Go FFI wrapper around mvdan/sh)
+  - `goffi/` - Shell scripts and Go (Go FFI wrapper around mvdan/sh and go/format)
   - `dockerfile/` - Dockerfile formatting
 
 ### Data Flow
@@ -66,14 +67,17 @@ Centralized `FormatConfig` in `common/src/lib.rs` with go-fmt style defaults:
 - LF line endings
 - Double quotes, trailing commas, semicolons always
 
-### Go FFI (shfmt)
+### Go FFI (goffi)
 
-The shell formatter wraps mvdan/sh via CGO:
+The `goffi` crate provides both Shell and Go formatting via CGO:
 
-- Go source in `formatters/shfmt/go/`
-- Compiled as static library (`libshformatter.a`) and linked into the binary
-- Rust FFI bindings in `formatters/shfmt/src/lib.rs`
+- Go source in `formatters/goffi/go/`
+- Wraps `mvdan.cc/sh/v3/syntax` for shell formatting
+- Wraps `go/format` for Go formatting
+- Compiled as static library (`libgoffi.a`) and linked into the binary
+- Rust FFI bindings in `formatters/goffi/src/lib.rs`
 - `build.rs` handles Go compilation and library linking
+- Pre-compiled libraries are checked in for supported platforms
 
 ## Testing
 
@@ -81,6 +85,8 @@ The shell formatter wraps mvdan/sh via CGO:
 cargo test                           # All workspace tests
 cargo test -p fama-common            # Test specific crate
 cargo test -p fama-cli               # Test CLI crate
+cargo test <test_name>               # Run a single test
+cargo test -p fama-common <test_name> # Run single test in specific crate
 ```
 
 ## Adding a New Formatter
@@ -98,3 +104,4 @@ cargo test -p fama-cli               # Test CLI crate
 - **Ruff**: Git-pinned formatters from Astral's ruff repo
 - **dprint + Malva**: Published crates for data/style formats
 - **mvdan/sh**: Go library for shell formatting via FFI
+- **stylua**: Lua formatter
