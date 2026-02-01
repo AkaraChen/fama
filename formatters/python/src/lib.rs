@@ -2,10 +2,10 @@
 //
 // Provides Python code formatting using the ruff formatter library directly.
 
-use fama_common::{FormatConfig, IndentStyle, LineEnding};
+use fama_common::{FormatConfig, IndentStyle, LineEnding, QuoteStyle};
 use ruff_formatter::printer::LineEnding as RuffLineEnding;
 use ruff_formatter::{IndentStyle as RuffIndentStyle, IndentWidth, LineWidth};
-use ruff_python_formatter::{format_module_source, PyFormatOptions};
+use ruff_python_formatter::{format_module_source, PyFormatOptions, QuoteStyle as RuffQuoteStyle};
 
 /// Format Python source code using ruff formatter
 ///
@@ -29,11 +29,17 @@ pub fn format_python(source: &str, _file_path: &str) -> Result<String, String> {
         LineEnding::Crlf => RuffLineEnding::CarriageReturnLineFeed,
     };
 
+    let quote_style = match config.quote_style {
+        QuoteStyle::Single => RuffQuoteStyle::Single,
+        QuoteStyle::Double => RuffQuoteStyle::Double,
+    };
+
     let options = PyFormatOptions::default()
         .with_indent_style(indent_style)
         .with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
         .with_line_width(LineWidth::try_from(config.line_width).unwrap())
-        .with_line_ending(line_ending);
+        .with_line_ending(line_ending)
+        .with_quote_style(quote_style);
 
     format_module_source(source, options)
         .map(|printed| printed.into_code())

@@ -2,8 +2,8 @@
 //
 // Provides Lua code formatting using the stylua crate.
 
-use fama_common::{FormatConfig, IndentStyle, LineEnding};
-use stylua_lib::{format_code, Config, IndentType, LineEndings, OutputVerification};
+use fama_common::{FormatConfig, IndentStyle, LineEnding, QuoteStyle};
+use stylua_lib::{format_code, Config, IndentType, LineEndings, OutputVerification, QuoteStyle as StyluaQuoteStyle};
 
 /// Format Lua source code using StyLua
 ///
@@ -27,11 +27,17 @@ pub fn format_lua(source: &str, _file_path: &str) -> Result<String, String> {
         LineEnding::Crlf => LineEndings::Windows,
     };
 
+    let quote_style = match fmt_config.quote_style {
+        QuoteStyle::Single => StyluaQuoteStyle::ForceSingle,
+        QuoteStyle::Double => StyluaQuoteStyle::ForceDouble,
+    };
+
     let config = Config {
         indent_type,
         indent_width: fmt_config.indent_width as usize,
         line_endings,
         column_width: fmt_config.line_width as usize,
+        quote_style,
         ..Config::default()
     };
 
