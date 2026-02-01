@@ -1,7 +1,7 @@
 // biome-js-formatter - Biome formatting library
 //
 // Provides a unified formatting API for JavaScript, TypeScript, JSX, TSX,
-// HTML, Vue, Svelte, and Astro using Biome parser/formatter crates.
+// JSON, JSONC, HTML, Vue, Svelte, and Astro using Biome parser/formatter crates.
 
 #![allow(clippy::all)]
 
@@ -15,6 +15,8 @@ use biome_js_syntax::JsFileSource;
 
 use biome_html_parser::parse_html;
 use biome_js_parser::parse;
+use biome_json_parser::parse_json;
+use biome_json_syntax::JsonFileSource;
 
 use fama_common::{FileType, FormatConfig};
 
@@ -190,6 +192,61 @@ pub fn format_tsx(source: &str, _file_path: &str) -> Result<String, String> {
 		.map_err(|e| format!("Print error: {:?}", e))
 }
 
+/// Format JSON source code
+pub fn format_json(source: &str, _file_path: &str) -> Result<String, String> {
+	format_json_internal(source, JsonFileSource::json(), false)
+}
+
+/// Format JSONC (JSON with comments) source code
+pub fn format_jsonc(source: &str, _file_path: &str) -> Result<String, String> {
+	format_json_internal(
+		source,
+		JsonFileSource::json_allow_comments("jsonc"),
+		true,
+	)
+}
+
+/// Internal JSON formatting with configurable source type
+fn format_json_internal(
+	source: &str,
+	source_type: JsonFileSource,
+	allow_comments: bool,
+) -> Result<String, String> {
+	use biome_json_parser::JsonParserOptions;
+
+	let config = FormatConfig::default();
+	let options =
+		biome_json_formatter::context::JsonFormatOptions::new(source_type)
+			.with_indent_style(to_biome_indent_style(config.indent_style))
+			.with_indent_width(
+				IndentWidth::try_from(config.indent_width).unwrap(),
+			)
+			.with_line_width(LineWidth::try_from(config.line_width).unwrap())
+			.with_line_ending(to_biome_line_ending(config.line_ending));
+
+	let parser_options = if allow_comments {
+		JsonParserOptions::default().with_allow_comments()
+	} else {
+		JsonParserOptions::default()
+	};
+
+	let parsed = parse_json(source, parser_options);
+
+	if parsed.has_errors() {
+		return Err("Parse errors in JSON file".to_string());
+	}
+
+	let syntax = parsed.syntax();
+
+	let formatted = biome_json_formatter::format_node(options, &syntax)
+		.map_err(|e| format!("Format error: {:?}", e))?;
+
+	formatted
+		.print()
+		.map(|p| p.as_code().to_string())
+		.map_err(|e| format!("Print error: {:?}", e))
+}
+
 /// Format HTML source code
 pub fn format_html(source: &str, _file_path: &str) -> Result<String, String> {
 	let config = FormatConfig::default();
@@ -273,6 +330,8 @@ pub fn format_file(
 		FileType::TypeScript => format_typescript(source, file_path),
 		FileType::Jsx => format_jsx(source, file_path),
 		FileType::Tsx => format_tsx(source, file_path),
+		FileType::Json => format_json(source, file_path),
+		FileType::Jsonc => format_jsonc(source, file_path),
 		FileType::Html => format_html(source, file_path),
 		FileType::Vue => format_vue(source, file_path),
 		FileType::Svelte => format_svelte(source, file_path),
@@ -322,5 +381,23 @@ mod tests {
 		let source = "test";
 		let result = format_file(source, "test.css", FileType::Css);
 		assert!(result.is_err());
+	}
+
+	#[test]
+	fn test_format_json() {
+		let source = r#"{"name":"test","value":1}"#;
+		let result = format_json(source, "test.json").unwrap();
+		// JSON should be formatted with proper indentation
+		assert!(result.contains("\"name\""));
+		assert!(result.contains("\"test\""));
+		// Biome keeps compact JSON on single line, adding trailing newline
+		assert!(result.ends_with('\n'), "JSON should end with newline");
+	}
+
+	#[test]
+	fn test_format_file_with_json() {
+		let source = r#"{"key":"value"}"#;
+		let result = format_file(source, "test.json", FileType::Json).unwrap();
+		assert!(result.contains("\"key\""));
 	}
 }

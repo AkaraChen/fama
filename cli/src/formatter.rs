@@ -33,6 +33,8 @@ fn format_content(
 		| FileType::TypeScript
 		| FileType::Jsx
 		| FileType::Tsx
+		| FileType::Json
+		| FileType::Jsonc
 		| FileType::Html
 		| FileType::Vue
 		| FileType::Svelte

@@ -111,6 +111,8 @@ pub enum FileType {
 	TypeScript,
 	Jsx,
 	Tsx,
+	Json,
+	Jsonc,
 	Css,
 	Scss,
 	Less,
@@ -139,6 +141,8 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("ts") | Some("mts") => FileType::TypeScript,
 		Some("jsx") | Some("mjsx") => FileType::Jsx,
 		Some("tsx") => FileType::Tsx,
+		Some("json") => FileType::Json,
+		Some("jsonc") => FileType::Jsonc,
 		Some("css") => FileType::Css,
 		Some("scss") => FileType::Scss,
 		Some("less") => FileType::Less,
@@ -193,6 +197,13 @@ mod tests {
 	#[test]
 	fn test_detect_tsx() {
 		assert_eq!(detect_file_type("test.tsx"), FileType::Tsx);
+	}
+
+	#[test]
+	fn test_detect_json() {
+		assert_eq!(detect_file_type("test.json"), FileType::Json);
+		assert_eq!(detect_file_type("package.json"), FileType::Json);
+		assert_eq!(detect_file_type("tsconfig.jsonc"), FileType::Jsonc);
 	}
 
 	#[test]

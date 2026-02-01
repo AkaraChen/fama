@@ -15,6 +15,9 @@ fama-common = { path = "../../common" }
 biome_js_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_js_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_js_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_json_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_json_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_json_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_html_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_html_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_html_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
