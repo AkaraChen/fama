@@ -871,6 +871,7 @@ dependencies = [
  "lua-formatter",
  "ruff-formatter",
  "rust-formatter",
+ "sh-formatter",
 ]
 
 [[package]]

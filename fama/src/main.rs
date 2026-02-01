@@ -1,5 +1,7 @@
 mod discovery;
 
+extern crate dprint_formatter;
+
 use clap::Parser;
 use fama_common;
 use std::fs;
@@ -69,36 +71,45 @@ fn format_file(file_path: &std::path::PathBuf) -> anyhow::Result<bool> {
 
     // Route to appropriate formatter based on file type
     let formatted_content = match file_type {
-        fama_common::FileType::Rust => {
-            // Use rust-formatter for Rust files
-            rust_formatter::format_rust(&content, path_str)
-                .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
-        }
-        fama_common::FileType::Python => {
-            // Use ruff-formatter for Python files
-            ruff_formatter::format_python(&content, path_str)
-                .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
-        }
-        fama_common::FileType::Kotlin => {
-            // Use kotlin-formatter for Kotlin files
-            kotlin_formatter::format_kotlin(&content, path_str)
-                .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
-        }
-        fama_common::FileType::Lua => {
-            // Use lua-formatter for Lua files
-            lua_formatter::format_lua(&content, path_str)
-                .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
-        }
-        fama_common::FileType::Shell => {
-            // Shell formatter requires Go library - temporarily disabled
-            // sh_formatter::format_shell(&content, path_str)
-            //     .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
-            return Err(anyhow::anyhow!("{}: Shell formatting requires sh-formatter library to be built. Run: cd sh-formatter && make build", file_path.display()));
-        }
-        _ => {
-            // Use biome-web-formatter for all other supported files
+        // Web files -> biome-web-formatter
+        fama_common::FileType::JavaScript
+        | fama_common::FileType::TypeScript
+        | fama_common::FileType::Jsx
+        | fama_common::FileType::Tsx
+        | fama_common::FileType::Html
+        | fama_common::FileType::Vue
+        | fama_common::FileType::Svelte
+        | fama_common::FileType::Astro => {
             biome_web_formatter::format_file(&content, path_str, file_type)
                 .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
+        }
+        // Data + Style files -> dprint-formatter
+        fama_common::FileType::Yaml
+        | fama_common::FileType::Markdown
+        | fama_common::FileType::Css
+        | fama_common::FileType::Scss
+        | fama_common::FileType::Less
+        | fama_common::FileType::Sass
+        | fama_common::FileType::Dockerfile => {
+            dprint_formatter::format_file(&content, path_str, file_type)
+                .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?
+        }
+        // Individual language formatters
+        fama_common::FileType::Rust => rust_formatter::format_rust(&content, path_str)
+            .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
+        fama_common::FileType::Python => ruff_formatter::format_python(&content, path_str)
+            .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
+        fama_common::FileType::Kotlin => kotlin_formatter::format_kotlin(&content, path_str)
+            .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
+        fama_common::FileType::Lua => lua_formatter::format_lua(&content, path_str)
+            .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
+        fama_common::FileType::Shell => sh_formatter::format_shell(&content, path_str)
+            .map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
+        fama_common::FileType::Unknown => {
+            return Err(anyhow::anyhow!(
+                "{}: Unknown file type",
+                file_path.display()
+            ));
         }
     };
 

@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 fama-common = { path = "../fama-common" }
