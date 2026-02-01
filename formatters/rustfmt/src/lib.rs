@@ -3,7 +3,7 @@
 //! This module provides Rust code formatting functionality via the rustfmt
 //! formatter, using the rust-format crate for a clean library API.
 
-use fama_common::{FileType, FormatConfig, IndentStyle};
+use fama_common::{FileType, FormatConfig, IndentStyle, LineEnding};
 use rust_format::{Config, Formatter, RustFmt};
 
 /// Format Rust source code
@@ -20,11 +20,16 @@ pub fn format_rust(source: &str, _file_path: &str) -> Result<String, String> {
     let hard_tabs = matches!(fmt_config.indent_style, IndentStyle::Tabs);
     let tab_spaces = fmt_config.indent_width.to_string();
     let max_width = fmt_config.line_width.to_string();
+    let newline_style = match fmt_config.line_ending {
+        LineEnding::Lf => "Unix",
+        LineEnding::Crlf => "Windows",
+    };
 
     let config = Config::new_str()
         .option("hard_tabs", if hard_tabs { "true" } else { "false" })
         .option("tab_spaces", &tab_spaces)
-        .option("max_width", &max_width);
+        .option("max_width", &max_width)
+        .option("newline_style", newline_style);
 
     let formatter = RustFmt::from_config(config);
 
