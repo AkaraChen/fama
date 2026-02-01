@@ -84,14 +84,6 @@ pub struct FormatConfig {
     pub semicolons: Semicolons,
     /// Spaces inside brackets in objects (default: true)
     pub bracket_spacing: bool,
-
-    // === Shell options (shfmt) ===
-    /// Binary operators may start a line (default: false)
-    pub binary_next_line: bool,
-    /// Indent switch cases (default: false)
-    pub switch_case_indent: bool,
-    /// Space after redirect operators (default: false)
-    pub space_redirects: bool,
 }
 
 impl Default for FormatConfig {
@@ -108,10 +100,6 @@ impl Default for FormatConfig {
             trailing_comma: TrailingComma::All,
             semicolons: Semicolons::Always,
             bracket_spacing: true,
-            // Shell
-            binary_next_line: false,
-            switch_case_indent: false,
-            space_redirects: false,
         }
     }
 }
@@ -286,9 +274,5 @@ mod tests {
         assert_eq!(config.trailing_comma, TrailingComma::All);
         assert_eq!(config.semicolons, Semicolons::Always);
         assert!(config.bracket_spacing);
-        // Shell options
-        assert!(!config.binary_next_line);
-        assert!(!config.switch_case_indent);
-        assert!(!config.space_redirects);
     }
 }
