@@ -3,39 +3,37 @@
 //! This module provides Shell script formatting functionality via the
 //! mvdan/sh Go library, accessed through a C shared library (CGO).
 
-use fama_common::FileType;
-use libc::{c_char, size_t};
+use fama_common::{FileType, FormatConfig, IndentStyle};
+use libc::{c_char, c_uint, size_t};
 use std::ffi::{CStr, CString};
 use std::slice;
 
 // FFI declarations for the Go shared library
 extern "C" {
-    /// Format a shell script
+    /// Format a shell script with config
     ///
     /// # Arguments
     /// * `source` - The shell script source code
     /// * `source_len` - Length of the source code
+    /// * `indent` - Indent: 0 for tabs, >0 for number of spaces
     ///
     /// # Returns
     /// A newly allocated C string with the formatted code (must be freed with FreeString)
-    fn FormatShell(source: *const c_char, source_len: size_t) -> *mut c_char;
+    fn FormatShellWithConfig(
+        source: *const c_char,
+        source_len: size_t,
+        indent: c_uint,
+    ) -> *mut c_char;
 
     /// Free a string allocated by FormatShell
     fn FreeString(str: *mut c_char);
 
-    /// Format multiple shell scripts in batch
-    ///
-    /// # Arguments
-    /// * `sources` - Array of C strings
-    /// * `lengths` - Array of string lengths
-    /// * `count` - Number of strings
-    ///
-    /// # Returns
-    /// A newly allocated array of C strings (must be freed with FreeStringArray)
-    fn FormatShellBatch(
+    /// Format multiple shell scripts in batch with config
+    fn FormatShellBatchWithConfig(
         sources: *const *const c_char,
         lengths: *const size_t,
         count: size_t,
+        indent: c_uint,
     ) -> *mut *mut c_char;
 
     /// Free an array of strings allocated by FormatShellBatch
@@ -51,14 +49,23 @@ extern "C" {
 /// # Returns
 /// The formatted Shell source code, or an error message if formatting fails.
 pub fn format_shell(source: &str, _file_path: &str) -> Result<String, String> {
+    let config = FormatConfig::default();
+
+    // shfmt uses 0 for tabs, >0 for number of spaces
+    let indent: c_uint = match config.indent_style {
+        IndentStyle::Tabs => 0,
+        IndentStyle::Spaces => config.indent_width as c_uint,
+    };
+
     // Convert Rust string to C string
     let c_source = match CString::new(source) {
         Ok(s) => s,
         Err(e) => return Err(format!("Failed to convert source to C string: {}", e)),
     };
 
-    // Call the Go formatting function
-    let c_result = unsafe { FormatShell(c_source.as_ptr(), source.len() as size_t) };
+    // Call the Go formatting function with config
+    let c_result =
+        unsafe { FormatShellWithConfig(c_source.as_ptr(), source.len() as size_t, indent) };
 
     if c_result.is_null() {
         return Err("Go formatter returned null".to_string());
@@ -88,6 +95,14 @@ pub fn format_shell_batch(sources: &[&str]) -> Vec<Result<String, String>> {
         return Vec::new();
     }
 
+    let config = FormatConfig::default();
+
+    // shfmt uses 0 for tabs, >0 for number of spaces
+    let indent: c_uint = match config.indent_style {
+        IndentStyle::Tabs => 0,
+        IndentStyle::Spaces => config.indent_width as c_uint,
+    };
+
     // Convert each source to C string
     let c_sources: Vec<CString> = sources
         .iter()
@@ -107,9 +122,15 @@ pub fn format_shell_batch(sources: &[&str]) -> Vec<Result<String, String>> {
     let c_ptrs: Vec<*const c_char> = c_sources.iter().map(|s| s.as_ptr()).collect();
     let lengths: Vec<size_t> = sources.iter().map(|s| s.len() as size_t).collect();
 
-    // Call batch formatting
-    let c_results =
-        unsafe { FormatShellBatch(c_ptrs.as_ptr(), lengths.as_ptr(), sources.len() as size_t) };
+    // Call batch formatting with config
+    let c_results = unsafe {
+        FormatShellBatchWithConfig(
+            c_ptrs.as_ptr(),
+            lengths.as_ptr(),
+            sources.len() as size_t,
+            indent,
+        )
+    };
 
     if c_results.is_null() {
         return sources

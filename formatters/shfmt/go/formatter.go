@@ -12,6 +12,11 @@ import (
 
 //export FormatShell
 func FormatShell(source *C.char, sourceLen C.size_t) *C.char {
+	return FormatShellWithConfig(source, sourceLen, 0)
+}
+
+//export FormatShellWithConfig
+func FormatShellWithConfig(source *C.char, sourceLen C.size_t, indent C.uint) *C.char {
 	// Convert C string to Go string
 	goSource := C.GoBytes(unsafe.Pointer(source), C.int(sourceLen))
 
@@ -23,9 +28,9 @@ func FormatShell(source *C.char, sourceLen C.size_t) *C.char {
 		return C.CString(string(goSource))
 	}
 
-	// Format the parsed syntax tree
+	// Format the parsed syntax tree with config
 	var buf bytes.Buffer
-	printer := syntax.NewPrinter()
+	printer := syntax.NewPrinter(syntax.Indent(uint(indent)))
 	if err := printer.Print(&buf, file); err != nil {
 		// Return copy of original on print error (caller must free)
 		return C.CString(string(goSource))
@@ -43,6 +48,11 @@ func FreeString(str *C.char) {
 
 //export FormatShellBatch
 func FormatShellBatch(sources **C.char, lengths *C.size_t, count C.size_t) **C.char {
+	return FormatShellBatchWithConfig(sources, lengths, count, 0)
+}
+
+//export FormatShellBatchWithConfig
+func FormatShellBatchWithConfig(sources **C.char, lengths *C.size_t, count C.size_t, indent C.uint) **C.char {
 	// Create a slice of Go strings from the C arrays
 	goSources := make([][]byte, int(count))
 	sourcesSlice := (*[1 << 28]*C.char)(unsafe.Pointer(sources))[:count]
@@ -55,7 +65,7 @@ func FormatShellBatch(sources **C.char, lengths *C.size_t, count C.size_t) **C.c
 	// Format each source
 	results := make([]string, int(count))
 	parser := syntax.NewParser()
-	printer := syntax.NewPrinter()
+	printer := syntax.NewPrinter(syntax.Indent(uint(indent)))
 
 	for i, src := range goSources {
 		file, err := parser.Parse(bytes.NewReader(src), "")
