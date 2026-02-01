@@ -47,6 +47,7 @@ fn format_content(
 		| FileType::Sass => dprint::format_file(content, path, file_type),
 
 		// Individual formatters
+		FileType::Toml => toml_fmt::format_toml(content, path),
 		FileType::Rust => rustfmt::format_rust(content, path),
 		FileType::Python => ruff::format_python(content, path),
 		FileType::Lua => stylua::format_lua(content, path),

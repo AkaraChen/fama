@@ -120,6 +120,7 @@ pub enum FileType {
 	Svelte,
 	Astro,
 	Yaml,
+	Toml,
 	Markdown,
 	Rust,
 	Python,
@@ -147,6 +148,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("svelte") => FileType::Svelte,
 		Some("astro") => FileType::Astro,
 		Some("yaml") | Some("yml") => FileType::Yaml,
+		Some("toml") => FileType::Toml,
 		Some("md") | Some("markdown") => FileType::Markdown,
 		Some("rs") => FileType::Rust,
 		Some("py") => FileType::Python,
@@ -214,6 +216,13 @@ mod tests {
 	fn test_detect_yaml() {
 		assert_eq!(detect_file_type("test.yaml"), FileType::Yaml);
 		assert_eq!(detect_file_type("test.yml"), FileType::Yaml);
+	}
+
+	#[test]
+	fn test_detect_toml() {
+		assert_eq!(detect_file_type("test.toml"), FileType::Toml);
+		assert_eq!(detect_file_type("Cargo.toml"), FileType::Toml);
+		assert_eq!(detect_file_type("path/to/config.toml"), FileType::Toml);
 	}
 
 	#[test]

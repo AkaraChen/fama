@@ -1,0 +1,9 @@
+[package]
+name = "toml-fmt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+fama-common = { path = "../../common" }
+taplo = "0.14"
