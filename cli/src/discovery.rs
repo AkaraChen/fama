@@ -1,6 +1,7 @@
 use ignore::gitignore::Gitignore;
 use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts", "json", "jsonc", "css",
@@ -98,4 +99,29 @@ pub fn discover_files(pattern: Option<&str>) -> Result<Vec<PathBuf>, String> {
 
 	// It's a glob pattern or a non-existent path - use glob
 	collect_from_glob(pattern)
+}
+
+/// Discover files that are staged in git (git diff --cached)
+pub fn discover_staged_files() -> Result<Vec<PathBuf>, String> {
+	let output = Command::new("git")
+		.args(["diff", "--cached", "--name-only"])
+		.output()
+		.map_err(|e| format!("Failed to run git: {}", e))?;
+
+	if !output.status.success() {
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		return Err(format!(
+			"git diff failed - are you in a git repository? {}",
+			stderr.trim()
+		));
+	}
+
+	let mut files: Vec<PathBuf> = String::from_utf8_lossy(&output.stdout)
+		.lines()
+		.map(PathBuf::from)
+		.filter(|p| p.is_file() && has_supported_extension(p))
+		.collect();
+
+	files.sort();
+	Ok(files)
 }

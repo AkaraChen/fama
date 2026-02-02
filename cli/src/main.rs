@@ -24,6 +24,10 @@ struct Cli {
 	/// Export EditorConfig to stdout
 	#[arg(long, short)]
 	export: bool,
+
+	/// Format only git-staged files
+	#[arg(long)]
+	staged: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -34,7 +38,48 @@ fn main() -> anyhow::Result<()> {
 		return Ok(());
 	}
 
+	if cli.staged {
+		return run_staged();
+	}
+
 	run(&cli.pattern)
+}
+
+fn run_staged() -> anyhow::Result<()> {
+	let files = discovery::discover_staged_files()
+		.map_err(|e| anyhow::anyhow!("Failed to discover staged files: {}", e))?;
+
+	if files.is_empty() {
+		println!("No staged files to format");
+		return Ok(());
+	}
+
+	// Parallel formatting with fold/reduce pattern
+	let stats = files
+		.par_iter()
+		.fold(FormatStats::default, |mut stats, file| {
+			match formatter::format_file(file) {
+				Ok(true) => stats.formatted += 1,
+				Ok(false) => stats.unchanged += 1,
+				Err(e) => stats.errors.push(e.to_string()),
+			}
+			stats
+		})
+		.reduce(FormatStats::default, FormatStats::merge);
+
+	// Print collected errors
+	for error in &stats.errors {
+		eprintln!("Error: {}", error);
+	}
+
+	println!(
+		"Formatted {} files, {} unchanged, {} errors",
+		stats.formatted,
+		stats.unchanged,
+		stats.errors.len()
+	);
+
+	Ok(())
 }
 
 /// Statistics collected during formatting
