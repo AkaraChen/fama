@@ -2,10 +2,26 @@
 //
 // Provides Lua code formatting using the stylua crate.
 
-use fama_common::{FormatConfig, IndentStyle, LineEnding, QuoteStyle};
+use fama_common::CONFIG;
 use stylua_lib::{
 	format_code, Config, IndentType, LineEndings, OutputVerification,
 	QuoteStyle as StyluaQuoteStyle,
+};
+
+// Module-level constants - pre-converted config values
+const STYLUA_INDENT_TYPE: IndentType = match CONFIG.indent_style {
+	fama_common::IndentStyle::Spaces => IndentType::Spaces,
+	fama_common::IndentStyle::Tabs => IndentType::Tabs,
+};
+const STYLUA_INDENT_WIDTH: usize = CONFIG.indent_width as usize;
+const STYLUA_LINE_ENDINGS: LineEndings = match CONFIG.line_ending {
+	fama_common::LineEnding::Lf => LineEndings::Unix,
+	fama_common::LineEnding::Crlf => LineEndings::Windows,
+};
+const STYLUA_COLUMN_WIDTH: usize = CONFIG.line_width as usize;
+const STYLUA_QUOTE_STYLE: StyluaQuoteStyle = match CONFIG.quote_style {
+	fama_common::QuoteStyle::Single => StyluaQuoteStyle::ForceSingle,
+	fama_common::QuoteStyle::Double => StyluaQuoteStyle::ForceDouble,
 };
 
 /// Format Lua source code using StyLua
@@ -18,29 +34,12 @@ use stylua_lib::{
 /// * `Ok(String)` - Formatted Lua code
 /// * `Err(String)` - Error message if formatting fails
 pub fn format_lua(source: &str, _file_path: &str) -> Result<String, String> {
-	let fmt_config = FormatConfig::default();
-
-	let indent_type = match fmt_config.indent_style {
-		IndentStyle::Spaces => IndentType::Spaces,
-		IndentStyle::Tabs => IndentType::Tabs,
-	};
-
-	let line_endings = match fmt_config.line_ending {
-		LineEnding::Lf => LineEndings::Unix,
-		LineEnding::Crlf => LineEndings::Windows,
-	};
-
-	let quote_style = match fmt_config.quote_style {
-		QuoteStyle::Single => StyluaQuoteStyle::ForceSingle,
-		QuoteStyle::Double => StyluaQuoteStyle::ForceDouble,
-	};
-
 	let config = Config {
-		indent_type,
-		indent_width: fmt_config.indent_width as usize,
-		line_endings,
-		column_width: fmt_config.line_width as usize,
-		quote_style,
+		indent_type: STYLUA_INDENT_TYPE,
+		indent_width: STYLUA_INDENT_WIDTH,
+		line_endings: STYLUA_LINE_ENDINGS,
+		column_width: STYLUA_COLUMN_WIDTH,
+		quote_style: STYLUA_QUOTE_STYLE,
 		..Config::default()
 	};
 

@@ -1524,6 +1524,7 @@ dependencies = [
  "glob",
  "goffi",
  "ignore",
+ "rayon",
  "ruff",
  "rustfmt",
  "stylua 0.1.0",

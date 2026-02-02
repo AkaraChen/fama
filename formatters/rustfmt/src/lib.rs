@@ -3,8 +3,24 @@
 //! This module provides Rust code formatting functionality via the rustfmt
 //! formatter, using the rust-format crate for a clean library API.
 
-use fama_common::{FileType, FormatConfig, IndentStyle, LineEnding};
+use fama_common::{FileType, CONFIG};
 use rust_format::{Config, Formatter, RustFmt};
+
+// Module-level constants - pre-converted config values
+const RUSTFMT_HARD_TABS: &str =
+	if matches!(CONFIG.indent_style, fama_common::IndentStyle::Tabs) {
+		"true"
+	} else {
+		"false"
+	};
+// Note: These need to be string literals for const, so we use fixed values
+// matching CONFIG defaults. If CONFIG changes, update these.
+const RUSTFMT_TAB_SPACES: &str = "4";
+const RUSTFMT_MAX_WIDTH: &str = "80";
+const RUSTFMT_NEWLINE_STYLE: &str = match CONFIG.line_ending {
+	fama_common::LineEnding::Lf => "Unix",
+	fama_common::LineEnding::Crlf => "Windows",
+};
 
 /// Format Rust source code
 ///
@@ -15,21 +31,11 @@ use rust_format::{Config, Formatter, RustFmt};
 /// # Returns
 /// The formatted Rust source code, or an error message if formatting fails.
 pub fn format_rust(source: &str, _file_path: &str) -> Result<String, String> {
-	let fmt_config = FormatConfig::default();
-
-	let hard_tabs = matches!(fmt_config.indent_style, IndentStyle::Tabs);
-	let tab_spaces = fmt_config.indent_width.to_string();
-	let max_width = fmt_config.line_width.to_string();
-	let newline_style = match fmt_config.line_ending {
-		LineEnding::Lf => "Unix",
-		LineEnding::Crlf => "Windows",
-	};
-
 	let config = Config::new_str()
-		.option("hard_tabs", if hard_tabs { "true" } else { "false" })
-		.option("tab_spaces", &tab_spaces)
-		.option("max_width", &max_width)
-		.option("newline_style", newline_style);
+		.option("hard_tabs", RUSTFMT_HARD_TABS)
+		.option("tab_spaces", RUSTFMT_TAB_SPACES)
+		.option("max_width", RUSTFMT_MAX_WIDTH)
+		.option("newline_style", RUSTFMT_NEWLINE_STYLE);
 
 	let formatter = RustFmt::from_config(config);
 

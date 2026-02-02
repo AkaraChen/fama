@@ -11,6 +11,7 @@ extern crate rustfmt;
 extern crate stylua;
 
 use clap::Parser;
+use rayon::prelude::*;
 
 #[derive(Parser)]
 #[command(name = "fama")]
@@ -36,6 +37,24 @@ fn main() -> anyhow::Result<()> {
 	run(&cli.pattern)
 }
 
+/// Statistics collected during formatting
+#[derive(Default)]
+struct FormatStats {
+	formatted: usize,
+	unchanged: usize,
+	errors: Vec<String>,
+}
+
+impl FormatStats {
+	/// Merge two FormatStats instances (used in parallel reduce)
+	fn merge(mut self, other: FormatStats) -> FormatStats {
+		self.formatted += other.formatted;
+		self.unchanged += other.unchanged;
+		self.errors.extend(other.errors);
+		self
+	}
+}
+
 fn run(patterns: &[String]) -> anyhow::Result<()> {
 	let mut all_files: Vec<std::path::PathBuf> = Vec::new();
 
@@ -55,22 +74,29 @@ fn run(patterns: &[String]) -> anyhow::Result<()> {
 		.filter(|p| seen.insert(p.clone()))
 		.collect();
 
-	let (mut formatted, mut unchanged, mut errors) = (0, 0, 0);
-
-	for file in &files {
-		match formatter::format_file(file) {
-			Ok(true) => formatted += 1,
-			Ok(false) => unchanged += 1,
-			Err(e) => {
-				eprintln!("Error: {}", e);
-				errors += 1;
+	// Parallel formatting with fold/reduce pattern
+	let stats = files
+		.par_iter()
+		.fold(FormatStats::default, |mut stats, file| {
+			match formatter::format_file(file) {
+				Ok(true) => stats.formatted += 1,
+				Ok(false) => stats.unchanged += 1,
+				Err(e) => stats.errors.push(e.to_string()),
 			}
-		}
+			stats
+		})
+		.reduce(FormatStats::default, FormatStats::merge);
+
+	// Print collected errors
+	for error in &stats.errors {
+		eprintln!("Error: {}", error);
 	}
 
 	println!(
 		"Formatted {} files, {} unchanged, {} errors",
-		formatted, unchanged, errors
+		stats.formatted,
+		stats.unchanged,
+		stats.errors.len()
 	);
 
 	Ok(())
