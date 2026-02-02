@@ -2,6 +2,7 @@
 //
 // Provides a unified formatting API for JavaScript, TypeScript, JSX, TSX,
 // JSON, JSONC, HTML, Vue, Svelte, and Astro using Biome parser/formatter crates.
+// Also provides import sorting via Biome's OrganizeImports analyzer rule.
 
 #![allow(clippy::all)]
 
@@ -11,12 +12,23 @@ use biome_formatter::{
 };
 use biome_js_formatter::context::trailing_commas::TrailingCommas;
 use biome_js_formatter::context::{JsFormatOptions, Semicolons};
-use biome_js_syntax::JsFileSource;
+use biome_js_syntax::{AnyJsRoot, JsFileSource};
 
 use biome_html_parser::parse_html;
 use biome_js_parser::parse;
 use biome_json_parser::parse_json;
 use biome_json_syntax::JsonFileSource;
+
+// Analyzer imports for import sorting
+use biome_analyze::{
+	ActionCategory, AnalysisFilter, AnalyzerOptions, ControlFlow, RuleCategoriesBuilder,
+	SourceActionKind,
+};
+use biome_js_analyze::JsAnalyzerServices;
+use biome_module_graph::ModuleGraph;
+use biome_project_layout::ProjectLayout;
+use biome_rowan::AstNode;
+use std::sync::Arc;
 
 use fama_common::{FileType, FormatConfig};
 
@@ -62,10 +74,68 @@ fn to_biome_line_ending(ending: fama_common::LineEnding) -> LineEnding {
 	}
 }
 
+/// Sort imports in a JavaScript/TypeScript file using Biome's OrganizeImports analyzer rule.
+///
+/// This function runs the analyzer to detect unsorted imports and applies the
+/// OrganizeImports code action to reorder them according to Biome's sorting rules:
+/// 1. URLs (https://, http://)
+/// 2. Packages with protocol (node:, bun:, jsr:, npm:)
+/// 3. Bare packages (@scope/pkg, pkg)
+/// 4. Aliases (#, @/, ~, $, %)
+/// 5. Relative/absolute paths
+fn sort_imports(root: &AnyJsRoot, source_type: JsFileSource, file_path: &str) -> AnyJsRoot {
+	// Build a filter that enables the assist category (which includes organizeImports)
+	let categories = RuleCategoriesBuilder::default()
+		.with_assist()
+		.build();
+
+	let filter = AnalysisFilter {
+		categories,
+		..AnalysisFilter::default()
+	};
+
+	// Create analyzer options
+	let options = AnalyzerOptions::default()
+		.with_file_path(file_path);
+
+	// Create minimal services required by the analyzer
+	let services = JsAnalyzerServices::from((
+		Arc::new(ModuleGraph::default()),
+		Arc::new(ProjectLayout::default()),
+		source_type,
+	));
+
+	// Run the analyzer and collect OrganizeImports actions
+	let mut result_root = root.clone();
+
+	let _ = biome_js_analyze::analyze(
+		root,
+		filter,
+		&options,
+		&[], // No plugins
+		services,
+		|signal| {
+			// Check if this signal has the organizeImports action
+			for action in signal.actions() {
+				if action.category == ActionCategory::Source(SourceActionKind::OrganizeImports) {
+					// Apply the mutation to sort imports
+					let new_syntax = action.mutation.commit();
+					if let Some(new_root) = AnyJsRoot::cast(new_syntax) {
+						result_root = new_root;
+					}
+				}
+			}
+			ControlFlow::<()>::Continue(())
+		},
+	);
+
+	result_root
+}
+
 /// Format JavaScript source code
 pub fn format_javascript(
 	source: &str,
-	_file_path: &str,
+	file_path: &str,
 ) -> Result<String, String> {
 	let config = FormatConfig::default();
 	let source_type = JsFileSource::js_module();
@@ -85,9 +155,12 @@ pub fn format_javascript(
 		return Err(format!("Parse errors in JavaScript file"));
 	}
 
-	let syntax = parsed.syntax();
+	// Sort imports before formatting
+	let root = parsed.tree();
+	let sorted_root = sort_imports(&root, source_type, file_path);
+	let syntax = sorted_root.syntax();
 
-	let formatted = biome_js_formatter::format_node(options, &syntax)
+	let formatted = biome_js_formatter::format_node(options, syntax)
 		.map_err(|e| format!("Format error: {:?}", e))?;
 
 	formatted
@@ -99,7 +172,7 @@ pub fn format_javascript(
 /// Format TypeScript source code
 pub fn format_typescript(
 	source: &str,
-	_file_path: &str,
+	file_path: &str,
 ) -> Result<String, String> {
 	let config = FormatConfig::default();
 	let source_type = JsFileSource::ts();
@@ -119,9 +192,12 @@ pub fn format_typescript(
 		return Err(format!("Parse errors in TypeScript file"));
 	}
 
-	let syntax = parsed.syntax();
+	// Sort imports before formatting
+	let root = parsed.tree();
+	let sorted_root = sort_imports(&root, source_type, file_path);
+	let syntax = sorted_root.syntax();
 
-	let formatted = biome_js_formatter::format_node(options, &syntax)
+	let formatted = biome_js_formatter::format_node(options, syntax)
 		.map_err(|e| format!("Format error: {:?}", e))?;
 
 	formatted
@@ -131,7 +207,7 @@ pub fn format_typescript(
 }
 
 /// Format JSX source code
-pub fn format_jsx(source: &str, _file_path: &str) -> Result<String, String> {
+pub fn format_jsx(source: &str, file_path: &str) -> Result<String, String> {
 	let config = FormatConfig::default();
 	let source_type = JsFileSource::jsx();
 	let options = JsFormatOptions::new(source_type)
@@ -150,9 +226,12 @@ pub fn format_jsx(source: &str, _file_path: &str) -> Result<String, String> {
 		return Err(format!("Parse errors in JSX file"));
 	}
 
-	let syntax = parsed.syntax();
+	// Sort imports before formatting
+	let root = parsed.tree();
+	let sorted_root = sort_imports(&root, source_type, file_path);
+	let syntax = sorted_root.syntax();
 
-	let formatted = biome_js_formatter::format_node(options, &syntax)
+	let formatted = biome_js_formatter::format_node(options, syntax)
 		.map_err(|e| format!("Format error: {:?}", e))?;
 
 	formatted
@@ -162,7 +241,7 @@ pub fn format_jsx(source: &str, _file_path: &str) -> Result<String, String> {
 }
 
 /// Format TSX source code
-pub fn format_tsx(source: &str, _file_path: &str) -> Result<String, String> {
+pub fn format_tsx(source: &str, file_path: &str) -> Result<String, String> {
 	let config = FormatConfig::default();
 	let source_type = JsFileSource::tsx();
 	let options = JsFormatOptions::new(source_type)
@@ -181,9 +260,12 @@ pub fn format_tsx(source: &str, _file_path: &str) -> Result<String, String> {
 		return Err(format!("Parse errors in TSX file"));
 	}
 
-	let syntax = parsed.syntax();
+	// Sort imports before formatting
+	let root = parsed.tree();
+	let sorted_root = sort_imports(&root, source_type, file_path);
+	let syntax = sorted_root.syntax();
 
-	let formatted = biome_js_formatter::format_node(options, &syntax)
+	let formatted = biome_js_formatter::format_node(options, syntax)
 		.map_err(|e| format!("Format error: {:?}", e))?;
 
 	formatted
@@ -399,5 +481,86 @@ mod tests {
 		let source = r#"{"key":"value"}"#;
 		let result = format_file(source, "test.json", FileType::Json).unwrap();
 		assert!(result.contains("\"key\""));
+	}
+
+	#[test]
+	fn test_sort_imports_javascript() {
+		// Imports in wrong order: relative paths should come after packages
+		let source = r#"import z from "./local";
+import a from "package-a";
+import b from "package-b";
+"#;
+		let result = format_javascript(source, "test.js").unwrap();
+		// After sorting: packages should come before relative paths
+		// package-a and package-b should come before ./local
+		let a_pos = result.find("package-a").unwrap();
+		let b_pos = result.find("package-b").unwrap();
+		let local_pos = result.find("./local").unwrap();
+		assert!(
+			a_pos < local_pos && b_pos < local_pos,
+			"Package imports should come before relative imports. Got: {}",
+			result
+		);
+	}
+
+	#[test]
+	fn test_sort_imports_typescript() {
+		// Imports in wrong order with mixed types
+		let source = r#"import { Component } from "./Component";
+import type { Props } from "./types";
+import React from "react";
+import path from "node:path";
+"#;
+		let result = format_typescript(source, "test.ts").unwrap();
+		// After sorting: node: should come first, then packages, then relative
+		let node_pos = result.find("node:path").unwrap();
+		let react_pos = result.find("react").unwrap();
+		let component_pos = result.find("./Component").unwrap();
+		assert!(
+			node_pos < react_pos,
+			"node: imports should come before package imports. Got: {}",
+			result
+		);
+		assert!(
+			react_pos < component_pos,
+			"Package imports should come before relative imports. Got: {}",
+			result
+		);
+	}
+
+	#[test]
+	fn test_sort_named_specifiers() {
+		// Named specifiers should be sorted alphabetically (case-insensitive, then uppercase first)
+		let source = r#"import { z, a, m, B } from "package";
+"#;
+		let result = format_javascript(source, "test.js").unwrap();
+		// Biome sorts case-insensitively: a < B (because 'a' < 'b') < m < z
+		// Within same letter, uppercase comes first (A < a < B < b)
+		let a_pos = result.find(" a,").unwrap();
+		let b_pos = result.find(" B,").unwrap();
+		let m_pos = result.find(" m,").unwrap();
+		let z_pos = result.find(" z ").unwrap();
+		assert!(
+			a_pos < b_pos && b_pos < m_pos && m_pos < z_pos,
+			"Named specifiers should be sorted (a, B, m, z). Got: {}",
+			result
+		);
+	}
+
+	#[test]
+	fn test_sort_imports_with_side_effects() {
+		// Side-effect imports should not be reordered with regular imports
+		let source = r#"import "./polyfill";
+import a from "package-a";
+"#;
+		let result = format_javascript(source, "test.js").unwrap();
+		// Side-effect import should stay at top (it forms its own chunk)
+		let polyfill_pos = result.find("polyfill").unwrap();
+		let a_pos = result.find("package-a").unwrap();
+		assert!(
+			polyfill_pos < a_pos,
+			"Side-effect imports should maintain their position. Got: {}",
+			result
+		);
 	}
 }
