@@ -1,79 +1,79 @@
 name: CI
 
 on:
-  push:
-    branches: [master, main]
-  pull_request:
-    branches: [master, main]
-  workflow_dispatch:
+    push:
+        branches: [master, main]
+    pull_request:
+        branches: [master, main]
+    workflow_dispatch:
 
 env:
-  CARGO_TERM_COLOR: always
+    CARGO_TERM_COLOR: always
 
 jobs:
-  build-and-test:
-    name: Build & Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    build-and-test:
+        name: Build & Test (${{ matrix.os }})
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, macos-latest, windows-latest]
 
-    steps:
-      - uses: actions/checkout@v4
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ runner.os == 'Windows' && 'x86_64-pc-windows-gnu' || '' }}
+            - name: Install Rust
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  targets: ${{ runner.os == 'Windows' && 'x86_64-pc-windows-gnu' || '' }}
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "stable"
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
+            - name: Rust cache
+              uses: Swatinem/rust-cache@v2
 
-      - name: Build (Unix)
-        if: runner.os != 'Windows'
-        run: cargo build
+            - name: Build (Unix)
+              if: runner.os != 'Windows'
+              run: cargo build
 
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        run: cargo build --target x86_64-pc-windows-gnu
+            - name: Build (Windows)
+              if: runner.os == 'Windows'
+              run: cargo build --target x86_64-pc-windows-gnu
 
-      - name: Run tests (Unix)
-        if: runner.os != 'Windows'
-        run: cargo test
+            - name: Run tests (Unix)
+              if: runner.os != 'Windows'
+              run: cargo test
 
-      - name: Run tests (Windows)
-        if: runner.os == 'Windows'
-        run: cargo test --target x86_64-pc-windows-gnu
+            - name: Run tests (Windows)
+              if: runner.os == 'Windows'
+              run: cargo test --target x86_64-pc-windows-gnu
 
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    lint:
+        name: Lint
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
+            - name: Install Rust
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: clippy
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "stable"
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
+            - name: Rust cache
+              uses: Swatinem/rust-cache@v2
 
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+            - name: Clippy
+              run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          working-directory: formatters/goffi/go
+            - name: golangci-lint
+              uses: golangci/golangci-lint-action@v6
+              with:
+                  working-directory: formatters/goffi/go

@@ -1,6 +1,19 @@
 // toml-fmt - TOML formatting library using Taplo
 
-use fama_common::{FormatConfig, IndentStyle, LineEnding};
+use fama_common::CONFIG;
+
+// Module-level constants - pre-converted config values
+const TAPLO_COLUMN_WIDTH: usize = CONFIG.line_width as usize;
+const TAPLO_CRLF: bool =
+	matches!(CONFIG.line_ending, fama_common::LineEnding::Crlf);
+// For indent_string, we use a static str to avoid allocation
+// Tabs use "\t", Spaces use "    " (4 spaces matching CONFIG.indent_width)
+const TAPLO_INDENT_STRING: &str =
+	if matches!(CONFIG.indent_style, fama_common::IndentStyle::Tabs) {
+		"\t"
+	} else {
+		"    " // 4 spaces - matches CONFIG.indent_width default
+	};
 
 /// Format TOML source code using Taplo formatter
 pub fn format_toml(source: &str, _file_path: &str) -> Result<String, String> {
@@ -17,17 +30,10 @@ pub fn format_toml(source: &str, _file_path: &str) -> Result<String, String> {
 			.join("; "));
 	}
 
-	let fmt_config = FormatConfig::default();
-
-	let indent_string = match fmt_config.indent_style {
-		IndentStyle::Tabs => "\t".to_string(),
-		IndentStyle::Spaces => " ".repeat(fmt_config.indent_width as usize),
-	};
-
 	let options = Options {
-		column_width: fmt_config.line_width as usize,
-		indent_string,
-		crlf: matches!(fmt_config.line_ending, LineEnding::Crlf),
+		column_width: TAPLO_COLUMN_WIDTH,
+		indent_string: TAPLO_INDENT_STRING.to_string(),
+		crlf: TAPLO_CRLF,
 		trailing_newline: true,
 		align_entries: false,
 		align_comments: true,

@@ -2,11 +2,27 @@
 //
 // Provides Python code formatting using the ruff formatter library directly.
 
-use fama_common::{FormatConfig, IndentStyle, LineEnding, QuoteStyle};
+use fama_common::CONFIG;
 use ruff_formatter::printer::LineEnding as RuffLineEnding;
 use ruff_formatter::{IndentStyle as RuffIndentStyle, IndentWidth, LineWidth};
 use ruff_python_formatter::{
 	format_module_source, PyFormatOptions, QuoteStyle as RuffQuoteStyle,
+};
+
+// Module-level constants - pre-converted config values
+const RUFF_INDENT_STYLE: RuffIndentStyle = match CONFIG.indent_style {
+	fama_common::IndentStyle::Tabs => RuffIndentStyle::Tab,
+	fama_common::IndentStyle::Spaces => RuffIndentStyle::Space,
+};
+const RUFF_INDENT_WIDTH: u8 = CONFIG.indent_width;
+const RUFF_LINE_WIDTH: u16 = CONFIG.line_width;
+const RUFF_LINE_ENDING: RuffLineEnding = match CONFIG.line_ending {
+	fama_common::LineEnding::Lf => RuffLineEnding::LineFeed,
+	fama_common::LineEnding::Crlf => RuffLineEnding::CarriageReturnLineFeed,
+};
+const RUFF_QUOTE_STYLE: RuffQuoteStyle = match CONFIG.quote_style {
+	fama_common::QuoteStyle::Single => RuffQuoteStyle::Single,
+	fama_common::QuoteStyle::Double => RuffQuoteStyle::Double,
 };
 
 /// Format Python source code using ruff formatter
@@ -19,29 +35,12 @@ use ruff_python_formatter::{
 /// * `Ok(String)` - Formatted code
 /// * `Err(String)` - Error message if formatting fails
 pub fn format_python(source: &str, _file_path: &str) -> Result<String, String> {
-	let config = FormatConfig::default();
-
-	let indent_style = match config.indent_style {
-		IndentStyle::Tabs => RuffIndentStyle::Tab,
-		IndentStyle::Spaces => RuffIndentStyle::Space,
-	};
-
-	let line_ending = match config.line_ending {
-		LineEnding::Lf => RuffLineEnding::LineFeed,
-		LineEnding::Crlf => RuffLineEnding::CarriageReturnLineFeed,
-	};
-
-	let quote_style = match config.quote_style {
-		QuoteStyle::Single => RuffQuoteStyle::Single,
-		QuoteStyle::Double => RuffQuoteStyle::Double,
-	};
-
 	let options = PyFormatOptions::default()
-		.with_indent_style(indent_style)
-		.with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
-		.with_line_width(LineWidth::try_from(config.line_width).unwrap())
-		.with_line_ending(line_ending)
-		.with_quote_style(quote_style);
+		.with_indent_style(RUFF_INDENT_STYLE)
+		.with_indent_width(IndentWidth::try_from(RUFF_INDENT_WIDTH).unwrap())
+		.with_line_width(LineWidth::try_from(RUFF_LINE_WIDTH).unwrap())
+		.with_line_ending(RUFF_LINE_ENDING)
+		.with_quote_style(RUFF_QUOTE_STYLE);
 
 	format_module_source(source, options)
 		.map(|printed| printed.into_code())

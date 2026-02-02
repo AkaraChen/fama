@@ -5,8 +5,34 @@
 
 #![allow(clippy::all)]
 
-use fama_common::{
-	FileType, FormatConfig, IndentStyle, LineEnding, QuoteStyle,
+use dprint_core::configuration::NewLineKind;
+use fama_common::{FileType, CONFIG};
+
+// Module-level constants - pre-converted config values
+const DPRINT_LINE_WIDTH: u16 = CONFIG.line_width;
+const DPRINT_INDENT_WIDTH: u8 = CONFIG.indent_width;
+const DPRINT_NEW_LINE_KIND: NewLineKind = match CONFIG.line_ending {
+	fama_common::LineEnding::Lf => NewLineKind::LineFeed,
+	fama_common::LineEnding::Crlf => NewLineKind::CarriageReturnLineFeed,
+};
+const DPRINT_USE_TABS: bool =
+	matches!(CONFIG.indent_style, fama_common::IndentStyle::Tabs);
+
+// Malva constants
+const MALVA_LINE_BREAK: malva::config::LineBreak = match CONFIG.line_ending {
+	fama_common::LineEnding::Lf => malva::config::LineBreak::Lf,
+	fama_common::LineEnding::Crlf => malva::config::LineBreak::Crlf,
+};
+const MALVA_QUOTES: malva::config::Quotes = match CONFIG.quote_style {
+	fama_common::QuoteStyle::Single => malva::config::Quotes::AlwaysSingle,
+	fama_common::QuoteStyle::Double => malva::config::Quotes::AlwaysDouble,
+};
+
+// YAML constants
+const YAML_LINE_BREAK: pretty_yaml::config::LineBreak = match CONFIG.line_ending
+{
+	fama_common::LineEnding::Lf => pretty_yaml::config::LineBreak::Lf,
+	fama_common::LineEnding::Crlf => pretty_yaml::config::LineBreak::Crlf,
 };
 
 /// Format Markdown source code with specified options
@@ -14,18 +40,11 @@ pub fn format_markdown(
 	source: &str,
 	_file_path: &str,
 ) -> Result<String, String> {
-	use dprint_core::configuration::NewLineKind;
 	use dprint_plugin_markdown::configuration::*;
 
-	let fmt_config = FormatConfig::default();
-	let new_line_kind = match fmt_config.line_ending {
-		LineEnding::Lf => NewLineKind::LineFeed,
-		LineEnding::Crlf => NewLineKind::CarriageReturnLineFeed,
-	};
-
 	let config = Configuration {
-		line_width: fmt_config.line_width as u32,
-		new_line_kind,
+		line_width: DPRINT_LINE_WIDTH as u32,
+		new_line_kind: DPRINT_NEW_LINE_KIND,
 		text_wrap: TextWrap::Maintain,
 		emphasis_kind: EmphasisKind::Underscores,
 		strong_kind: StrongKind::Asterisks,
@@ -59,21 +78,13 @@ pub fn format_markdown(
 
 /// Format YAML source code with specified options
 pub fn format_yaml(source: &str, _file_path: &str) -> Result<String, String> {
-	use pretty_yaml::config::{
-		FormatOptions, LanguageOptions, LayoutOptions, LineBreak,
-	};
-
-	let fmt_config = FormatConfig::default();
-	let line_break = match fmt_config.line_ending {
-		LineEnding::Lf => LineBreak::Lf,
-		LineEnding::Crlf => LineBreak::Crlf,
-	};
+	use pretty_yaml::config::{FormatOptions, LanguageOptions, LayoutOptions};
 
 	let config = FormatOptions {
 		layout: LayoutOptions {
-			print_width: fmt_config.line_width as usize,
-			indent_width: fmt_config.indent_width as usize,
-			line_break,
+			print_width: DPRINT_LINE_WIDTH as usize,
+			indent_width: DPRINT_INDENT_WIDTH as usize,
+			line_break: YAML_LINE_BREAK,
 		},
 		language: LanguageOptions::default(),
 	};
@@ -84,29 +95,17 @@ pub fn format_yaml(source: &str, _file_path: &str) -> Result<String, String> {
 
 /// Create Malva options from format config
 fn malva_options() -> malva::config::FormatOptions {
-	use malva::config::{LanguageOptions, LayoutOptions, Quotes};
-
-	let fmt_config = FormatConfig::default();
-
-	let line_break = match fmt_config.line_ending {
-		LineEnding::Lf => malva::config::LineBreak::Lf,
-		LineEnding::Crlf => malva::config::LineBreak::Crlf,
-	};
-
-	let quotes = match fmt_config.quote_style {
-		QuoteStyle::Single => Quotes::AlwaysSingle,
-		QuoteStyle::Double => Quotes::AlwaysDouble,
-	};
+	use malva::config::{LanguageOptions, LayoutOptions};
 
 	malva::config::FormatOptions {
 		layout: LayoutOptions {
-			print_width: fmt_config.line_width as usize,
-			use_tabs: matches!(fmt_config.indent_style, IndentStyle::Tabs),
-			indent_width: fmt_config.indent_width as usize,
-			line_break,
+			print_width: DPRINT_LINE_WIDTH as usize,
+			use_tabs: DPRINT_USE_TABS,
+			indent_width: DPRINT_INDENT_WIDTH as usize,
+			line_break: MALVA_LINE_BREAK,
 		},
 		language: LanguageOptions {
-			quotes,
+			quotes: MALVA_QUOTES,
 			..Default::default()
 		},
 	}

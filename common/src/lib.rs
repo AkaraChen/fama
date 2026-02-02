@@ -86,21 +86,27 @@ pub struct FormatConfig {
 	pub bracket_spacing: bool,
 }
 
+/// Global format configuration constant
+///
+/// This constant is used by all formatters to ensure consistent formatting.
+/// Using a const allows compile-time optimization and is inherently thread-safe.
+pub const CONFIG: FormatConfig = FormatConfig {
+	// Core - go-fmt style
+	indent_style: IndentStyle::Tabs,
+	indent_width: 4,
+	line_width: 80,
+	line_ending: LineEnding::Lf,
+	// Strings
+	quote_style: QuoteStyle::Double,
+	// JS/TS
+	trailing_comma: TrailingComma::All,
+	semicolons: Semicolons::Always,
+	bracket_spacing: true,
+};
+
 impl Default for FormatConfig {
 	fn default() -> Self {
-		Self {
-			// Core - go-fmt style
-			indent_style: IndentStyle::Tabs,
-			indent_width: 4,
-			line_width: 80,
-			line_ending: LineEnding::Lf,
-			// Strings
-			quote_style: QuoteStyle::Double,
-			// JS/TS
-			trailing_comma: TrailingComma::All,
-			semicolons: Semicolons::Always,
-			bracket_spacing: true,
-		}
+		CONFIG
 	}
 }
 

@@ -21,8 +21,8 @@ use biome_json_syntax::JsonFileSource;
 
 // Analyzer imports for import sorting
 use biome_analyze::{
-	ActionCategory, AnalysisFilter, AnalyzerOptions, ControlFlow, RuleCategoriesBuilder,
-	SourceActionKind,
+	ActionCategory, AnalysisFilter, AnalyzerOptions, ControlFlow,
+	RuleCategoriesBuilder, SourceActionKind,
 };
 use biome_js_analyze::JsAnalyzerServices;
 use biome_module_graph::ModuleGraph;
@@ -30,49 +30,32 @@ use biome_project_layout::ProjectLayout;
 use biome_rowan::AstNode;
 use std::sync::Arc;
 
-use fama_common::{FileType, FormatConfig};
+use fama_common::{FileType, CONFIG};
 
-/// Convert fama_common config to biome indent style
-fn to_biome_indent_style(style: fama_common::IndentStyle) -> IndentStyle {
-	match style {
-		fama_common::IndentStyle::Spaces => IndentStyle::Space,
-		fama_common::IndentStyle::Tabs => IndentStyle::Tab,
-	}
-}
-
-/// Convert fama_common quote style to biome quote style
-fn to_biome_quote_style(style: fama_common::QuoteStyle) -> QuoteStyle {
-	match style {
-		fama_common::QuoteStyle::Single => QuoteStyle::Single,
-		fama_common::QuoteStyle::Double => QuoteStyle::Double,
-	}
-}
-
-/// Convert fama_common trailing comma to biome trailing commas
-fn to_biome_trailing_commas(
-	style: fama_common::TrailingComma,
-) -> TrailingCommas {
-	match style {
-		fama_common::TrailingComma::All => TrailingCommas::All,
-		fama_common::TrailingComma::None => TrailingCommas::None,
-	}
-}
-
-/// Convert fama_common semicolons to biome semicolons
-fn to_biome_semicolons(style: fama_common::Semicolons) -> Semicolons {
-	match style {
-		fama_common::Semicolons::Always => Semicolons::Always,
-		fama_common::Semicolons::AsNeeded => Semicolons::AsNeeded,
-	}
-}
-
-/// Convert fama_common line ending to biome line ending
-fn to_biome_line_ending(ending: fama_common::LineEnding) -> LineEnding {
-	match ending {
-		fama_common::LineEnding::Lf => LineEnding::Lf,
-		fama_common::LineEnding::Crlf => LineEnding::Crlf,
-	}
-}
+// Module-level constants - pre-converted config values for optimal performance
+const BIOME_INDENT_STYLE: IndentStyle = match CONFIG.indent_style {
+	fama_common::IndentStyle::Spaces => IndentStyle::Space,
+	fama_common::IndentStyle::Tabs => IndentStyle::Tab,
+};
+const BIOME_INDENT_WIDTH: u8 = CONFIG.indent_width;
+const BIOME_LINE_WIDTH: u16 = CONFIG.line_width;
+const BIOME_LINE_ENDING: LineEnding = match CONFIG.line_ending {
+	fama_common::LineEnding::Lf => LineEnding::Lf,
+	fama_common::LineEnding::Crlf => LineEnding::Crlf,
+};
+const BIOME_QUOTE_STYLE: QuoteStyle = match CONFIG.quote_style {
+	fama_common::QuoteStyle::Single => QuoteStyle::Single,
+	fama_common::QuoteStyle::Double => QuoteStyle::Double,
+};
+const BIOME_TRAILING_COMMAS: TrailingCommas = match CONFIG.trailing_comma {
+	fama_common::TrailingComma::All => TrailingCommas::All,
+	fama_common::TrailingComma::None => TrailingCommas::None,
+};
+const BIOME_SEMICOLONS: Semicolons = match CONFIG.semicolons {
+	fama_common::Semicolons::Always => Semicolons::Always,
+	fama_common::Semicolons::AsNeeded => Semicolons::AsNeeded,
+};
+const BIOME_BRACKET_SPACING: bool = CONFIG.bracket_spacing;
 
 /// Sort imports in a JavaScript/TypeScript file using Biome's OrganizeImports analyzer rule.
 ///
@@ -83,11 +66,13 @@ fn to_biome_line_ending(ending: fama_common::LineEnding) -> LineEnding {
 /// 3. Bare packages (@scope/pkg, pkg)
 /// 4. Aliases (#, @/, ~, $, %)
 /// 5. Relative/absolute paths
-fn sort_imports(root: &AnyJsRoot, source_type: JsFileSource, file_path: &str) -> AnyJsRoot {
+fn sort_imports(
+	root: &AnyJsRoot,
+	source_type: JsFileSource,
+	file_path: &str,
+) -> AnyJsRoot {
 	// Build a filter that enables the assist category (which includes organizeImports)
-	let categories = RuleCategoriesBuilder::default()
-		.with_assist()
-		.build();
+	let categories = RuleCategoriesBuilder::default().with_assist().build();
 
 	let filter = AnalysisFilter {
 		categories,
@@ -95,8 +80,7 @@ fn sort_imports(root: &AnyJsRoot, source_type: JsFileSource, file_path: &str) ->
 	};
 
 	// Create analyzer options
-	let options = AnalyzerOptions::default()
-		.with_file_path(file_path);
+	let options = AnalyzerOptions::default().with_file_path(file_path);
 
 	// Create minimal services required by the analyzer
 	let services = JsAnalyzerServices::from((
@@ -117,7 +101,9 @@ fn sort_imports(root: &AnyJsRoot, source_type: JsFileSource, file_path: &str) ->
 		|signal| {
 			// Check if this signal has the organizeImports action
 			for action in signal.actions() {
-				if action.category == ActionCategory::Source(SourceActionKind::OrganizeImports) {
+				if action.category
+					== ActionCategory::Source(SourceActionKind::OrganizeImports)
+				{
 					// Apply the mutation to sort imports
 					let new_syntax = action.mutation.commit();
 					if let Some(new_root) = AnyJsRoot::cast(new_syntax) {
@@ -137,17 +123,16 @@ pub fn format_javascript(
 	source: &str,
 	file_path: &str,
 ) -> Result<String, String> {
-	let config = FormatConfig::default();
 	let source_type = JsFileSource::js_module();
 	let options = JsFormatOptions::new(source_type)
-		.with_indent_style(to_biome_indent_style(config.indent_style))
-		.with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
-		.with_line_width(LineWidth::try_from(config.line_width).unwrap())
-		.with_line_ending(to_biome_line_ending(config.line_ending))
-		.with_quote_style(to_biome_quote_style(config.quote_style))
-		.with_trailing_commas(to_biome_trailing_commas(config.trailing_comma))
-		.with_semicolons(to_biome_semicolons(config.semicolons))
-		.with_bracket_spacing(BracketSpacing::from(config.bracket_spacing));
+		.with_indent_style(BIOME_INDENT_STYLE)
+		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
+		.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap())
+		.with_line_ending(BIOME_LINE_ENDING)
+		.with_quote_style(BIOME_QUOTE_STYLE)
+		.with_trailing_commas(BIOME_TRAILING_COMMAS)
+		.with_semicolons(BIOME_SEMICOLONS)
+		.with_bracket_spacing(BracketSpacing::from(BIOME_BRACKET_SPACING));
 
 	let parsed = parse(source, source_type, Default::default());
 
@@ -174,17 +159,16 @@ pub fn format_typescript(
 	source: &str,
 	file_path: &str,
 ) -> Result<String, String> {
-	let config = FormatConfig::default();
 	let source_type = JsFileSource::ts();
 	let options = JsFormatOptions::new(source_type)
-		.with_indent_style(to_biome_indent_style(config.indent_style))
-		.with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
-		.with_line_width(LineWidth::try_from(config.line_width).unwrap())
-		.with_line_ending(to_biome_line_ending(config.line_ending))
-		.with_quote_style(to_biome_quote_style(config.quote_style))
-		.with_trailing_commas(to_biome_trailing_commas(config.trailing_comma))
-		.with_semicolons(to_biome_semicolons(config.semicolons))
-		.with_bracket_spacing(BracketSpacing::from(config.bracket_spacing));
+		.with_indent_style(BIOME_INDENT_STYLE)
+		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
+		.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap())
+		.with_line_ending(BIOME_LINE_ENDING)
+		.with_quote_style(BIOME_QUOTE_STYLE)
+		.with_trailing_commas(BIOME_TRAILING_COMMAS)
+		.with_semicolons(BIOME_SEMICOLONS)
+		.with_bracket_spacing(BracketSpacing::from(BIOME_BRACKET_SPACING));
 
 	let parsed = parse(source, source_type, Default::default());
 
@@ -208,17 +192,16 @@ pub fn format_typescript(
 
 /// Format JSX source code
 pub fn format_jsx(source: &str, file_path: &str) -> Result<String, String> {
-	let config = FormatConfig::default();
 	let source_type = JsFileSource::jsx();
 	let options = JsFormatOptions::new(source_type)
-		.with_indent_style(to_biome_indent_style(config.indent_style))
-		.with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
-		.with_line_width(LineWidth::try_from(config.line_width).unwrap())
-		.with_line_ending(to_biome_line_ending(config.line_ending))
-		.with_quote_style(to_biome_quote_style(config.quote_style))
-		.with_trailing_commas(to_biome_trailing_commas(config.trailing_comma))
-		.with_semicolons(to_biome_semicolons(config.semicolons))
-		.with_bracket_spacing(BracketSpacing::from(config.bracket_spacing));
+		.with_indent_style(BIOME_INDENT_STYLE)
+		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
+		.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap())
+		.with_line_ending(BIOME_LINE_ENDING)
+		.with_quote_style(BIOME_QUOTE_STYLE)
+		.with_trailing_commas(BIOME_TRAILING_COMMAS)
+		.with_semicolons(BIOME_SEMICOLONS)
+		.with_bracket_spacing(BracketSpacing::from(BIOME_BRACKET_SPACING));
 
 	let parsed = parse(source, source_type, Default::default());
 
@@ -242,17 +225,16 @@ pub fn format_jsx(source: &str, file_path: &str) -> Result<String, String> {
 
 /// Format TSX source code
 pub fn format_tsx(source: &str, file_path: &str) -> Result<String, String> {
-	let config = FormatConfig::default();
 	let source_type = JsFileSource::tsx();
 	let options = JsFormatOptions::new(source_type)
-		.with_indent_style(to_biome_indent_style(config.indent_style))
-		.with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
-		.with_line_width(LineWidth::try_from(config.line_width).unwrap())
-		.with_line_ending(to_biome_line_ending(config.line_ending))
-		.with_quote_style(to_biome_quote_style(config.quote_style))
-		.with_trailing_commas(to_biome_trailing_commas(config.trailing_comma))
-		.with_semicolons(to_biome_semicolons(config.semicolons))
-		.with_bracket_spacing(BracketSpacing::from(config.bracket_spacing));
+		.with_indent_style(BIOME_INDENT_STYLE)
+		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
+		.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap())
+		.with_line_ending(BIOME_LINE_ENDING)
+		.with_quote_style(BIOME_QUOTE_STYLE)
+		.with_trailing_commas(BIOME_TRAILING_COMMAS)
+		.with_semicolons(BIOME_SEMICOLONS)
+		.with_bracket_spacing(BracketSpacing::from(BIOME_BRACKET_SPACING));
 
 	let parsed = parse(source, source_type, Default::default());
 
@@ -296,15 +278,14 @@ fn format_json_internal(
 ) -> Result<String, String> {
 	use biome_json_parser::JsonParserOptions;
 
-	let config = FormatConfig::default();
 	let options =
 		biome_json_formatter::context::JsonFormatOptions::new(source_type)
-			.with_indent_style(to_biome_indent_style(config.indent_style))
+			.with_indent_style(BIOME_INDENT_STYLE)
 			.with_indent_width(
-				IndentWidth::try_from(config.indent_width).unwrap(),
+				IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap(),
 			)
-			.with_line_width(LineWidth::try_from(config.line_width).unwrap())
-			.with_line_ending(to_biome_line_ending(config.line_ending));
+			.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap())
+			.with_line_ending(BIOME_LINE_ENDING);
 
 	let parser_options = if allow_comments {
 		JsonParserOptions::default().with_allow_comments()
@@ -331,11 +312,10 @@ fn format_json_internal(
 
 /// Format HTML source code
 pub fn format_html(source: &str, _file_path: &str) -> Result<String, String> {
-	let config = FormatConfig::default();
 	let options = biome_html_formatter::context::HtmlFormatOptions::default()
-		.with_indent_style(to_biome_indent_style(config.indent_style))
-		.with_indent_width(IndentWidth::try_from(config.indent_width).unwrap())
-		.with_line_width(LineWidth::try_from(config.line_width).unwrap());
+		.with_indent_style(BIOME_INDENT_STYLE)
+		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
+		.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap());
 
 	let parsed = parse_html(source, Default::default());
 
