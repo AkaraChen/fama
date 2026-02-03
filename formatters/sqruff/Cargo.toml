@@ -1,0 +1,16 @@
+[package]
+name = "fama-sqruff"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "fama_sqruff"
+crate-type = [ "rlib" ]
+
+[dependencies]
+sqruff-lib = "0.34"
+sqruff-lib-core = "0.34"
+sqruff-lib-dialects = "0.34"
+ahash = "0.8"
+fama-common = { path = "../../common" }

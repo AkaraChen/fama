@@ -137,6 +137,7 @@ pub enum FileType {
 	Go,
 	Dockerfile,
 	GraphQL,
+	Sql,
 	Xml,
 	Unknown,
 }
@@ -168,6 +169,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
 		Some("go") => FileType::Go,
 		Some("graphql") | Some("gql") => FileType::GraphQL,
+		Some("sql") => FileType::Sql,
 		Some("xml") => FileType::Xml,
 		_ => {
 			// Check for Dockerfile by filename (Dockerfile or Dockerfile.*)
@@ -294,6 +296,13 @@ mod tests {
 			detect_file_type("path/to/Dockerfile.test"),
 			FileType::Dockerfile
 		);
+	}
+
+	#[test]
+	fn test_detect_sql() {
+		assert_eq!(detect_file_type("test.sql"), FileType::Sql);
+		assert_eq!(detect_file_type("query.sql"), FileType::Sql);
+		assert_eq!(detect_file_type("path/to/schema.sql"), FileType::Sql);
 	}
 
 	#[test]

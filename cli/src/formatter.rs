@@ -58,6 +58,7 @@ fn format_content(
 		FileType::Go => goffi::format_go(content, path),
 		FileType::Dockerfile => dockerfile::format_dockerfile(content, path),
 		FileType::Xml => xml_fmt::format_xml(content, path),
+		FileType::Sql => fama_sqruff::format_sql(content, path),
 
 		FileType::Unknown => Err("Unknown file type".to_string()),
 	}
