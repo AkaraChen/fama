@@ -51,19 +51,40 @@ fn main() {
 
 		match output {
 			Ok(o) if o.status.success() => {
-				// Copy the built library to the target-specific name
-				let built_lib = zig_out_dir.join("libzigfmt.a");
-				if built_lib.exists() {
-					fs::copy(&built_lib, &lib_src)
-						.expect("Failed to copy static library");
-					println!(
-						"cargo:warning=Successfully built Zig static library"
-					);
-				} else {
-					panic!(
-						"Zig build succeeded but library not found at {:?}",
-						built_lib
-					);
+				// Try different library names (Unix vs Windows conventions)
+				let possible_names = ["libzigfmt.a", "zigfmt.lib"];
+				let mut found = false;
+
+				for name in &possible_names {
+					let built_lib = zig_out_dir.join(name);
+					if built_lib.exists() {
+						fs::copy(&built_lib, &lib_src)
+							.expect("Failed to copy static library");
+						println!(
+							"cargo:warning=Successfully built Zig static library"
+						);
+						found = true;
+						break;
+					}
+				}
+
+				if !found {
+					// List what's in the directory for debugging
+					if let Ok(entries) = fs::read_dir(&zig_out_dir) {
+						let files: Vec<_> = entries
+							.filter_map(|e| e.ok())
+							.map(|e| e.file_name().to_string_lossy().to_string())
+							.collect();
+						panic!(
+							"Zig build succeeded but library not found. Files in {:?}: {:?}",
+							zig_out_dir, files
+						);
+					} else {
+						panic!(
+							"Zig build succeeded but output directory not found: {:?}",
+							zig_out_dir
+						);
+					}
 				}
 			}
 			Ok(o) => {

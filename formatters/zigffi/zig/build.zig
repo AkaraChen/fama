@@ -12,6 +12,8 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("root.zig"),
             .target = target,
             .optimize = optimize,
+            // Enable PIC for Linux to work with Rust's PIE executables
+            .pic = true,
         }),
     });
 
