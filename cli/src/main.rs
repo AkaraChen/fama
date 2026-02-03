@@ -158,20 +158,12 @@ fn run(options: Cli) -> anyhow::Result<()> {
 	// Print stats (unless quiet mode)
 	if !quiet {
 		if check {
-			if stats.formatted > 0 {
-				println!(
-					"{} files need formatting, {} unchanged, {} errors",
-					stats.formatted,
-					stats.unchanged,
-					stats.errors.len()
-				);
-			} else {
-				println!(
-					"All {} files are properly formatted ({} errors)",
-					stats.unchanged,
-					stats.errors.len()
-				);
-			}
+			println!(
+				"{} files need formatting, {} unchanged, {} errors",
+				stats.formatted,
+				stats.unchanged,
+				stats.errors.len()
+			);
 		} else {
 			println!(
 				"Formatted {} files, {} unchanged, {} errors",
