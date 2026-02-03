@@ -424,7 +424,13 @@ pub fn format_file(
 		FileType::TypeScript => format_typescript(source, file_path),
 		FileType::Jsx => format_jsx(source, file_path),
 		FileType::Tsx => format_tsx(source, file_path),
-		FileType::Json => format_json(source, file_path),
+		FileType::Json => {
+			// Try standard JSON first, if that fails try JSON with comments
+			match format_json(source, file_path) {
+				Ok(result) => Ok(result),
+				Err(_) => format_jsonc(source, file_path),
+			}
+		}
 		FileType::Jsonc => format_jsonc(source, file_path),
 		FileType::Html => format_html(source, file_path),
 		FileType::Vue => format_vue(source, file_path),
@@ -494,6 +500,19 @@ mod tests {
 		let source = r#"{"key":"value"}"#;
 		let result = format_file(source, "test.json", FileType::Json).unwrap();
 		assert!(result.contains("\"key\""));
+	}
+
+	#[test]
+	fn test_format_json_with_comments_fallback() {
+		// JSON file with comments should fallback to JSONC mode
+		let source = r#"{
+  // This is a comment
+  "name": "test",
+  "value": 1
+}"#;
+		let result = format_file(source, "test.json", FileType::Json).unwrap();
+		assert!(result.contains("\"name\""));
+		assert!(result.contains("// This is a comment"));
 	}
 
 	#[test]
