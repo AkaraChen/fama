@@ -94,8 +94,10 @@ fn run(options: Cli) -> anyhow::Result<()> {
 		all_files.extend(git_files);
 	} else {
 		for pattern in &patterns {
-			let files = discovery::discover_files(Some(pattern))
-				.map_err(|e| anyhow::anyhow!("Failed to discover files: {}", e))?;
+			let files =
+				discovery::discover_files(Some(pattern)).map_err(|e| {
+					anyhow::anyhow!("Failed to discover files: {}", e)
+				})?;
 			if files.is_empty() && !quiet {
 				eprintln!("Warning: pattern '{}' matched 0 files", pattern);
 			}
