@@ -1664,6 +1664,7 @@ dependencies = [
  "glob",
  "goffi",
  "ignore",
+ "pathdiff",
  "rayon",
  "ruff",
  "rustfmt",

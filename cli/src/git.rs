@@ -5,17 +5,29 @@ use std::process::Command;
 
 use crate::discovery;
 
-/// Get files from git based on staged or changed status
-pub fn get_git_files(staged: bool) -> anyhow::Result<Vec<PathBuf>> {
-	// Check if we're in a git repository
-	let git_check = Command::new("git")
-		.args(["rev-parse", "--git-dir"])
+/// Get the git repository root directory
+fn get_git_root() -> anyhow::Result<PathBuf> {
+	let output = Command::new("git")
+		.args(["rev-parse", "--show-toplevel"])
 		.output()
 		.map_err(|e| anyhow::anyhow!("Failed to run git command: {}", e))?;
 
-	if !git_check.status.success() {
+	if !output.status.success() {
 		return Err(anyhow::anyhow!("Not a git repository"));
 	}
+
+	let root = String::from_utf8_lossy(&output.stdout);
+	Ok(PathBuf::from(root.trim()))
+}
+
+/// Get files from git based on staged or changed status
+/// Returns paths relative to current directory (same format as discovery)
+pub fn get_git_files(staged: bool) -> anyhow::Result<Vec<PathBuf>> {
+	// Get git repository root and current directory
+	let git_root = get_git_root()?;
+	let current_dir = std::env::current_dir().map_err(|e| {
+		anyhow::anyhow!("Failed to get current directory: {}", e)
+	})?;
 
 	// Build git command arguments
 	let mut args = vec!["diff", "--name-only", "--diff-filter=ACM"];
@@ -34,13 +46,18 @@ pub fn get_git_files(staged: bool) -> anyhow::Result<Vec<PathBuf>> {
 	}
 
 	let stdout = String::from_utf8_lossy(&output.stdout);
-	let current_dir = std::env::current_dir()
-		.map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?;
 
+	// Paths from git diff are relative to repo root
+	// Convert to relative paths from current directory for display consistency
 	let files: Vec<PathBuf> = stdout
 		.lines()
 		.filter(|line| !line.is_empty())
-		.map(|line| current_dir.join(line))
+		.map(|line| {
+			// First get absolute path by joining with git root
+			let absolute = git_root.join(line);
+			// Then make it relative to current directory
+			pathdiff::diff_paths(&absolute, &current_dir).unwrap_or(absolute)
+		})
 		.filter(|path| discovery::is_supported_file(path))
 		.collect();
 
