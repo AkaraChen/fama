@@ -138,6 +138,7 @@ pub enum FileType {
 	Dockerfile,
 	GraphQL,
 	Sql,
+	Xml,
 	Unknown,
 }
 
@@ -169,6 +170,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("go") => FileType::Go,
 		Some("graphql") | Some("gql") => FileType::GraphQL,
 		Some("sql") => FileType::Sql,
+		Some("xml") => FileType::Xml,
 		_ => {
 			// Check for Dockerfile by filename (Dockerfile or Dockerfile.*)
 			if let Some(name) = path.file_name().and_then(|n| n.to_str()) {

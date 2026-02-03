@@ -1,0 +1,9 @@
+[package]
+name = "xml-fmt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+fama-common = { path = "../../common" }
+quick-xml = "0.37"
