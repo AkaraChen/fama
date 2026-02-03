@@ -24,6 +24,10 @@ struct Cli {
 	/// Export EditorConfig to stdout
 	#[arg(long, short)]
 	export: bool,
+
+	/// Quiet mode, only output errors
+	#[arg(long, short)]
+	quiet: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -34,7 +38,7 @@ fn main() -> anyhow::Result<()> {
 		return Ok(());
 	}
 
-	run(&cli.pattern)
+	run(&cli.pattern, cli.quiet)
 }
 
 /// Statistics collected during formatting
@@ -55,13 +59,13 @@ impl FormatStats {
 	}
 }
 
-fn run(patterns: &[String]) -> anyhow::Result<()> {
+fn run(patterns: &[String], quiet: bool) -> anyhow::Result<()> {
 	let mut all_files: Vec<std::path::PathBuf> = Vec::new();
 
 	for pattern in patterns {
 		let files = discovery::discover_files(Some(pattern))
 			.map_err(|e| anyhow::anyhow!("Failed to discover files: {}", e))?;
-		if files.is_empty() {
+		if files.is_empty() && !quiet {
 			eprintln!("Warning: pattern '{}' matched 0 files", pattern);
 		}
 		all_files.extend(files);
@@ -87,17 +91,19 @@ fn run(patterns: &[String]) -> anyhow::Result<()> {
 		})
 		.reduce(FormatStats::default, FormatStats::merge);
 
-	// Print collected errors
+	// Print collected errors (always print errors)
 	for error in &stats.errors {
 		eprintln!("Error: {}", error);
 	}
 
-	println!(
-		"Formatted {} files, {} unchanged, {} errors",
-		stats.formatted,
-		stats.unchanged,
-		stats.errors.len()
-	);
+	if !quiet {
+		println!(
+			"Formatted {} files, {} unchanged, {} errors",
+			stats.formatted,
+			stats.unchanged,
+			stats.errors.len()
+		);
+	}
 
 	Ok(())
 }
