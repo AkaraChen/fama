@@ -14,6 +14,7 @@ use biome_js_formatter::context::trailing_commas::TrailingCommas;
 use biome_js_formatter::context::{JsFormatOptions, Semicolons};
 use biome_js_syntax::{AnyJsRoot, JsFileSource};
 
+use biome_graphql_parser::parse_graphql;
 use biome_html_parser::parse_html;
 use biome_js_parser::parse;
 use biome_json_parser::parse_json;
@@ -381,6 +382,37 @@ pub fn format_astro(source: &str, file_path: &str) -> Result<String, String> {
 	}
 }
 
+/// Format GraphQL source code
+pub fn format_graphql(
+	source: &str,
+	_file_path: &str,
+) -> Result<String, String> {
+	let options =
+		biome_graphql_formatter::context::GraphqlFormatOptions::default()
+			.with_indent_style(BIOME_INDENT_STYLE)
+			.with_indent_width(
+				IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap(),
+			)
+			.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap())
+			.with_line_ending(BIOME_LINE_ENDING);
+
+	let parsed = parse_graphql(source);
+
+	if parsed.has_errors() {
+		return Err(format!("Parse errors in GraphQL file"));
+	}
+
+	let syntax = parsed.syntax();
+
+	let formatted = biome_graphql_formatter::format_node(options, &syntax)
+		.map_err(|e| format!("Format error: {:?}", e))?;
+
+	formatted
+		.print()
+		.map(|p| p.as_code().to_string())
+		.map_err(|e| format!("Print error: {:?}", e))
+}
+
 /// Format a file based on its file type
 pub fn format_file(
 	source: &str,
@@ -398,6 +430,7 @@ pub fn format_file(
 		FileType::Vue => format_vue(source, file_path),
 		FileType::Svelte => format_svelte(source, file_path),
 		FileType::Astro => format_astro(source, file_path),
+		FileType::GraphQL => format_graphql(source, file_path),
 		_ => Err(format!(
 			"File type {:?} is not supported by biome-js-formatter",
 			file_type
