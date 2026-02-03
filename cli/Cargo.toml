@@ -15,6 +15,7 @@ goffi = { path = "../formatters/goffi", package = "goffi" }
 dockerfile = { path = "../formatters/dockerfile" }
 fama-sqruff = { path = "../formatters/sqruff" }
 xml-fmt = { path = "../formatters/xml" }
+php-fmt = { path = "../formatters/php", package = "fama-php" }
 fama-common = { path = "../common" }
 ignore = "0.4"
 glob = "0.3"

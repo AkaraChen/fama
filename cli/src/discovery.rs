@@ -5,7 +5,7 @@ const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts", "json", "jsonc", "css",
 	"scss", "less", "html", "vue", "svelte", "astro", "yaml", "yml", "md",
 	"rs", "py", "lua", "sh", "bash", "zsh", "go", "toml", "graphql", "gql",
-	"sql", "xml",
+	"sql", "xml", "php", "phtml",
 ];
 
 /// Check if a file has a supported extension
