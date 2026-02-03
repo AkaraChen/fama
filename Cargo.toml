@@ -12,6 +12,7 @@ members = [
 	"formatters/dockerfile",
 	"formatters/sqruff",
 	"formatters/xml",
+	"formatters/ruby",
 ]
 resolver = "2"
 

@@ -133,6 +133,7 @@ pub enum FileType {
 	Rust,
 	Python,
 	Lua,
+	Ruby,
 	Shell,
 	Go,
 	Dockerfile,
@@ -166,16 +167,32 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("rs") => FileType::Rust,
 		Some("py") => FileType::Python,
 		Some("lua") => FileType::Lua,
+		Some("rb") | Some("rake") | Some("gemspec") | Some("ru") => FileType::Ruby,
 		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
 		Some("go") => FileType::Go,
 		Some("graphql") | Some("gql") => FileType::GraphQL,
 		Some("sql") => FileType::Sql,
 		Some("xml") => FileType::Xml,
 		_ => {
-			// Check for Dockerfile by filename (Dockerfile or Dockerfile.*)
+			// Check for special filenames
 			if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+				// Dockerfile
 				if name == "Dockerfile" || name.starts_with("Dockerfile.") {
 					return FileType::Dockerfile;
+				}
+				// Ruby files without extensions
+				if matches!(
+					name,
+					"Rakefile"
+						| "Gemfile" | "Guardfile"
+						| "Vagrantfile" | "Berksfile"
+						| "Capfile" | "Thorfile"
+						| "Fastfile" | "Appfile"
+						| "Matchfile" | "Snapfile"
+						| "Deliverfile" | "Scanfile"
+						| "Gymfile"
+				) {
+					return FileType::Ruby;
 				}
 			}
 			FileType::Unknown

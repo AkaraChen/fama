@@ -1,0 +1,3 @@
+[submodule "vendor/rubyfmt"]
+	path = vendor/rubyfmt
+	url = https://github.com/AkaraChen/rubyfmt.git
