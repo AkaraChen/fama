@@ -136,6 +136,7 @@ pub enum FileType {
 	Shell,
 	Go,
 	Dockerfile,
+	GraphQL,
 	Xml,
 	Unknown,
 }
@@ -166,6 +167,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("lua") => FileType::Lua,
 		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
 		Some("go") => FileType::Go,
+		Some("graphql") | Some("gql") => FileType::GraphQL,
 		Some("xml") => FileType::Xml,
 		_ => {
 			// Check for Dockerfile by filename (Dockerfile or Dockerfile.*)

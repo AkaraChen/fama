@@ -186,6 +186,9 @@ dependencies = [
  "biome_console",
  "biome_diagnostics",
  "biome_formatter",
+ "biome_graphql_formatter",
+ "biome_graphql_parser",
+ "biome_graphql_syntax",
  "biome_html_formatter",
  "biome_html_parser",
  "biome_html_syntax",
@@ -419,6 +422,54 @@ dependencies = [
  "biome_deserialize_macros",
  "biome_text_size",
  "globset",
+ "serde",
+]
+
+[[package]]
+name = "biome_graphql_factory"
+version = "0.1.0"
+source = "git+https://github.com/biomejs/biome?rev=871b45e66824dea905579d5270911cfed0254433#871b45e66824dea905579d5270911cfed0254433"
+dependencies = [
+ "biome_graphql_syntax",
+ "biome_rowan",
+]
+
+[[package]]
+name = "biome_graphql_formatter"
+version = "0.1.0"
+source = "git+https://github.com/biomejs/biome?rev=871b45e66824dea905579d5270911cfed0254433#871b45e66824dea905579d5270911cfed0254433"
+dependencies = [
+ "biome_diagnostics",
+ "biome_formatter",
+ "biome_graphql_syntax",
+ "biome_rowan",
+ "biome_suppression",
+]
+
+[[package]]
+name = "biome_graphql_parser"
+version = "0.1.0"
+source = "git+https://github.com/biomejs/biome?rev=871b45e66824dea905579d5270911cfed0254433#871b45e66824dea905579d5270911cfed0254433"
+dependencies = [
+ "biome_console",
+ "biome_diagnostics",
+ "biome_graphql_factory",
+ "biome_graphql_syntax",
+ "biome_parser",
+ "biome_rowan",
+ "biome_unicode_table",
+ "tracing",
+ "unicode-bom",
+]
+
+[[package]]
+name = "biome_graphql_syntax"
+version = "0.1.0"
+source = "git+https://github.com/biomejs/biome?rev=871b45e66824dea905579d5270911cfed0254433#871b45e66824dea905579d5270911cfed0254433"
+dependencies = [
+ "biome_rowan",
+ "biome_string_case",
+ "camino",
  "serde",
 ]
 
@@ -1317,7 +1368,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1508,7 +1559,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2913,7 +2964,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2996,7 +3047,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b55fb86dfd3a2f5f76ea78310a88f96c4ea21a3031f8d212443d56123fd0521"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3717,7 +3768,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
