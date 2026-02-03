@@ -10,6 +10,7 @@ members = [
 	"formatters/lua",
 	"formatters/goffi",
 	"formatters/dockerfile",
+	"formatters/sqruff",
 ]
 resolver = "2"
 
