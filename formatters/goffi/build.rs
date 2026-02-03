@@ -10,6 +10,10 @@ fn main() {
 
 	println!("cargo:rerun-if-changed={}", go_dir.display());
 	println!("cargo:rerun-if-changed={}/formatter.go", go_dir.display());
+	println!(
+		"cargo:rerun-if-changed={}/protoformat.go",
+		go_dir.display()
+	);
 
 	// Determine target architecture for cross-compilation
 	let target = env::var("TARGET").unwrap();
@@ -55,6 +59,7 @@ fn main() {
 			.arg("-o")
 			.arg(&lib_src)
 			.arg("formatter.go")
+			.arg("protoformat.go")
 			.current_dir(&go_dir)
 			.env("CGO_ENABLED", "1")
 			.env("GOOS", goos)
@@ -86,7 +91,7 @@ fn main() {
 				let stderr = String::from_utf8_lossy(&o.stderr);
 				let stdout = String::from_utf8_lossy(&o.stdout);
 				panic!(
-					"Failed to build Go static library.\nstdout: {}\nstderr: {}\nPlease run: cd {} && go build -buildmode=c-archive -o {} formatter.go",
+					"Failed to build Go static library.\nstdout: {}\nstderr: {}\nPlease run: cd {} && go build -buildmode=c-archive -o {} formatter.go protoformat.go",
 					stdout,
 					stderr,
 					go_dir.display(),
@@ -95,7 +100,7 @@ fn main() {
 			}
 			Err(e) => {
 				panic!(
-					"Failed to execute Go build: {}\nPlease ensure Go is installed and in PATH.\nThen run: cd {} && go build -buildmode=c-archive -o {} formatter.go",
+					"Failed to execute Go build: {}\nPlease ensure Go is installed and in PATH.\nThen run: cd {} && go build -buildmode=c-archive -o {} formatter.go protoformat.go",
 					e,
 					go_dir.display(),
 					lib_name
