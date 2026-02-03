@@ -136,6 +136,7 @@ pub enum FileType {
 	Shell,
 	Go,
 	Dockerfile,
+	Xml,
 	Unknown,
 }
 
@@ -165,6 +166,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("lua") => FileType::Lua,
 		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
 		Some("go") => FileType::Go,
+		Some("xml") => FileType::Xml,
 		_ => {
 			// Check for Dockerfile by filename (Dockerfile or Dockerfile.*)
 			if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
