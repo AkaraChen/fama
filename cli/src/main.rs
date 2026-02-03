@@ -1,3 +1,4 @@
+mod color;
 mod discovery;
 mod editorconfig;
 mod formatter;
@@ -12,6 +13,7 @@ extern crate rustfmt;
 extern crate stylua;
 
 use clap::Parser;
+use color::Color;
 use rayon::prelude::*;
 
 #[derive(Parser)]
@@ -117,13 +119,32 @@ fn run(options: Cli) -> anyhow::Result<()> {
 	let stats = files
 		.par_iter()
 		.fold(FormatStats::default, |mut stats, file| {
-			if debug {
-				eprintln!("{}", file.display());
-			}
 			match formatter::format_file(file, check) {
-				Ok(true) => stats.formatted += 1,
-				Ok(false) => stats.unchanged += 1,
-				Err(e) => stats.errors.push(e.to_string()),
+				Ok(true) => {
+					if debug {
+						// Green for formatted files
+						eprintln!(
+							"{}",
+							Color::Green.paint(&file.display().to_string())
+						);
+					}
+					stats.formatted += 1;
+				}
+				Ok(false) => {
+					if debug {
+						eprintln!("{}", file.display());
+					}
+					stats.unchanged += 1;
+				}
+				Err(e) => {
+					if debug {
+						eprintln!(
+							"{}",
+							Color::Red.paint(&file.display().to_string())
+						);
+					}
+					stats.errors.push(e.to_string());
+				}
 			}
 			stats
 		})
