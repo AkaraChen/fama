@@ -24,6 +24,10 @@ struct Cli {
 	/// Export EditorConfig to stdout
 	#[arg(long, short)]
 	export: bool,
+
+	/// Check if files are formatted, exit with non-zero if not
+	#[arg(long, short)]
+	check: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -34,7 +38,14 @@ fn main() -> anyhow::Result<()> {
 		return Ok(());
 	}
 
-	run(&cli.pattern)
+	let stats = run(&cli.pattern, cli.check)?;
+
+	// Exit with non-zero if check mode and files need formatting
+	if cli.check && stats.formatted > 0 {
+		std::process::exit(1);
+	}
+
+	Ok(())
 }
 
 /// Statistics collected during formatting
@@ -55,7 +66,7 @@ impl FormatStats {
 	}
 }
 
-fn run(patterns: &[String]) -> anyhow::Result<()> {
+fn run(patterns: &[String], check: bool) -> anyhow::Result<FormatStats> {
 	let mut all_files: Vec<std::path::PathBuf> = Vec::new();
 
 	for pattern in patterns {
@@ -78,7 +89,7 @@ fn run(patterns: &[String]) -> anyhow::Result<()> {
 	let stats = files
 		.par_iter()
 		.fold(FormatStats::default, |mut stats, file| {
-			match formatter::format_file(file) {
+			match formatter::format_file(file, check) {
 				Ok(true) => stats.formatted += 1,
 				Ok(false) => stats.unchanged += 1,
 				Err(e) => stats.errors.push(e.to_string()),
@@ -92,12 +103,29 @@ fn run(patterns: &[String]) -> anyhow::Result<()> {
 		eprintln!("Error: {}", error);
 	}
 
-	println!(
-		"Formatted {} files, {} unchanged, {} errors",
-		stats.formatted,
-		stats.unchanged,
-		stats.errors.len()
-	);
+	if check {
+		if stats.formatted > 0 {
+			println!(
+				"{} files need formatting, {} unchanged, {} errors",
+				stats.formatted,
+				stats.unchanged,
+				stats.errors.len()
+			);
+		} else {
+			println!(
+				"All {} files are properly formatted ({} errors)",
+				stats.unchanged,
+				stats.errors.len()
+			);
+		}
+	} else {
+		println!(
+			"Formatted {} files, {} unchanged, {} errors",
+			stats.formatted,
+			stats.unchanged,
+			stats.errors.len()
+		);
+	}
 
-	Ok(())
+	Ok(stats)
 }
