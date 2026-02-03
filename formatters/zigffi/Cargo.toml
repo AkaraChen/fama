@@ -1,0 +1,10 @@
+[package]
+name = "fama-zigffi"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fama-common = { path = "../../common" }
+libc = "0.2"
+
+[build-dependencies]

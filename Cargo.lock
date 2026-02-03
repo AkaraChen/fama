@@ -1661,6 +1661,7 @@ dependencies = [
  "dprint",
  "fama-common",
  "fama-sqruff",
+ "fama-zigffi",
  "glob",
  "goffi",
  "ignore",
@@ -1686,6 +1687,14 @@ dependencies = [
  "sqruff-lib",
  "sqruff-lib-core",
  "sqruff-lib-dialects",
+]
+
+[[package]]
+name = "fama-zigffi"
+version = "0.1.0"
+dependencies = [
+ "fama-common",
+ "libc",
 ]
 
 [[package]]

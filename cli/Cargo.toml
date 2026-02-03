@@ -12,6 +12,7 @@ rustfmt = { path = "../formatters/rustfmt" }
 ruff = { path = "../formatters/python" }
 stylua = { path = "../formatters/lua", package = "stylua" }
 goffi = { path = "../formatters/goffi", package = "goffi" }
+zigffi = { path = "../formatters/zigffi", package = "fama-zigffi" }
 dockerfile = { path = "../formatters/dockerfile" }
 fama-sqruff = { path = "../formatters/sqruff" }
 xml-fmt = { path = "../formatters/xml" }

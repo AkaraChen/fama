@@ -135,6 +135,7 @@ pub enum FileType {
 	Lua,
 	Shell,
 	Go,
+	Zig,
 	Dockerfile,
 	GraphQL,
 	Sql,
@@ -168,6 +169,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("lua") => FileType::Lua,
 		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
 		Some("go") => FileType::Go,
+		Some("zig") => FileType::Zig,
 		Some("graphql") | Some("gql") => FileType::GraphQL,
 		Some("sql") => FileType::Sql,
 		Some("xml") => FileType::Xml,
@@ -281,6 +283,13 @@ mod tests {
 		assert_eq!(detect_file_type("test.go"), FileType::Go);
 		assert_eq!(detect_file_type("main.go"), FileType::Go);
 		assert_eq!(detect_file_type("path/to/file.go"), FileType::Go);
+	}
+
+	#[test]
+	fn test_detect_zig() {
+		assert_eq!(detect_file_type("test.zig"), FileType::Zig);
+		assert_eq!(detect_file_type("main.zig"), FileType::Zig);
+		assert_eq!(detect_file_type("path/to/file.zig"), FileType::Zig);
 	}
 
 	#[test]
