@@ -3,7 +3,27 @@ set -e
 REPO="AkaraChen/fama"
 INSTALL_DIR="/usr/local/bin"
 
+get_github_token() {
+	if ! command -v gh >/dev/null 2>&1; then
+		return 1
+	fi
+
+	if ! gh auth status >/dev/null 2>&1; then
+		return 1
+	fi
+
+	gh auth token 2>/dev/null
+}
+
 main() {
+	GITHUB_TOKEN=$(get_github_token) || true
+	if [ -n "$GITHUB_TOKEN" ]; then
+		echo "Using GitHub CLI authentication"
+		AUTH_HEADER="Authorization: token $GITHUB_TOKEN"
+	else
+		AUTH_HEADER=""
+	fi
+
 	os=$(uname -s | tr '[:upper:]' '[:lower:]')
 	arch=$(uname -m)
 
@@ -30,7 +50,11 @@ main() {
 
 	echo "Detecting system... $target"
 
-	tag=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
+	if [ -n "$AUTH_HEADER" ]; then
+		tag=$(curl -fsSL -H "$AUTH_HEADER" "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
+	else
+		tag=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
+	fi
 
 	if [ -z "$tag" ]; then
 		echo "Failed to fetch latest release"
