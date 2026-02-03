@@ -139,6 +139,7 @@ pub enum FileType {
 	GraphQL,
 	Sql,
 	Xml,
+	Proto,
 	Unknown,
 }
 
@@ -168,6 +169,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("lua") => FileType::Lua,
 		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
 		Some("go") => FileType::Go,
+		Some("proto") => FileType::Proto,
 		Some("graphql") | Some("gql") => FileType::GraphQL,
 		Some("sql") => FileType::Sql,
 		Some("xml") => FileType::Xml,
@@ -303,6 +305,13 @@ mod tests {
 		assert_eq!(detect_file_type("test.sql"), FileType::Sql);
 		assert_eq!(detect_file_type("query.sql"), FileType::Sql);
 		assert_eq!(detect_file_type("path/to/schema.sql"), FileType::Sql);
+	}
+
+	#[test]
+	fn test_detect_proto() {
+		assert_eq!(detect_file_type("test.proto"), FileType::Proto);
+		assert_eq!(detect_file_type("schema.proto"), FileType::Proto);
+		assert_eq!(detect_file_type("path/to/messages.proto"), FileType::Proto);
 	}
 
 	#[test]
