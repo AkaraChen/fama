@@ -25,6 +25,10 @@ struct Cli {
 	#[arg(long, short)]
 	export: bool,
 
+	/// Print each file being formatted to stderr
+	#[arg(long, short)]
+	debug: bool,
+
 	/// Quiet mode, only output errors
 	#[arg(long, short)]
 	quiet: bool,
@@ -38,7 +42,7 @@ fn main() -> anyhow::Result<()> {
 		return Ok(());
 	}
 
-	run(&cli.pattern, cli.quiet)
+	run(cli)
 }
 
 /// Statistics collected during formatting
@@ -59,11 +63,14 @@ impl FormatStats {
 	}
 }
 
-fn run(patterns: &[String], quiet: bool) -> anyhow::Result<()> {
+fn run(options: Cli) -> anyhow::Result<()> {
+	let patterns = options.pattern;
+	let debug = options.debug;
+	let quiet = options.quiet;
 	let mut all_files: Vec<std::path::PathBuf> = Vec::new();
 
 	for pattern in patterns {
-		let files = discovery::discover_files(Some(pattern))
+		let files = discovery::discover_files(Some(&pattern))
 			.map_err(|e| anyhow::anyhow!("Failed to discover files: {}", e))?;
 		if files.is_empty() && !quiet {
 			eprintln!("Warning: pattern '{}' matched 0 files", pattern);
@@ -82,6 +89,9 @@ fn run(patterns: &[String], quiet: bool) -> anyhow::Result<()> {
 	let stats = files
 		.par_iter()
 		.fold(FormatStats::default, |mut stats, file| {
+			if debug {
+				eprintln!("{}", file.display());
+			}
 			match formatter::format_file(file) {
 				Ok(true) => stats.formatted += 1,
 				Ok(false) => stats.unchanged += 1,
@@ -91,7 +101,7 @@ fn run(patterns: &[String], quiet: bool) -> anyhow::Result<()> {
 		})
 		.reduce(FormatStats::default, FormatStats::merge);
 
-	// Print collected errors (always print errors)
+	// Print collected errors
 	for error in &stats.errors {
 		eprintln!("Error: {}", error);
 	}
