@@ -38,7 +38,8 @@ fn format_content(
 		| FileType::Html
 		| FileType::Vue
 		| FileType::Svelte
-		| FileType::Astro => biome::format_file(content, path, file_type),
+		| FileType::Astro
+		| FileType::GraphQL => biome::format_file(content, path, file_type),
 
 		// Data + Style files -> dprint
 		FileType::Yaml

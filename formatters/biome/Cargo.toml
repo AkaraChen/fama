@@ -34,3 +34,8 @@ biome_analyze = { git = "https://github.com/biomejs/biome", rev = "871b45e66824d
 biome_js_analyze = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_module_graph = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
 biome_project_layout = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+
+# GraphQL support
+biome_graphql_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_graphql_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_graphql_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
