@@ -24,6 +24,10 @@ struct Cli {
 	/// Export EditorConfig to stdout
 	#[arg(long, short)]
 	export: bool,
+
+	/// Print each file being formatted to stderr
+	#[arg(long, short)]
+	debug: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -34,7 +38,7 @@ fn main() -> anyhow::Result<()> {
 		return Ok(());
 	}
 
-	run(&cli.pattern)
+	run(cli)
 }
 
 /// Statistics collected during formatting
@@ -55,11 +59,13 @@ impl FormatStats {
 	}
 }
 
-fn run(patterns: &[String]) -> anyhow::Result<()> {
+fn run(options: Cli) -> anyhow::Result<()> {
+	let patterns = options.pattern;
+	let debug = options.debug;
 	let mut all_files: Vec<std::path::PathBuf> = Vec::new();
 
 	for pattern in patterns {
-		let files = discovery::discover_files(Some(pattern))
+		let files = discovery::discover_files(Some(&pattern))
 			.map_err(|e| anyhow::anyhow!("Failed to discover files: {}", e))?;
 		if files.is_empty() {
 			eprintln!("Warning: pattern '{}' matched 0 files", pattern);
@@ -78,6 +84,9 @@ fn run(patterns: &[String]) -> anyhow::Result<()> {
 	let stats = files
 		.par_iter()
 		.fold(FormatStats::default, |mut stats, file| {
+			if debug {
+				eprintln!("{}", file.display());
+			}
 			match formatter::format_file(file) {
 				Ok(true) => stats.formatted += 1,
 				Ok(false) => stats.unchanged += 1,
