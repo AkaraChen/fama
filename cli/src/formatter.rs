@@ -5,7 +5,8 @@ use std::fs;
 use std::path::PathBuf;
 
 /// Format a single file based on its detected type
-pub fn format_file(file_path: &PathBuf) -> anyhow::Result<bool> {
+/// Returns true if the file was changed (or would be changed in check mode)
+pub fn format_file(file_path: &PathBuf, check: bool) -> anyhow::Result<bool> {
 	let content = fs::read_to_string(file_path)?;
 	let path_str = file_path.to_str().unwrap_or("");
 	let file_type = detect_file_type(path_str);
@@ -14,7 +15,9 @@ pub fn format_file(file_path: &PathBuf) -> anyhow::Result<bool> {
 		.map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?;
 
 	if formatted != content {
-		fs::write(file_path, formatted)?;
+		if !check {
+			fs::write(file_path, formatted)?;
+		}
 		Ok(true)
 	} else {
 		Ok(false)
