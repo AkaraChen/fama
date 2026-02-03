@@ -36,6 +36,14 @@ struct Cli {
 	/// Quiet mode, only output errors
 	#[arg(long, short)]
 	quiet: bool,
+
+	/// Only format git staged files
+	#[arg(long, group = "git_filter")]
+	staged: bool,
+
+	/// Only format git changed (uncommitted) files
+	#[arg(long, group = "git_filter")]
+	changed: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -74,13 +82,25 @@ fn run(options: Cli) -> anyhow::Result<()> {
 	let quiet = options.quiet;
 	let mut all_files: Vec<std::path::PathBuf> = Vec::new();
 
-	for pattern in patterns {
-		let files = discovery::discover_files(Some(&pattern))
-			.map_err(|e| anyhow::anyhow!("Failed to discover files: {}", e))?;
-		if files.is_empty() && !quiet {
-			eprintln!("Warning: pattern '{}' matched 0 files", pattern);
+	// Get files from git if --staged or --changed is specified
+	if options.staged || options.changed {
+		let git_files = get_git_files(options.staged)?;
+		if git_files.is_empty() {
+			if !quiet {
+				println!("No files to format");
+			}
+			return Ok(());
 		}
-		all_files.extend(files);
+		all_files.extend(git_files);
+	} else {
+		for pattern in &patterns {
+			let files = discovery::discover_files(Some(pattern))
+				.map_err(|e| anyhow::anyhow!("Failed to discover files: {}", e))?;
+			if files.is_empty() && !quiet {
+				eprintln!("Warning: pattern '{}' matched 0 files", pattern);
+			}
+			all_files.extend(files);
+		}
 	}
 
 	// Remove duplicates while preserving order
@@ -144,4 +164,49 @@ fn run(options: Cli) -> anyhow::Result<()> {
 	}
 
 	Ok(())
+}
+
+/// Get files from git based on staged or changed status
+fn get_git_files(staged: bool) -> anyhow::Result<Vec<std::path::PathBuf>> {
+	use std::process::Command;
+
+	// Check if we're in a git repository
+	let git_check = Command::new("git")
+		.args(["rev-parse", "--git-dir"])
+		.output()
+		.map_err(|e| anyhow::anyhow!("Failed to run git command: {}", e))?;
+
+	if !git_check.status.success() {
+		return Err(anyhow::anyhow!("Not a git repository"));
+	}
+
+	// Build git command arguments
+	let mut args = vec!["diff", "--name-only", "--diff-filter=ACM"];
+	if staged {
+		args.push("--cached");
+	}
+
+	let output = Command::new("git")
+		.args(&args)
+		.output()
+		.map_err(|e| anyhow::anyhow!("Failed to run git diff: {}", e))?;
+
+	if !output.status.success() {
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		return Err(anyhow::anyhow!("git diff failed: {}", stderr));
+	}
+
+	let stdout = String::from_utf8_lossy(&output.stdout);
+	let current_dir = std::env::current_dir().map_err(|e| {
+		anyhow::anyhow!("Failed to get current directory: {}", e)
+	})?;
+
+	let files: Vec<std::path::PathBuf> = stdout
+		.lines()
+		.filter(|line| !line.is_empty())
+		.map(|line| current_dir.join(line))
+		.filter(|path| discovery::is_supported_file(path))
+		.collect();
+
+	Ok(files)
 }

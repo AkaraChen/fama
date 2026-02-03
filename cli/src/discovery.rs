@@ -15,6 +15,11 @@ fn has_supported_extension(path: &Path) -> bool {
 		.is_some_and(|ext| SUPPORTED_EXTENSIONS.contains(&ext))
 }
 
+/// Check if a file is supported (has supported extension and is a file)
+pub fn is_supported_file(path: &Path) -> bool {
+	path.is_file() && has_supported_extension(path)
+}
+
 /// Walk a directory respecting .gitignore rules, optionally filtering by glob pattern
 fn walk_with_pattern(
 	base: &Path,
