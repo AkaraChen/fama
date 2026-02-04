@@ -1,0 +1,6 @@
+[submodule "vendor/rubyfmt"]
+	path = vendor/rubyfmt
+	url = https://github.com/AkaraChen/rubyfmt.git
+[submodule "formatters/clang/clang-format"]
+	path = formatters/clang/clang-format
+	url = https://github.com/AkaraChen/clang-format.git

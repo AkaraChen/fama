@@ -3,16 +3,20 @@ members = [
 	"cli",
 	"common",
 	"formatters/biome",
+	"formatters/clang",
 	"formatters/dprint",
 	"formatters/toml",
 	"formatters/rustfmt",
 	"formatters/python",
 	"formatters/lua",
 	"formatters/goffi",
+	"formatters/zigffi",
 	"formatters/dockerfile",
 	"formatters/sqruff",
 	"formatters/xml",
 	"formatters/dart",
+	"formatters/ruby",
+	"formatters/php",
 ]
 resolver = "2"
 

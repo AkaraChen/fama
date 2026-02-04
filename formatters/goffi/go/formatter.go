@@ -8,6 +8,7 @@ import (
 	"go/format"
 	"unsafe"
 
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"mvdan.cc/sh/v3/syntax"
 )
 
@@ -115,6 +116,40 @@ func FormatGoBatch(sources **C.char, lengths *C.size_t, count C.size_t) **C.char
 			results[i] = string(src)
 			continue
 		}
+		results[i] = string(formatted)
+	}
+
+	cResults := C.malloc(C.size_t(count) * C.size_t(unsafe.Sizeof(unsafe.Pointer(nil))))
+	cResultsSlice := (*[1 << 28]*C.char)(unsafe.Pointer(cResults))[:count]
+
+	for i, result := range results {
+		cResultsSlice[i] = C.CString(result)
+	}
+
+	return (**C.char)(cResults)
+}
+
+//export FormatHcl
+func FormatHcl(source *C.char, sourceLen C.size_t) *C.char {
+	goSource := C.GoBytes(unsafe.Pointer(source), C.int(sourceLen))
+	formatted := hclwrite.Format(goSource)
+	return C.CString(string(formatted))
+}
+
+//export FormatHclBatch
+func FormatHclBatch(sources **C.char, lengths *C.size_t, count C.size_t) **C.char {
+	goSources := make([][]byte, int(count))
+	sourcesSlice := (*[1 << 28]*C.char)(unsafe.Pointer(sources))[:count]
+	lengthsSlice := (*[1 << 28]C.size_t)(unsafe.Pointer(lengths))[:count]
+
+	for i := 0; i < int(count); i++ {
+		goSources[i] = C.GoBytes(unsafe.Pointer(sourcesSlice[i]), C.int(lengthsSlice[i]))
+	}
+
+	results := make([]string, int(count))
+
+	for i, src := range goSources {
+		formatted := hclwrite.Format(src)
 		results[i] = string(formatted)
 	}
 

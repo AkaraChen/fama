@@ -5,7 +5,8 @@ use std::fs;
 use std::path::PathBuf;
 
 /// Format a single file based on its detected type
-pub fn format_file(file_path: &PathBuf) -> anyhow::Result<bool> {
+/// Returns true if the file was changed (or would be changed in check mode)
+pub fn format_file(file_path: &PathBuf, check: bool) -> anyhow::Result<bool> {
 	let content = fs::read_to_string(file_path)?;
 	let path_str = file_path.to_str().unwrap_or("");
 	let file_type = detect_file_type(path_str);
@@ -14,7 +15,9 @@ pub fn format_file(file_path: &PathBuf) -> anyhow::Result<bool> {
 		.map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?;
 
 	if formatted != content {
-		fs::write(file_path, formatted)?;
+		if !check {
+			fs::write(file_path, formatted)?;
+		}
 		Ok(true)
 	} else {
 		Ok(false)
@@ -49,17 +52,29 @@ fn format_content(
 		| FileType::Less
 		| FileType::Sass => dprint::format_file(content, path, file_type),
 
+		// C-family languages -> clang-format
+		FileType::C
+		| FileType::Cpp
+		| FileType::CSharp
+		| FileType::ObjectiveC
+		| FileType::Java
+		| FileType::Protobuf => fama_clang::format_file(content, path, file_type),
+
 		// Individual formatters
 		FileType::Toml => toml_fmt::format_toml(content, path),
 		FileType::Rust => rustfmt::format_rust(content, path),
 		FileType::Python => ruff::format_python(content, path),
 		FileType::Lua => stylua::format_lua(content, path),
+		FileType::Ruby => ruby_fmt::format_ruby(content, path),
 		FileType::Shell => goffi::format_shell(content, path),
 		FileType::Go => goffi::format_go(content, path),
+		FileType::Zig => zigffi::format_zig(content, path),
+		FileType::Hcl => goffi::format_hcl(content, path),
 		FileType::Dockerfile => dockerfile::format_dockerfile(content, path),
 		FileType::Xml => xml_fmt::format_xml(content, path),
 		FileType::Sql => fama_sqruff::format_sql(content, path),
 		FileType::Dart => fama_dart::format_dart(content, path),
+		FileType::Php => php_fmt::format_php(content, path),
 
 		FileType::Unknown => Err("Unknown file type".to_string()),
 	}

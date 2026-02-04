@@ -133,13 +133,24 @@ pub enum FileType {
 	Rust,
 	Python,
 	Lua,
+	Ruby,
 	Shell,
 	Go,
+	Zig,
+	Hcl,
 	Dockerfile,
 	GraphQL,
 	Sql,
 	Xml,
 	Dart,
+	Php,
+	// C-family languages (clang-format)
+	C,
+	Cpp,
+	CSharp,
+	ObjectiveC,
+	Java,
+	Protobuf,
 	Unknown,
 }
 
@@ -167,17 +178,46 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("rs") => FileType::Rust,
 		Some("py") => FileType::Python,
 		Some("lua") => FileType::Lua,
+		Some("rb") | Some("rake") | Some("gemspec") | Some("ru") => {
+			FileType::Ruby
+		}
 		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
 		Some("go") => FileType::Go,
+		Some("zig") => FileType::Zig,
+		Some("hcl") | Some("tf") | Some("tfvars") => FileType::Hcl,
 		Some("graphql") | Some("gql") => FileType::GraphQL,
 		Some("sql") => FileType::Sql,
 		Some("xml") => FileType::Xml,
 		Some("dart") => FileType::Dart,
+		Some("php") | Some("phtml") => FileType::Php,
+		// C-family languages
+		Some("c") | Some("h") => FileType::C,
+		Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx")
+		| Some("hh") => FileType::Cpp,
+		Some("cs") => FileType::CSharp,
+		Some("m") | Some("mm") => FileType::ObjectiveC,
+		Some("java") => FileType::Java,
+		Some("proto") => FileType::Protobuf,
 		_ => {
-			// Check for Dockerfile by filename (Dockerfile or Dockerfile.*)
+			// Check for special filenames
 			if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+				// Dockerfile
 				if name == "Dockerfile" || name.starts_with("Dockerfile.") {
 					return FileType::Dockerfile;
+				}
+				// Ruby files without extensions
+				if matches!(
+					name,
+					"Rakefile"
+						| "Gemfile" | "Guardfile"
+						| "Vagrantfile" | "Berksfile"
+						| "Capfile" | "Thorfile"
+						| "Fastfile" | "Appfile"
+						| "Matchfile" | "Snapfile"
+						| "Deliverfile" | "Scanfile"
+						| "Gymfile"
+				) {
+					return FileType::Ruby;
 				}
 			}
 			FileType::Unknown
@@ -286,6 +326,21 @@ mod tests {
 	}
 
 	#[test]
+	fn test_detect_zig() {
+		assert_eq!(detect_file_type("test.zig"), FileType::Zig);
+		assert_eq!(detect_file_type("main.zig"), FileType::Zig);
+		assert_eq!(detect_file_type("path/to/file.zig"), FileType::Zig);
+	}
+
+	#[test]
+	fn test_detect_hcl() {
+		assert_eq!(detect_file_type("test.hcl"), FileType::Hcl);
+		assert_eq!(detect_file_type("main.tf"), FileType::Hcl);
+		assert_eq!(detect_file_type("variables.tfvars"), FileType::Hcl);
+		assert_eq!(detect_file_type("path/to/config.hcl"), FileType::Hcl);
+	}
+
+	#[test]
 	fn test_detect_dockerfile() {
 		assert_eq!(detect_file_type("Dockerfile"), FileType::Dockerfile);
 		assert_eq!(detect_file_type("Dockerfile.dev"), FileType::Dockerfile);
@@ -312,6 +367,14 @@ mod tests {
 		assert_eq!(detect_file_type("test.dart"), FileType::Dart);
 		assert_eq!(detect_file_type("main.dart"), FileType::Dart);
 		assert_eq!(detect_file_type("lib/my_app.dart"), FileType::Dart);
+	}
+
+	#[test]
+	fn test_detect_php() {
+		assert_eq!(detect_file_type("test.php"), FileType::Php);
+		assert_eq!(detect_file_type("index.php"), FileType::Php);
+		assert_eq!(detect_file_type("template.phtml"), FileType::Php);
+		assert_eq!(detect_file_type("path/to/file.php"), FileType::Php);
 	}
 
 	#[test]

@@ -10,6 +10,7 @@ build:
 # Release build
 release:
 	cargo build --release
+	@ls -lh target/release/fama | awk '{print $$5}'
 
 # Clean build artifacts
 clean:

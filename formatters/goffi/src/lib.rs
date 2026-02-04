@@ -23,6 +23,12 @@ extern "C" {
 		lengths: *const size_t,
 		count: size_t,
 	) -> *mut *mut c_char;
+	fn FormatHcl(source: *const c_char, source_len: size_t) -> *mut c_char;
+	fn FormatHclBatch(
+		sources: *const *const c_char,
+		lengths: *const size_t,
+		count: size_t,
+	) -> *mut *mut c_char;
 	fn FreeString(str: *mut c_char);
 	fn FreeStringArray(arr: *mut *mut c_char, count: size_t);
 }
@@ -187,6 +193,81 @@ pub fn format_go_batch(sources: &[&str]) -> Vec<Result<String, String>> {
 	results
 }
 
+pub fn format_hcl(source: &str, _file_path: &str) -> Result<String, String> {
+	let c_source =
+		CString::new(source).map_err(|e| format!("Invalid source: {}", e))?;
+	let c_result =
+		unsafe { FormatHcl(c_source.as_ptr(), source.len() as size_t) };
+
+	if c_result.is_null() {
+		return Err("Formatter returned null".to_string());
+	}
+
+	let result = unsafe { CStr::from_ptr(c_result) }
+		.to_str()
+		.map(|s| s.to_string())
+		.map_err(|e| format!("Invalid UTF-8: {}", e));
+
+	unsafe { FreeString(c_result) };
+	result
+}
+
+pub fn format_hcl_batch(sources: &[&str]) -> Vec<Result<String, String>> {
+	if sources.is_empty() {
+		return Vec::new();
+	}
+
+	let c_sources: Vec<CString> =
+		match sources.iter().map(|s| CString::new(*s)).collect() {
+			Ok(v) => v,
+			Err(_) => {
+				return sources
+					.iter()
+					.map(|_| Err("Invalid source".to_string()))
+					.collect()
+			}
+		};
+
+	let c_ptrs: Vec<*const c_char> =
+		c_sources.iter().map(|s| s.as_ptr()).collect();
+	let lengths: Vec<size_t> =
+		sources.iter().map(|s| s.len() as size_t).collect();
+
+	let c_results = unsafe {
+		FormatHclBatch(
+			c_ptrs.as_ptr(),
+			lengths.as_ptr(),
+			sources.len() as size_t,
+		)
+	};
+
+	if c_results.is_null() {
+		return sources
+			.iter()
+			.map(|_| Err("Formatter returned null".to_string()))
+			.collect();
+	}
+
+	let results_slice =
+		unsafe { slice::from_raw_parts(c_results, sources.len()) };
+	let results: Vec<Result<String, String>> = results_slice
+		.iter()
+		.map(|&c_str| {
+			if c_str.is_null() {
+				Err("Null result".to_string())
+			} else {
+				unsafe { CStr::from_ptr(c_str) }
+					.to_str()
+					.map(|s| s.to_string())
+					.map_err(|e| format!("Invalid UTF-8: {}", e))
+			}
+		})
+		.collect();
+
+	unsafe { FreeStringArray(c_results, sources.len() as size_t) };
+	results
+}
+
 pub fn format_file(
 	source: &str,
 	file_path: &str,
@@ -195,6 +276,7 @@ pub fn format_file(
 	match file_type {
 		FileType::Shell => format_shell(source, file_path),
 		FileType::Go => format_go(source, file_path),
+		FileType::Hcl => format_hcl(source, file_path),
 		_ => Err(format!("File type {:?} not supported", file_type)),
 	}
 }
@@ -243,6 +325,30 @@ mod tests {
 		let sources =
 			vec!["package main\nfunc main() { }", "package foo\nvar x=1"];
 		let results = format_go_batch(&sources);
+		assert_eq!(results.len(), 2);
+		assert!(results.iter().all(|r| r.is_ok()));
+	}
+
+	#[test]
+	fn test_format_hcl() {
+		let source = r#"resource "aws_instance"   "example" {
+ami           = "ami-12345"
+    instance_type="t2.micro"
+}"#;
+		let result = format_hcl(source, "test.hcl");
+		assert!(result.is_ok());
+		let formatted = result.unwrap();
+		// HCL formatter should normalize spacing
+		assert!(formatted.contains("instance_type = "));
+	}
+
+	#[test]
+	fn test_format_hcl_batch() {
+		let sources = vec![
+			r#"foo   =    "bar""#,
+			r#"baz={x=1}"#,
+		];
+		let results = format_hcl_batch(&sources);
 		assert_eq!(results.len(), 2);
 		assert!(results.iter().all(|r| r.is_ok()));
 	}

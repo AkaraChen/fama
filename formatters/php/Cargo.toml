@@ -1,0 +1,15 @@
+[package]
+name = "fama-php"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "php_fmt"
+crate-type = ["rlib"]
+
+[dependencies]
+mago-formatter = "0.26"
+mago-php-version = "0.26"
+mago-interner = "0.26"
+fama-common = { path = "../../common" }
