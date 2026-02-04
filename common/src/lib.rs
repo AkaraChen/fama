@@ -143,6 +143,13 @@ pub enum FileType {
 	Sql,
 	Xml,
 	Php,
+	// C-family languages (clang-format)
+	C,
+	Cpp,
+	CSharp,
+	ObjectiveC,
+	Java,
+	Protobuf,
 	Unknown,
 }
 
@@ -170,7 +177,9 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("rs") => FileType::Rust,
 		Some("py") => FileType::Python,
 		Some("lua") => FileType::Lua,
-		Some("rb") | Some("rake") | Some("gemspec") | Some("ru") => FileType::Ruby,
+		Some("rb") | Some("rake") | Some("gemspec") | Some("ru") => {
+			FileType::Ruby
+		}
 		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
 		Some("go") => FileType::Go,
 		Some("zig") => FileType::Zig,
@@ -179,6 +188,14 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("sql") => FileType::Sql,
 		Some("xml") => FileType::Xml,
 		Some("php") | Some("phtml") => FileType::Php,
+		// C-family languages
+		Some("c") | Some("h") => FileType::C,
+		Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx")
+		| Some("hh") => FileType::Cpp,
+		Some("cs") => FileType::CSharp,
+		Some("m") | Some("mm") => FileType::ObjectiveC,
+		Some("java") => FileType::Java,
+		Some("proto") => FileType::Protobuf,
 		_ => {
 			// Check for special filenames
 			if let Some(name) = path.file_name().and_then(|n| n.to_str()) {

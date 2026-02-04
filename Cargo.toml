@@ -3,6 +3,7 @@ members = [
 	"cli",
 	"common",
 	"formatters/biome",
+	"formatters/clang",
 	"formatters/dprint",
 	"formatters/toml",
 	"formatters/rustfmt",

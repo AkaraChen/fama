@@ -18,6 +18,7 @@ fama-sqruff = { path = "../formatters/sqruff" }
 xml-fmt = { path = "../formatters/xml" }
 ruby-fmt = { path = "../formatters/ruby" }
 php-fmt = { path = "../formatters/php", package = "fama-php" }
+fama-clang = { path = "../formatters/clang" }
 fama-common = { path = "../common" }
 ignore = "0.4"
 glob = "0.3"
