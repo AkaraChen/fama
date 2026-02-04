@@ -23,8 +23,14 @@ pub fn format_php(source: &str, file_path: &str) -> Result<String, String> {
 		print_width: CONFIG.line_width as usize,
 		tab_width: CONFIG.indent_width as usize,
 		use_tabs: matches!(CONFIG.indent_style, fama_common::IndentStyle::Tabs),
-		single_quote: matches!(CONFIG.quote_style, fama_common::QuoteStyle::Single),
-		trailing_comma: matches!(CONFIG.trailing_comma, fama_common::TrailingComma::All),
+		single_quote: matches!(
+			CONFIG.quote_style,
+			fama_common::QuoteStyle::Single
+		),
+		trailing_comma: matches!(
+			CONFIG.trailing_comma,
+			fama_common::TrailingComma::All
+		),
 		..FormatSettings::default()
 	};
 

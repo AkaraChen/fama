@@ -73,7 +73,9 @@ fn main() {
 					if let Ok(entries) = fs::read_dir(&zig_out_dir) {
 						let files: Vec<_> = entries
 							.filter_map(|e| e.ok())
-							.map(|e| e.file_name().to_string_lossy().to_string())
+							.map(|e| {
+								e.file_name().to_string_lossy().to_string()
+							})
 							.collect();
 						panic!(
 							"Zig build succeeded but library not found. Files in {:?}: {:?}",

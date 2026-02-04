@@ -3,7 +3,9 @@ use rubyfmt::{format_buffer, RichFormatError};
 pub fn format_ruby(source: &str, _file_path: &str) -> Result<String, String> {
 	format_buffer(source).map_err(|e| match e {
 		RichFormatError::SyntaxError => "Ruby syntax error".to_string(),
-		RichFormatError::IOError(io_err) => format!("Ruby formatting IO error: {}", io_err),
+		RichFormatError::IOError(io_err) => {
+			format!("Ruby formatting IO error: {}", io_err)
+		}
 	})
 }
 

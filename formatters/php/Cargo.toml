@@ -6,7 +6,7 @@ license.workspace = true
 
 [lib]
 name = "php_fmt"
-crate-type = ["rlib"]
+crate-type = [ "rlib" ]
 
 [dependencies]
 mago-formatter = "0.26"

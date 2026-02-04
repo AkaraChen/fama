@@ -6,7 +6,7 @@ license.workspace = true
 
 [lib]
 name = "ruby_fmt"
-crate-type = ["rlib"]
+crate-type = [ "rlib" ]
 
 [dependencies]
 fama-common = { path = "../../common" }

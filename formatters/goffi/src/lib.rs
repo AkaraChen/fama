@@ -344,10 +344,7 @@ ami           = "ami-12345"
 
 	#[test]
 	fn test_format_hcl_batch() {
-		let sources = vec![
-			r#"foo   =    "bar""#,
-			r#"baz={x=1}"#,
-		];
+		let sources = vec![r#"foo   =    "bar""#, r#"baz={x=1}"#];
 		let results = format_hcl_batch(&sources);
 		assert_eq!(results.len(), 2);
 		assert!(results.iter().all(|r| r.is_ok()));

@@ -2,7 +2,6 @@
 
 /* package sh-formatter-go */
 
-
 #line 1 "cgo-builtin-export-prolog"
 
 #include <stddef.h>
@@ -11,7 +10,10 @@
 #define GO_CGO_EXPORT_PROLOGUE_H
 
 #ifndef GO_CGO_GOSTRING_TYPEDEF
-typedef struct { const char *p; ptrdiff_t n; } _GoString_;
+typedef struct {
+	const char *p;
+	ptrdiff_t n;
+} _GoString_;
 extern size_t _GoStringLen(_GoString_ s);
 extern const char *_GoStringPtr(_GoString_ s);
 #endif
@@ -20,15 +22,12 @@ extern const char *_GoStringPtr(_GoString_ s);
 
 /* Start of preamble from import "C" comments.  */
 
-
 #line 3 "formatter.go"
- #include <stdlib.h>
+#include <stdlib.h>
 
 #line 1 "cgo-generated-wrapper"
 
-
 /* End of preamble from import "C" comments.  */
-
 
 /* Start of boilerplate cgo prologue.  */
 #line 1 "cgo-gcc-export-header-prolog"
@@ -68,15 +67,23 @@ typedef double _Complex GoComplex128;
   static assertion to make sure the file is being used on architecture
   at least with matching size of GoInt.
 */
-typedef char _check_for_64_bit_pointer_matching_GoInt[sizeof(void*)==64/8 ? 1:-1];
+typedef char
+	_check_for_64_bit_pointer_matching_GoInt[sizeof(void *) == 64 / 8 ? 1 : -1];
 
 #ifndef GO_CGO_GOSTRING_TYPEDEF
 typedef _GoString_ GoString;
 #endif
 typedef void *GoMap;
 typedef void *GoChan;
-typedef struct { void *t; void *v; } GoInterface;
-typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
+typedef struct {
+	void *t;
+	void *v;
+} GoInterface;
+typedef struct {
+	void *data;
+	GoInt len;
+	GoInt cap;
+} GoSlice;
 
 #endif
 
@@ -86,14 +93,15 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern char* FormatShell(char* source, size_t sourceLen, unsigned int indent);
-extern char** FormatShellBatch(char** sources, size_t* lengths, size_t count, unsigned int indent);
-extern void FreeString(char* str);
-extern void FreeStringArray(char** arr, size_t count);
-extern char* FormatGo(char* source, size_t sourceLen);
-extern char** FormatGoBatch(char** sources, size_t* lengths, size_t count);
-extern char* FormatHcl(char* source, size_t sourceLen);
-extern char** FormatHclBatch(char** sources, size_t* lengths, size_t count);
+extern char *FormatShell(char *source, size_t sourceLen, unsigned int indent);
+extern char **FormatShellBatch(char **sources, size_t *lengths, size_t count,
+							   unsigned int indent);
+extern void FreeString(char *str);
+extern void FreeStringArray(char **arr, size_t count);
+extern char *FormatGo(char *source, size_t sourceLen);
+extern char **FormatGoBatch(char **sources, size_t *lengths, size_t count);
+extern char *FormatHcl(char *source, size_t sourceLen);
+extern char **FormatHclBatch(char **sources, size_t *lengths, size_t count);
 
 #ifdef __cplusplus
 }

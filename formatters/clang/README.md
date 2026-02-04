@@ -40,6 +40,7 @@ cd formatters/clang
 ```
 
 The build will:
+
 1. Download and compile LLVM/Clang (requires ~8GB RAM)
 2. Build `clang-format-standalone.wasm`
 3. Copy the result to `wasm/clang-format.wasm`
@@ -47,14 +48,17 @@ The build will:
 ### Troubleshooting
 
 **"resource temporarily unavailable" error**
+
 - Close other applications to free system resources
 - Restart your computer and try again
 
 **CMake libstdc++ version error**
+
 - Make sure you're using emsdk 4.0.23 (not homebrew's emscripten)
 - The `LLVM_COMPILER_CHECKED=ON` flag in CMakeLists.txt should skip this check
 
 **Native compiler errors (libc++ incompatibility)**
+
 - The build script uses `/usr/bin/clang` (Xcode clang) instead of homebrew's llvm
 - If you have homebrew llvm in PATH, it may cause libc++ header incompatibilities
 - The build script explicitly sets `CC=/usr/bin/clang` and `CXX=/usr/bin/clang++`
