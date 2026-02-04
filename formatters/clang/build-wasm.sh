@@ -6,10 +6,6 @@ CLANG_FORMAT_DIR="$SCRIPT_DIR/clang-format"
 OUTPUT_DIR="$SCRIPT_DIR/wasm"
 
 echo "Building clang-format WASM..."
-echo ""
-echo "NOTE: This requires significant resources (compiles LLVM)."
-echo "      Consider using ./fetch-wasm.sh to download pre-built binary instead."
-echo ""
 
 # Check if emsdk is available
 if ! command -v emcmake &> /dev/null; then
@@ -17,8 +13,6 @@ if ! command -v emcmake &> /dev/null; then
     echo "  git clone https://github.com/emscripten-core/emsdk.git"
     echo "  cd emsdk && ./emsdk install latest && ./emsdk activate latest"
     echo "  source emsdk_env.sh"
-    echo ""
-    echo "Or use ./fetch-wasm.sh to download pre-built binary from GitHub Actions."
     exit 1
 fi
 

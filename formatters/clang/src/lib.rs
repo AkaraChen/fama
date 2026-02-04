@@ -246,7 +246,7 @@ fn read_string_from_memory(
 
 	let mut buffer = vec![0u8; len as usize];
 	memory
-		.read(&store, ptr as usize, &mut buffer)
+		.read(store, ptr as usize, &mut buffer)
 		.map_err(|e| format!("Failed to read from memory: {}", e))?;
 
 	String::from_utf8(buffer).map_err(|e| format!("Invalid UTF-8: {}", e))
