@@ -10,25 +10,38 @@ echo "Building clang-format WASM..."
 # Check if emsdk is available
 if ! command -v emcmake &> /dev/null; then
     echo "Error: emcmake not found. Please install and activate emsdk first."
-    echo "  git clone https://github.com/emscripten-core/emsdk.git"
-    echo "  cd emsdk && ./emsdk install latest && ./emsdk activate latest"
-    echo "  source emsdk_env.sh"
+    echo "  git clone https://github.com/emscripten-core/emsdk.git ~/emsdk"
+    echo "  cd ~/emsdk && ./emsdk install 4.0.23 && ./emsdk activate 4.0.23"
+    echo "  source ~/emsdk/emsdk_env.sh"
     exit 1
 fi
 
+# Check if ninja is available
+if ! command -v ninja &> /dev/null; then
+    echo "Error: ninja not found. Please install ninja first."
+    echo "  brew install ninja"
+    exit 1
+fi
+
+# Set native compilers for building llvm-tblgen etc.
+# Use Xcode clang, not homebrew llvm (which has incompatible libc++ headers)
+export CC=/usr/bin/clang
+export CXX=/usr/bin/clang++
+
 # Create build directory
 BUILD_DIR="$CLANG_FORMAT_DIR/build"
+rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-# Configure with CMake
+# Configure with CMake using Ninja
 cd "$BUILD_DIR"
-emcmake cmake .. \
+emcmake cmake -G Ninja .. \
     -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_TARGETS_TO_BUILD="" \
     -DLLVM_ENABLE_PROJECTS="clang"
 
 # Build the standalone WASM target
-emmake make clang-format-standalone -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+ninja clang-format-standalone
 
 # Copy the output
 mkdir -p "$OUTPUT_DIR"
