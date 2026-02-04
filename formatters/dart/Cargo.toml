@@ -1,0 +1,21 @@
+[package]
+name = "fama-dart"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[lib]
+name = "fama_dart"
+crate-type = [ "rlib" ]
+
+[dependencies]
+fama-common = { path = "../../common" }
+anyhow = "1.0"
+tempfile = "3.14"
+dirs = "5.0"
+once_cell = "1.20"
+fd-lock = "4.0"
+
+[build-dependencies]
+anyhow = "1.0"

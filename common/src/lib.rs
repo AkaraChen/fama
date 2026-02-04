@@ -139,6 +139,7 @@ pub enum FileType {
 	GraphQL,
 	Sql,
 	Xml,
+	Dart,
 	Unknown,
 }
 
@@ -171,6 +172,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("graphql") | Some("gql") => FileType::GraphQL,
 		Some("sql") => FileType::Sql,
 		Some("xml") => FileType::Xml,
+		Some("dart") => FileType::Dart,
 		_ => {
 			// Check for Dockerfile by filename (Dockerfile or Dockerfile.*)
 			if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -303,6 +305,13 @@ mod tests {
 		assert_eq!(detect_file_type("test.sql"), FileType::Sql);
 		assert_eq!(detect_file_type("query.sql"), FileType::Sql);
 		assert_eq!(detect_file_type("path/to/schema.sql"), FileType::Sql);
+	}
+
+	#[test]
+	fn test_detect_dart() {
+		assert_eq!(detect_file_type("test.dart"), FileType::Dart);
+		assert_eq!(detect_file_type("main.dart"), FileType::Dart);
+		assert_eq!(detect_file_type("lib/my_app.dart"), FileType::Dart);
 	}
 
 	#[test]

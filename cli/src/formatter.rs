@@ -59,6 +59,7 @@ fn format_content(
 		FileType::Dockerfile => dockerfile::format_dockerfile(content, path),
 		FileType::Xml => xml_fmt::format_xml(content, path),
 		FileType::Sql => fama_sqruff::format_sql(content, path),
+		FileType::Dart => fama_dart::format_dart(content, path),
 
 		FileType::Unknown => Err("Unknown file type".to_string()),
 	}
