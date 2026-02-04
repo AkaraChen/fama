@@ -125,6 +125,7 @@ fn get_or_extract_binary() -> anyhow::Result<PathBuf> {
 	let lock_file = fs::OpenOptions::new()
 		.write(true)
 		.create(true)
+		.truncate(true)
 		.open(&lock_path)?;
 
 	// Try to acquire exclusive lock with timeout using polling
