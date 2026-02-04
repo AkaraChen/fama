@@ -57,6 +57,7 @@ fn format_content(
 		FileType::Rust => rustfmt::format_rust(content, path),
 		FileType::Python => ruff::format_python(content, path),
 		FileType::Lua => stylua::format_lua(content, path),
+		FileType::Ruby => ruby_fmt::format_ruby(content, path),
 		FileType::Shell => goffi::format_shell(content, path),
 		FileType::Go => goffi::format_go(content, path),
 		FileType::Hcl => goffi::format_hcl(content, path),

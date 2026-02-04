@@ -1,0 +1,13 @@
+[package]
+name = "ruby-fmt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "ruby_fmt"
+crate-type = ["rlib"]
+
+[dependencies]
+fama-common = { path = "../../common" }
+rubyfmt = { path = "../../vendor/rubyfmt/librubyfmt", default-features = false }
