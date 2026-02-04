@@ -1,23 +1,32 @@
+use fama_common::{detect_file_type, FileType};
 use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
 const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts", "json", "jsonc", "css",
 	"scss", "less", "html", "vue", "svelte", "astro", "yaml", "yml", "md",
-	"rs", "py", "lua", "sh", "bash", "zsh", "go", "zig", "toml", "graphql",
-	"gql", "sql", "xml",
+	"rs", "py", "lua", "rb", "rake", "gemspec", "ru", "sh", "bash", "zsh",
+	"go", "zig", "hcl", "tf", "tfvars", "toml", "graphql", "gql", "sql", "xml",
+	"php", "phtml",
 ];
 
-/// Check if a file has a supported extension
-fn has_supported_extension(path: &Path) -> bool {
-	path.extension()
-		.and_then(|ext| ext.to_str())
-		.is_some_and(|ext| SUPPORTED_EXTENSIONS.contains(&ext))
+/// Check if a file is supported for formatting
+fn is_supported_path(path: &Path) -> bool {
+	// First check by extension (fast path)
+	if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+		if SUPPORTED_EXTENSIONS.contains(&ext) {
+			return true;
+		}
+	}
+	// For files without supported extension, check if detect_file_type recognizes them
+	// This handles special filenames like Dockerfile, Rakefile, Gemfile, etc.
+	let path_str = path.to_str().unwrap_or("");
+	!matches!(detect_file_type(path_str), FileType::Unknown)
 }
 
-/// Check if a file is supported (has supported extension and is a file)
+/// Check if a file is supported (has supported extension/filename and is a file)
 pub fn is_supported_file(path: &Path) -> bool {
-	path.is_file() && has_supported_extension(path)
+	path.is_file() && is_supported_path(path)
 }
 
 /// Walk a directory respecting .gitignore rules, optionally filtering by glob pattern
@@ -30,7 +39,7 @@ fn walk_with_pattern(
 		.build()
 		.filter_map(|entry| entry.ok())
 		.filter(|entry| entry.file_type().is_some_and(|ft| ft.is_file()))
-		.filter(|entry| has_supported_extension(entry.path()))
+		.filter(|entry| is_supported_path(entry.path()))
 		.filter(|entry| {
 			pattern
 				.map(|p| p.matches_path(entry.path()))
@@ -63,8 +72,8 @@ pub fn discover_files(pattern: Option<&str>) -> Result<Vec<PathBuf>, String> {
 		let path = PathBuf::from(pattern);
 
 		if path.is_file() {
-			// Single file - check extension and return
-			if has_supported_extension(&path) {
+			// Single file - check if supported and return
+			if is_supported_path(&path) {
 				return Ok(vec![path]);
 			} else {
 				let ext = path

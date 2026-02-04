@@ -57,12 +57,15 @@ fn format_content(
 		FileType::Rust => rustfmt::format_rust(content, path),
 		FileType::Python => ruff::format_python(content, path),
 		FileType::Lua => stylua::format_lua(content, path),
+		FileType::Ruby => ruby_fmt::format_ruby(content, path),
 		FileType::Shell => goffi::format_shell(content, path),
 		FileType::Go => goffi::format_go(content, path),
 		FileType::Zig => zigffi::format_zig(content, path),
+		FileType::Hcl => goffi::format_hcl(content, path),
 		FileType::Dockerfile => dockerfile::format_dockerfile(content, path),
 		FileType::Xml => xml_fmt::format_xml(content, path),
 		FileType::Sql => fama_sqruff::format_sql(content, path),
+		FileType::Php => php_fmt::format_php(content, path),
 
 		FileType::Unknown => Err("Unknown file type".to_string()),
 	}
