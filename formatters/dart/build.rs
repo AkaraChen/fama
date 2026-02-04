@@ -10,19 +10,40 @@ fn main() {
 	println!("cargo:rerun-if-changed={}", bin_dir.display());
 
 	// Platform configurations matching GitHub Actions artifact names
+	// Format: (arch, os, env, binary_name)
 	let platforms = vec![
 		// Linux
-		("x86_64", "linux", "dart_style-linux-x86_64"),
-		("aarch64", "linux", "dart_style-linux-aarch64"),
+		("x86_64", "linux", None, "dart_style-linux-x86_64"),
+		("aarch64", "linux", None, "dart_style-linux-aarch64"),
 		// macOS
-		("x86_64", "macos", "dart_style-macos-x86_64"),
-		("aarch64", "macos", "dart_style-macos-aarch64"),
+		("x86_64", "macos", None, "dart_style-macos-x86_64"),
+		("aarch64", "macos", None, "dart_style-macos-aarch64"),
 		// Windows MSVC
-		("x86_64", "windows", "dart_style-windows-x86_64-msvc.exe"),
-		("x86", "windows", "dart_style-windows-i686-msvc.exe"),
-		("aarch64", "windows", "dart_style-windows-aarch64-msvc.exe"),
+		(
+			"x86_64",
+			"windows",
+			Some("msvc"),
+			"dart_style-windows-x86_64-msvc.exe",
+		),
+		(
+			"x86",
+			"windows",
+			Some("msvc"),
+			"dart_style-windows-i686-msvc.exe",
+		),
+		(
+			"aarch64",
+			"windows",
+			Some("msvc"),
+			"dart_style-windows-aarch64-msvc.exe",
+		),
 		// Windows GNU
-		("x86_64", "windows", "dart_style-windows-x86_64-gnu.exe"),
+		(
+			"x86_64",
+			"windows",
+			Some("gnu"),
+			"dart_style-windows-x86_64-gnu.exe",
+		),
 	];
 
 	// Generate the binary data file
@@ -34,7 +55,7 @@ fn main() {
 		"// This file contains the embedded binary data for dart_style\n\n",
 	);
 
-	for (arch, os, binary_name) in &platforms {
+	for (arch, os, env_opt, binary_name) in &platforms {
 		let binary_path = bin_dir.join(binary_name);
 
 		if binary_path.exists() {
@@ -45,22 +66,42 @@ fn main() {
 					arch, os, binary_name, size
 				);
 
-				// Generate const name
-				let const_name = format!(
-					"BINARY_{}_{}",
-					arch.to_uppercase().replace("-", "_"),
-					os.to_uppercase()
-				);
+				// Generate const name based on arch, os, and env
+				let const_name = if let Some(env) = env_opt {
+					format!(
+						"BINARY_{}_{}_{}",
+						arch.to_uppercase().replace("-", "_"),
+						os.to_uppercase(),
+						env.to_uppercase()
+					)
+				} else {
+					format!(
+						"BINARY_{}_{}",
+						arch.to_uppercase().replace("-", "_"),
+						os.to_uppercase()
+					)
+				};
 
-				// Write the byte array using include_bytes!
-				generated_code.push_str(&format!(
-					"#[cfg(all(target_arch = \"{}\", target_os = \"{}\"))]\n",
-					arch, os
-				));
+				// Generate cfg attribute based on env
+				let cfg_str = if let Some(env) = env_opt {
+					format!(
+						"#[cfg(all(target_arch = \"{}\", target_os = \"{}\", target_env = \"{}\"))]\n",
+						arch, os, env
+					)
+				} else {
+					format!(
+						"#[cfg(all(target_arch = \"{}\", target_os = \"{}\"))]\n",
+						arch, os
+					)
+				};
+
+				// Convert path to forward slashes for include_bytes!
+				let path_str = binary_path.to_string_lossy().replace('\\', "/");
+
+				generated_code.push_str(&cfg_str);
 				generated_code.push_str(&format!(
 					"pub static {}: &[u8] = include_bytes!(\"{}\");\n\n",
-					const_name,
-					binary_path.display()
+					const_name, path_str
 				));
 			} else {
 				println!(
@@ -69,16 +110,7 @@ fn main() {
 					os,
 					binary_path.display()
 				);
-				generate_placeholder(
-					&mut generated_code,
-					arch,
-					os,
-					&format!(
-						"BINARY_{}_{}",
-						arch.to_uppercase().replace("-", "_"),
-						os.to_uppercase()
-					),
-				);
+				generate_placeholder(&mut generated_code, arch, os, *env_opt);
 			}
 		} else {
 			println!(
@@ -87,16 +119,7 @@ fn main() {
 				os,
 				binary_path.display()
 			);
-			generate_placeholder(
-				&mut generated_code,
-				arch,
-				os,
-				&format!(
-					"BINARY_{}_{}",
-					arch.to_uppercase().replace("-", "_"),
-					os.to_uppercase()
-				),
-			);
+			generate_placeholder(&mut generated_code, arch, os, *env_opt);
 		}
 	}
 
@@ -113,11 +136,35 @@ fn generate_placeholder(
 	code: &mut String,
 	arch: &str,
 	os: &str,
-	const_name: &str,
+	env_opt: Option<&str>,
 ) {
-	code.push_str(&format!(
-		"#[cfg(all(target_arch = \"{}\", target_os = \"{}\"))]\n",
-		arch, os
-	));
+	let const_name = if let Some(env) = env_opt {
+		format!(
+			"BINARY_{}_{}_{}",
+			arch.to_uppercase().replace("-", "_"),
+			os.to_uppercase(),
+			env.to_uppercase()
+		)
+	} else {
+		format!(
+			"BINARY_{}_{}",
+			arch.to_uppercase().replace("-", "_"),
+			os.to_uppercase()
+		)
+	};
+
+	let cfg_str = if let Some(env) = env_opt {
+		format!(
+			"#[cfg(all(target_arch = \"{}\", target_os = \"{}\", target_env = \"{}\"))]\n",
+			arch, os, env
+		)
+	} else {
+		format!(
+			"#[cfg(all(target_arch = \"{}\", target_os = \"{}\"))]\n",
+			arch, os
+		)
+	};
+
+	code.push_str(&cfg_str);
 	code.push_str(&format!("pub static {}: &[u8] = &[];\n\n", const_name));
 }

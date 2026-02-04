@@ -27,16 +27,6 @@ if [ -z "$GITHUB_TOKEN" ]; then
     echo ""
 fi
 
-# Setup curl with optional auth headers
-setup_curl() {
-    if [ -n "$GITHUB_TOKEN" ]; then
-        echo "Using GITHUB_TOKEN for authentication"
-        CURL="curl -fsSL -H 'Authorization: token $GITHUB_TOKEN'"
-    else
-        CURL="curl -fsSL"
-    fi
-}
-
 # Function to get the latest successful workflow run ID
 get_latest_run_id() {
     local api_url="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/actions/workflows/$WORKFLOW_NAME.yml/runs?status=success&per_page=1"
@@ -110,7 +100,6 @@ download_artifact() {
 }
 
 # Main execution
-setup_curl
 
 # Get the latest successful run
 RUN_ID=$(get_latest_run_id)

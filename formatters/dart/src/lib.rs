@@ -11,12 +11,33 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
 
+// Re-export types from common crate for standard formatter interface
+pub use fama_common::{FileType, FormatConfig};
+
 // Include the generated binary data
 include!(concat!(env!("OUT_DIR"), "/binary_data.rs"));
 
 // Global cache for the extracted binary path
 static BINARY_CACHE: Lazy<Mutex<Option<PathBuf>>> =
 	Lazy::new(|| Mutex::new(None));
+
+/// Standard formatter entrypoint that matches the common formatter interface
+///
+/// # Arguments
+/// * `content` - The source code to format
+/// * `path` - Path to the file (used for error messages)
+/// * `file_type` - The detected file type (should be FileType::Dart)
+///
+/// # Returns
+/// * `Ok(String)` - Formatted Dart code
+/// * `Err(String)` - Error message if formatting fails
+pub fn format_file(
+	content: &str,
+	path: &str,
+	_file_type: FileType,
+) -> Result<String, String> {
+	format_dart(content, path)
+}
 
 /// Format Dart source code using dart_style
 ///
@@ -34,7 +55,6 @@ pub fn format_dart(source: &str, file_path: &str) -> Result<String, String> {
 
 	// Run dart_style with stdin input
 	let mut child = Command::new(&binary_path)
-		.arg("format")
 		.arg("--output=show")
 		.arg("--stdin-name")
 		.arg(file_path)
@@ -202,20 +222,40 @@ fn get_platform_binary() -> Option<&'static [u8]> {
 		Some(BINARY_AARCH64_MACOS)
 	}
 
-	#[cfg(all(target_arch = "x86_64", target_os = "windows"))]
+	#[cfg(all(
+		target_arch = "x86_64",
+		target_os = "windows",
+		target_env = "msvc"
+	))]
 	{
-		// Prefer MSVC version, fallback to GNU
-		Some(BINARY_X86_64_WINDOWS)
+		Some(BINARY_X86_64_WINDOWS_MSVC)
 	}
 
-	#[cfg(all(target_arch = "x86", target_os = "windows"))]
+	#[cfg(all(
+		target_arch = "x86_64",
+		target_os = "windows",
+		target_env = "gnu"
+	))]
 	{
-		Some(BINARY_X86_WINDOWS)
+		Some(BINARY_X86_64_WINDOWS_GNU)
 	}
 
-	#[cfg(all(target_arch = "aarch64", target_os = "windows"))]
+	#[cfg(all(
+		target_arch = "x86",
+		target_os = "windows",
+		target_env = "msvc"
+	))]
 	{
-		Some(BINARY_AARCH64_WINDOWS)
+		Some(BINARY_X86_WINDOWS_MSVC)
+	}
+
+	#[cfg(all(
+		target_arch = "aarch64",
+		target_os = "windows",
+		target_env = "msvc"
+	))]
+	{
+		Some(BINARY_AARCH64_WINDOWS_MSVC)
 	}
 
 	#[cfg(not(any(
@@ -223,9 +263,18 @@ fn get_platform_binary() -> Option<&'static [u8]> {
 		all(target_arch = "aarch64", target_os = "linux"),
 		all(target_arch = "x86_64", target_os = "macos"),
 		all(target_arch = "aarch64", target_os = "macos"),
-		all(target_arch = "x86_64", target_os = "windows"),
-		all(target_arch = "x86", target_os = "windows"),
-		all(target_arch = "aarch64", target_os = "windows"),
+		all(
+			target_arch = "x86_64",
+			target_os = "windows",
+			target_env = "msvc"
+		),
+		all(target_arch = "x86_64", target_os = "windows", target_env = "gnu"),
+		all(target_arch = "x86", target_os = "windows", target_env = "msvc"),
+		all(
+			target_arch = "aarch64",
+			target_os = "windows",
+			target_env = "msvc"
+		),
 	)))]
 	{
 		None
