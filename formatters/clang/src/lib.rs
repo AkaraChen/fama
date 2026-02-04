@@ -5,12 +5,32 @@
 
 use std::sync::OnceLock;
 
-use fama_common::FileType;
+use fama_common::{FileType, IndentStyle, CONFIG};
 use wasmi::{Engine, Instance, Linker, Memory, Module, Store, TypedFunc};
 use wasmi_wasi::{WasiCtx, WasiCtxBuilder};
 
 /// Embedded clang-format WASM binary
 const CLANG_FORMAT_WASM: &[u8] = include_bytes!("../wasm/clang-format.wasm");
+
+/// Generate clang-format style configuration based on fama's FormatConfig
+fn generate_style_config() -> String {
+	let use_tab = matches!(CONFIG.indent_style, IndentStyle::Tabs);
+	let indent_width = CONFIG.indent_width;
+	let column_limit = CONFIG.line_width;
+
+	// YAML-style inline config for clang-format
+	format!(
+		"{{BasedOnStyle: LLVM, \
+		UseTab: {}, \
+		IndentWidth: {}, \
+		TabWidth: {}, \
+		ColumnLimit: {}}}",
+		if use_tab { "Always" } else { "Never" },
+		indent_width,
+		indent_width,
+		column_limit
+	)
+}
 
 /// Store context for WASI + our custom imports
 struct StoreCtx {
@@ -73,6 +93,28 @@ fn create_instance() -> Result<(Store<StoreCtx>, Instance, Memory), String> {
 
 	init.call(&mut store, ())
 		.map_err(|e| format!("Failed to call wasm_init: {}", e))?;
+
+	// Set formatting style based on fama config
+	let style = generate_style_config();
+	let style_ptr =
+		write_string_to_memory(&mut store, &memory, &instance, &style)?;
+	let style_len = style.len() as i32;
+
+	let set_style: TypedFunc<(i32, i32), i32> = instance
+		.get_typed_func(&store, "wasm_set_style")
+		.map_err(|e| format!("Failed to get wasm_set_style: {}", e))?;
+
+	set_style
+		.call(&mut store, (style_ptr, style_len))
+		.map_err(|e| format!("Failed to set style: {}", e))?;
+
+	// Free style string memory
+	let free: TypedFunc<i32, ()> = instance
+		.get_typed_func(&store, "free")
+		.map_err(|e| format!("Failed to get free: {}", e))?;
+
+	free.call(&mut store, style_ptr)
+		.map_err(|e| format!("Failed to free style: {}", e))?;
 
 	Ok((store, instance, memory))
 }
@@ -352,5 +394,29 @@ mod tests {
 		let input = "class Foo{public:void bar(){}};";
 		let result = format_file(input, "test.cpp", FileType::Unknown);
 		assert!(result.is_ok(), "Format failed: {:?}", result);
+	}
+
+	#[test]
+	fn test_format_uses_tabs() {
+		// Test that tabs are used for indentation (per CONFIG)
+		let input = "int main() {\nint x = 1;\nreturn x;\n}";
+		let result = format_file(input, "test.c", FileType::C);
+		assert!(result.is_ok(), "Format failed: {:?}", result);
+		let formatted = result.unwrap();
+		// Check that output uses tabs for indentation
+		assert!(
+			formatted.contains("\tint x"),
+			"Expected tab indentation, got: {}",
+			formatted
+		);
+	}
+
+	#[test]
+	fn test_style_config_generation() {
+		let style = generate_style_config();
+		// Verify config matches fama settings
+		assert!(style.contains("UseTab: Always"), "Style: {}", style);
+		assert!(style.contains("IndentWidth: 4"), "Style: {}", style);
+		assert!(style.contains("ColumnLimit: 80"), "Style: {}", style);
 	}
 }
