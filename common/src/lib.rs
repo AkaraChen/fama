@@ -135,6 +135,7 @@ pub enum FileType {
 	Lua,
 	Shell,
 	Go,
+	Hcl,
 	Dockerfile,
 	GraphQL,
 	Sql,
@@ -168,6 +169,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("lua") => FileType::Lua,
 		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
 		Some("go") => FileType::Go,
+		Some("hcl") | Some("tf") | Some("tfvars") => FileType::Hcl,
 		Some("graphql") | Some("gql") => FileType::GraphQL,
 		Some("sql") => FileType::Sql,
 		Some("xml") => FileType::Xml,
@@ -281,6 +283,14 @@ mod tests {
 		assert_eq!(detect_file_type("test.go"), FileType::Go);
 		assert_eq!(detect_file_type("main.go"), FileType::Go);
 		assert_eq!(detect_file_type("path/to/file.go"), FileType::Go);
+	}
+
+	#[test]
+	fn test_detect_hcl() {
+		assert_eq!(detect_file_type("test.hcl"), FileType::Hcl);
+		assert_eq!(detect_file_type("main.tf"), FileType::Hcl);
+		assert_eq!(detect_file_type("variables.tfvars"), FileType::Hcl);
+		assert_eq!(detect_file_type("path/to/config.hcl"), FileType::Hcl);
 	}
 
 	#[test]
