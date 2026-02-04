@@ -45,6 +45,11 @@ jobs:
               with:
                   go-version: "stable"
 
+            - name: Setup Zig
+              uses: mlugg/setup-zig@v2
+              with:
+                  version: 0.15.0
+
             - name: Install cross-compilation tools (Linux ARM64)
               if: matrix.cross
               run: |
