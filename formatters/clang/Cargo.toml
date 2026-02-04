@@ -1,0 +1,13 @@
+[package]
+name = "fama-clang"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+fama-common = { path = "../../common" }
+wasmi = "0.40"
+wasmi_wasi = "0.40"

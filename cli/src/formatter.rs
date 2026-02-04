@@ -52,6 +52,14 @@ fn format_content(
 		| FileType::Less
 		| FileType::Sass => dprint::format_file(content, path, file_type),
 
+		// C-family languages -> clang-format
+		FileType::C
+		| FileType::Cpp
+		| FileType::CSharp
+		| FileType::ObjectiveC
+		| FileType::Java
+		| FileType::Protobuf => fama_clang::format_file(content, path, file_type),
+
 		// Individual formatters
 		FileType::Toml => toml_fmt::format_toml(content, path),
 		FileType::Rust => rustfmt::format_rust(content, path),
