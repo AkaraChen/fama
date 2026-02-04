@@ -113,6 +113,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrayref"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76a2e8124351fda1ef8aaaa3bbd7ebbcb486bbcd4225aca0aa0d84bb2db8fecb"
+
+[[package]]
+name = "arrayvec"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
+
+[[package]]
 name = "attribute-derive"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -988,6 +1000,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "blake3"
+version = "1.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2468ef7d57b3fb7e16b576e8377cdbde2320c60e1491e961d11da40fc4f02a2d"
+dependencies = [
+ "arrayref",
+ "arrayvec",
+ "cc",
+ "cfg-if",
+ "constant_time_eq",
+ "cpufeatures",
+]
+
+[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1186,6 +1212,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
 
 [[package]]
+name = "codespan-reporting"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe6d2e5af09e8c8ad56c969f2157a3d4238cebc7c55f0a517728c38f7b200f81"
+dependencies = [
+ "serde",
+ "termcolor",
+ "unicode-width 0.2.2",
+]
+
+[[package]]
 name = "collection_literals"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1256,6 +1293,12 @@ dependencies = [
  "once_cell",
  "tiny-keccak",
 ]
+
+[[package]]
+name = "constant_time_eq"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "convert_case"
@@ -1700,6 +1743,7 @@ dependencies = [
  "dockerfile",
  "dprint",
  "fama-common",
+ "fama-php",
  "fama-sqruff",
  "glob",
  "goffi",
@@ -1717,6 +1761,16 @@ dependencies = [
 [[package]]
 name = "fama-common"
 version = "0.1.0"
+
+[[package]]
+name = "fama-php"
+version = "0.1.0"
+dependencies = [
+ "fama-common",
+ "mago-formatter",
+ "mago-interner",
+ "mago-php-version",
+]
 
 [[package]]
 name = "fama-sqruff"
@@ -1927,6 +1981,10 @@ name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+dependencies = [
+ "ahash",
+ "allocator-api2",
+]
 
 [[package]]
 name = "hashbrown"
@@ -2111,6 +2169,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lasso"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e14eda50a3494b3bf7b9ce51c52434a761e383d7238ce1dd5dcec2fbc13e9fb"
+dependencies = [
+ "ahash",
+ "dashmap",
+ "hashbrown 0.14.5",
+]
+
+[[package]]
 name = "lazy-regex"
 version = "3.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2208,6 +2277,126 @@ dependencies = [
  "quote",
  "regex-syntax 0.6.29",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "mago-fixer"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82d8f00b029a123a3edc5d16d5ec260319ca16f4cb301335eccf833b9815fdf2"
+dependencies = [
+ "serde",
+ "strum",
+ "tracing",
+]
+
+[[package]]
+name = "mago-formatter"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7cefc1895faf8d765680c94b2b137c36439ba1493b05da311f733c3bda979ec"
+dependencies = [
+ "ahash",
+ "bitflags 2.10.0",
+ "mago-interner",
+ "mago-php-version",
+ "mago-source",
+ "mago-span",
+ "mago-syntax",
+ "serde",
+ "unicode-width 0.2.2",
+]
+
+[[package]]
+name = "mago-interner"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c8d4eafe218ca14c1a24ba34bb7e2ccc00ac1cca7df5e12df07df771eddacf5"
+dependencies = [
+ "lasso",
+ "serde",
+]
+
+[[package]]
+name = "mago-php-version"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7aff7a841b97e97b252e84052e2188181f79719965823b7ac401eb20cb68183"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "mago-reporting"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3dd3029b11eb6193799c11bda4d368da86c0451afaedf57897fc1a0a21e58f97"
+dependencies = [
+ "ahash",
+ "blake3",
+ "codespan-reporting",
+ "mago-fixer",
+ "mago-interner",
+ "mago-source",
+ "mago-span",
+ "serde",
+ "serde_json",
+ "strum",
+ "termcolor",
+]
+
+[[package]]
+name = "mago-source"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fcc548f3097147fc6c439ceafcdb72f4d7010a6f2ac289532e89a348da35f7b"
+dependencies = [
+ "ahash",
+ "mago-interner",
+ "memchr",
+ "parking_lot",
+ "serde",
+ "tracing",
+]
+
+[[package]]
+name = "mago-span"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c0765ecae553a9b8796e938f30f05e73da37be70f136dfac1b1ea5939008093"
+dependencies = [
+ "mago-source",
+ "serde",
+]
+
+[[package]]
+name = "mago-syntax"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c560f65846a01cc90c0f5bc59a94f49d79f1302acbc80f072460ed54ad79baaa"
+dependencies = [
+ "either",
+ "mago-interner",
+ "mago-php-version",
+ "mago-reporting",
+ "mago-source",
+ "mago-span",
+ "mago-syntax-core",
+ "ordered-float",
+ "paste",
+ "serde",
+ "strum",
+]
+
+[[package]]
+name = "mago-syntax-core"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ced15f13c3bb8a40dfeec8f4256eca93f35fcda3d4e85be20947b970a895bfc"
+dependencies = [
+ "mago-source",
+ "mago-span",
+ "memchr",
 ]
 
 [[package]]
@@ -2358,6 +2547,17 @@ name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
+name = "ordered-float"
+version = "5.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f4779c6901a562440c3786d08192c6fbda7c1c2060edd10006b05ee35d10f2d"
+dependencies = [
+ "num-traits",
+ "rand 0.8.5",
+ "serde",
+]
 
 [[package]]
 name = "ordermap"
@@ -2740,6 +2940,7 @@ dependencies = [
  "libc",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
+ "serde",
 ]
 
 [[package]]
@@ -2779,6 +2980,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom 0.2.17",
+ "serde",
 ]
 
 [[package]]
@@ -3607,6 +3809,9 @@ name = "strum"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
+dependencies = [
+ "strum_macros",
+]
 
 [[package]]
 name = "strum_macros"

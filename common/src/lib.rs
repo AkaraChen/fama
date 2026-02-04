@@ -141,6 +141,7 @@ pub enum FileType {
 	GraphQL,
 	Sql,
 	Xml,
+	Php,
 	Unknown,
 }
 
@@ -175,6 +176,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("graphql") | Some("gql") => FileType::GraphQL,
 		Some("sql") => FileType::Sql,
 		Some("xml") => FileType::Xml,
+		Some("php") | Some("phtml") => FileType::Php,
 		_ => {
 			// Check for special filenames
 			if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -330,6 +332,14 @@ mod tests {
 		assert_eq!(detect_file_type("test.sql"), FileType::Sql);
 		assert_eq!(detect_file_type("query.sql"), FileType::Sql);
 		assert_eq!(detect_file_type("path/to/schema.sql"), FileType::Sql);
+	}
+
+	#[test]
+	fn test_detect_php() {
+		assert_eq!(detect_file_type("test.php"), FileType::Php);
+		assert_eq!(detect_file_type("index.php"), FileType::Php);
+		assert_eq!(detect_file_type("template.phtml"), FileType::Php);
+		assert_eq!(detect_file_type("path/to/file.php"), FileType::Php);
 	}
 
 	#[test]

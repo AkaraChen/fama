@@ -13,6 +13,7 @@ members = [
 	"formatters/sqruff",
 	"formatters/xml",
 	"formatters/ruby",
+	"formatters/php",
 ]
 resolver = "2"
 

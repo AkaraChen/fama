@@ -7,6 +7,7 @@ const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"scss", "less", "html", "vue", "svelte", "astro", "yaml", "yml", "md",
 	"rs", "py", "lua", "rb", "rake", "gemspec", "ru", "sh", "bash", "zsh",
 	"go", "hcl", "tf", "tfvars", "toml", "graphql", "gql", "sql", "xml",
+	"php", "phtml",
 ];
 
 /// Check if a file is supported for formatting
