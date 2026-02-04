@@ -34,6 +34,11 @@ jobs:
               with:
                   go-version: "stable"
 
+            - name: Setup Zig
+              uses: mlugg/setup-zig@v2
+              with:
+                  version: 0.15.0
+
             - name: Rust cache
               uses: Swatinem/rust-cache@v2
 
@@ -70,6 +75,11 @@ jobs:
               uses: actions/setup-go@v5
               with:
                   go-version: "stable"
+
+            - name: Setup Zig
+              uses: mlugg/setup-zig@v2
+              with:
+                  version: 0.15.0
 
             - name: Rust cache
               uses: Swatinem/rust-cache@v2

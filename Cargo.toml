@@ -9,6 +9,7 @@ members = [
 	"formatters/python",
 	"formatters/lua",
 	"formatters/goffi",
+	"formatters/zigffi",
 	"formatters/dockerfile",
 	"formatters/sqruff",
 	"formatters/xml",

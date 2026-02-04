@@ -6,7 +6,7 @@ const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts", "json", "jsonc", "css",
 	"scss", "less", "html", "vue", "svelte", "astro", "yaml", "yml", "md",
 	"rs", "py", "lua", "rb", "rake", "gemspec", "ru", "sh", "bash", "zsh",
-	"go", "hcl", "tf", "tfvars", "toml", "graphql", "gql", "sql", "xml",
+	"go", "zig", "hcl", "tf", "tfvars", "toml", "graphql", "gql", "sql", "xml",
 	"php", "phtml",
 ];
 
