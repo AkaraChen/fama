@@ -18,11 +18,27 @@ use mago_php_version::PHPVersion;
 /// * `Err(String)` - Error message if formatting fails
 pub fn format_php(source: &str, file_path: &str) -> Result<String, String> {
 	let interner = ThreadedInterner::new();
+	let mago_brace_style = match CONFIG.brace_style {
+		fama_common::BraceStyle::SameLine => {
+			mago_formatter::settings::BraceStyle::SameLine
+		}
+		fama_common::BraceStyle::NewLine => {
+			mago_formatter::settings::BraceStyle::NextLine
+		}
+	};
 
 	let settings = FormatSettings {
 		print_width: CONFIG.line_width as usize,
 		tab_width: CONFIG.indent_width as usize,
 		use_tabs: matches!(CONFIG.indent_style, fama_common::IndentStyle::Tabs),
+		end_of_line: match CONFIG.line_ending {
+			fama_common::LineEnding::Lf => {
+				mago_formatter::settings::EndOfLine::Lf
+			}
+			fama_common::LineEnding::Crlf => {
+				mago_formatter::settings::EndOfLine::Crlf
+			}
+		},
 		single_quote: matches!(
 			CONFIG.quote_style,
 			fama_common::QuoteStyle::Single
@@ -31,10 +47,11 @@ pub fn format_php(source: &str, file_path: &str) -> Result<String, String> {
 			CONFIG.trailing_comma,
 			fama_common::TrailingComma::All
 		),
-		trailing_semicolon: matches!(
-			CONFIG.semicolons,
-			fama_common::Semicolons::Always
-		),
+		control_brace_style: mago_brace_style,
+		closure_brace_style: mago_brace_style,
+		function_brace_style: mago_brace_style,
+		method_brace_style: mago_brace_style,
+		classlike_brace_style: mago_brace_style,
 		..FormatSettings::default()
 	};
 

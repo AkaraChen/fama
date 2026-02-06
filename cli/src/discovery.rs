@@ -3,11 +3,8 @@ use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
 /// Exact filenames to ignore (generated/lock files that have supported extensions)
-const IGNORED_FILENAMES: &[&str] = &[
-	"pnpm-lock.yaml",
-	"package-lock.json",
-	".terraform.lock.hcl",
-];
+const IGNORED_FILENAMES: &[&str] =
+	&["pnpm-lock.yaml", "package-lock.json", ".terraform.lock.hcl"];
 
 const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts", "json", "jsonc", "css",

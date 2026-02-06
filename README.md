@@ -67,54 +67,54 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 
 ### Core Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `indent_style` | `Tabs` | Indentation style: `Tabs` or `Spaces` |
-| `indent_width` | `4` | Number of spaces per indentation level (when using spaces) |
-| `line_width` | `80` | Maximum line length |
-| `line_ending` | `Lf` | Line ending: `Lf` or `Crlf` |
+| Option         | Default | Description                                                |
+| -------------- | ------- | ---------------------------------------------------------- |
+| `indent_style` | `Tabs`  | Indentation style: `Tabs` or `Spaces`                      |
+| `indent_width` | `4`     | Number of spaces per indentation level (when using spaces) |
+| `line_width`   | `80`    | Maximum line length                                        |
+| `line_ending`  | `Lf`    | Line ending: `Lf` or `Crlf`                                |
 
 ### Language-Specific Options
 
-| Option | Default | Description | Languages |
-|--------|---------|-------------|-----------|
-| `quote_style` | `Double` | Quote preference: `Single` or `Double` | JavaScript, TypeScript, Python, Lua, CSS, SCSS, PHP |
-| `trailing_comma` | `All` | Trailing comma style: `All` or `None` | JavaScript, TypeScript, JSON, PHP |
-| `semicolons` | `Always` | Semicolon usage: `Always` or `AsNeeded` | JavaScript, TypeScript |
-| `bracket_spacing` | `true` | Spaces inside object brackets | JavaScript, TypeScript |
-| `brace_style` | `SameLine` | Brace style: `SameLine` (K&R) or `NewLine` (Allman) | CSS, SCSS, C-family |
+| Option            | Default    | Description                                         | Languages                                           |
+| ----------------- | ---------- | --------------------------------------------------- | --------------------------------------------------- |
+| `quote_style`     | `Double`   | Quote preference: `Single` or `Double`              | JavaScript, TypeScript, Python, Lua, CSS, SCSS, PHP |
+| `trailing_comma`  | `All`      | Trailing comma style: `All` or `None`               | JavaScript, TypeScript, JSON, PHP                   |
+| `semicolons`      | `Always`   | Semicolon usage: `Always` or `AsNeeded`             | JavaScript, TypeScript                              |
+| `bracket_spacing` | `true`     | Spaces inside object brackets                       | JavaScript, TypeScript                              |
+| `brace_style`     | `SameLine` | Brace style: `SameLine` (K&R) or `NewLine` (Allman) | CSS, SCSS, C-family                                 |
 
 ### Language Support Matrix
 
-| Language | Formatter | Core Options | Quote | Trailing Comma | Semicolons | Bracket Spacing | Notes |
-|----------|-----------|------------|-------|----------------|------------|-----------------|-------|
-| **JavaScript** | Biome | ✅ | ✅ | ✅ | ✅ | ✅ | Includes JSX |
-| **TypeScript** | Biome | ✅ | ✅ | ✅ | ✅ | ✅ | Includes TSX |
-| **JSON** | Biome | ✅ | ❌ | ✅ | N/A | N/A | Trailing comma = All/None |
-| **JSONC** | Biome | ✅ | ❌ | ❌ | N/A | N/A | Comments allowed |
-| **HTML** | Biome | ✅ | N/A | N/A | N/A | N/A | Includes Vue/Svelte/Astro |
-| **GraphQL** | Biome | ✅ | N/A | N/A | N/A | N/A | |
-| **CSS** | dprint/Malva | ✅ | ✅ | ✅ | N/A | N/A | Includes SCSS, LESS, Sass |
-| **Markdown** | dprint | ✅* | N/A | N/A | N/A | N/A | *line_width, line_ending only |
-| **YAML** | dprint | ✅ | N/A | N/A | N/A | N/A | |
-| **Dockerfile** | dprint | ✅ | N/A | N/A | N/A | N/A | |
-| **TOML** | Taplo | ✅ | N/A | N/A | N/A | N/A | Uses CONFIG.indent_width |
-| **Rust** | rustfmt | ✅ | N/A | N/A | N/A | N/A | Uses rustfmt config env vars |
-| **Python** | Ruff | ✅ | ✅ | N/A | N/A | N/A | |
-| **Lua** | StyLua | ✅ | ✅ | N/A | N/A | N/A | |
-| **PHP** | Mago | ✅ | ✅ | ✅ | ✅ | N/A | |
-| **Ruby** | rubyfmt | ❌ | ❌ | ❌ | ❌ | ❌ | Embedded Ruby, no config |
-| **Shell** | goffi | ✅* | N/A | N/A | N/A | N/A | *indent_style, indent_width only |
-| **Go** | goffi | ❌ | ❌ | ❌ | ❌ | ❌ | Uses gofmt defaults (tabs) |
-| **HCL** | goffi | ❌ | ❌ | ❌ | ❌ | ❌ | Uses hclwrite defaults (2 spaces) |
-| **Zig** | zigffi | ❌ | ❌ | ❌ | ❌ | ❌ | Uses Zig defaults |
-| **SQL** | sqruff | ✅ | N/A | N/A | N/A | N/A | Keywords capitalized |
-| **XML** | quick-xml | ✅ | N/A | N/A | N/A | N/A | |
-| **C/C++** | clang-format | ✅ | N/A | N/A | N/A | N/A | Via WASM |
-| **C#** | clang-format | ✅ | N/A | N/A | N/A | N/A | Via WASM |
-| **Objective-C** | clang-format | ✅ | N/A | N/A | N/A | N/A | Via WASM |
-| **Java** | clang-format | ✅ | N/A | N/A | N/A | N/A | Via WASM |
-| **Protobuf** | clang-format | ✅ | N/A | N/A | N/A | N/A | Via WASM |
+| Language        | Formatter    | Core Options | Quote | Trailing Comma | Semicolons | Bracket Spacing | Notes                             |
+| --------------- | ------------ | ------------ | ----- | -------------- | ---------- | --------------- | --------------------------------- |
+| **JavaScript**  | Biome        | ✅           | ✅    | ✅             | ✅         | ✅              | Includes JSX                      |
+| **TypeScript**  | Biome        | ✅           | ✅    | ✅             | ✅         | ✅              | Includes TSX                      |
+| **JSON**        | Biome        | ✅           | ❌    | ✅             | N/A        | N/A             | Trailing comma = All/None         |
+| **JSONC**       | Biome        | ✅           | ❌    | ❌             | N/A        | N/A             | Comments allowed                  |
+| **HTML**        | Biome        | ✅           | N/A   | N/A            | N/A        | N/A             | Includes Vue/Svelte/Astro         |
+| **GraphQL**     | Biome        | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
+| **CSS**         | dprint/Malva | ✅           | ✅    | ✅             | N/A        | N/A             | Includes SCSS, LESS, Sass         |
+| **Markdown**    | dprint       | ✅*          | N/A   | N/A            | N/A        | N/A             | *line_width, line_ending only     |
+| **YAML**        | dprint       | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
+| **Dockerfile**  | dprint       | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
+| **TOML**        | Taplo        | ✅           | N/A   | N/A            | N/A        | N/A             | Uses CONFIG.indent_width          |
+| **Rust**        | rustfmt      | ✅           | N/A   | N/A            | N/A        | N/A             | Uses rustfmt config env vars      |
+| **Python**      | Ruff         | ✅           | ✅    | N/A            | N/A        | N/A             |                                   |
+| **Lua**         | StyLua       | ✅           | ✅    | N/A            | N/A        | N/A             |                                   |
+| **PHP**         | Mago         | ✅           | ✅    | ✅             | ✅         | N/A             |                                   |
+| **Ruby**        | rubyfmt      | ❌           | ❌    | ❌             | ❌         | ❌              | Embedded Ruby, no config          |
+| **Shell**       | goffi        | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_style, indent_width only  |
+| **Go**          | goffi        | ❌           | ❌    | ❌             | ❌         | ❌              | Uses gofmt defaults (tabs)        |
+| **HCL**         | goffi        | ❌           | ❌    | ❌             | ❌         | ❌              | Uses hclwrite defaults (2 spaces) |
+| **Zig**         | zigffi       | ❌           | ❌    | ❌             | ❌         | ❌              | Uses Zig defaults                 |
+| **SQL**         | sqruff       | ✅           | N/A   | N/A            | N/A        | N/A             | Keywords capitalized              |
+| **XML**         | quick-xml    | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
+| **C/C++**       | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
+| **C#**          | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
+| **Objective-C** | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
+| **Java**        | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
+| **Protobuf**    | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
 
 ### Notes on Hardcoded Styles
 
@@ -134,6 +134,7 @@ fama --export
 ```
 
 This generates:
+
 - `.editorconfig` - Editor-agnostic configuration
 - `rustfmt.toml` - Rust-specific formatting rules
 

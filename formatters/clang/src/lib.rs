@@ -28,7 +28,7 @@ fn generate_style_config() -> String {
 		if use_tab { "Always" } else { "Never" },
 		indent_width,
 		indent_width,
-		column_limit
+		column_limit,
 	)
 }
 
