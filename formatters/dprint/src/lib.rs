@@ -27,6 +27,7 @@ const MALVA_QUOTES: malva::config::Quotes = match CONFIG.quote_style {
 	fama_common::QuoteStyle::Single => malva::config::Quotes::AlwaysSingle,
 	fama_common::QuoteStyle::Double => malva::config::Quotes::AlwaysDouble,
 };
+const MALVA_TRAILING_COMMA: bool = matches!(CONFIG.trailing_comma, fama_common::TrailingComma::All);
 
 // YAML constants
 const YAML_LINE_BREAK: pretty_yaml::config::LineBreak = match CONFIG.line_ending
@@ -106,6 +107,7 @@ fn malva_options() -> malva::config::FormatOptions {
 		},
 		language: LanguageOptions {
 			quotes: MALVA_QUOTES,
+			trailing_comma: MALVA_TRAILING_COMMA,
 			..Default::default()
 		},
 	}
