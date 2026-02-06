@@ -82,6 +82,7 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 | `trailing_comma` | `All` | Trailing comma style: `All` or `None` | JavaScript, TypeScript, JSON, PHP |
 | `semicolons` | `Always` | Semicolon usage: `Always` or `AsNeeded` | JavaScript, TypeScript |
 | `bracket_spacing` | `true` | Spaces inside object brackets | JavaScript, TypeScript |
+| `brace_style` | `SameLine` | Brace style: `SameLine` (K&R) or `NewLine` (Allman) | CSS, SCSS, C-family |
 
 ### Language Support Matrix
 
