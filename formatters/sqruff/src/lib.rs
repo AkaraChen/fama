@@ -49,6 +49,14 @@ fn create_config() -> FluffConfig {
 	);
 	configs.insert("indentation".to_string(), Value::Map(indentation));
 
+	// SQL formatting rules section - capitalize keywords
+	let mut rules = AHashMap::new();
+	rules.insert(
+		"capitalisation_policy".to_string(),
+		Value::String("upper".into()),
+	);
+	configs.insert("rules".to_string(), Value::Map(rules));
+
 	FluffConfig::new(configs, None, None)
 }
 
