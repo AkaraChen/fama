@@ -2,6 +2,13 @@ use fama_common::{detect_file_type, FileType};
 use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
+/// Exact filenames to ignore (generated/lock files that have supported extensions)
+const IGNORED_FILENAMES: &[&str] = &[
+	"pnpm-lock.yaml",
+	"package-lock.json",
+	".terraform.lock.hcl",
+];
+
 const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts", "json", "jsonc", "css",
 	"scss", "less", "html", "vue", "svelte", "astro", "yaml", "yml", "md",
@@ -14,6 +21,12 @@ const SUPPORTED_EXTENSIONS: &[&str] = &[
 
 /// Check if a file is supported for formatting
 fn is_supported_path(path: &Path) -> bool {
+	// Skip known generated/lock files
+	if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+		if IGNORED_FILENAMES.contains(&filename) {
+			return false;
+		}
+	}
 	// First check by extension (fast path)
 	if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
 		if SUPPORTED_EXTENSIONS.contains(&ext) {
