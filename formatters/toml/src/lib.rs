@@ -15,6 +15,15 @@ const TAPLO_INDENT_STRING: &str =
 		"    " // 4 spaces - matches CONFIG.indent_width default
 	};
 
+/// Get indent string based on current CONFIG
+/// This function is used at runtime to respect CONFIG changes
+fn get_indent_string() -> String {
+	match CONFIG.indent_style {
+		fama_common::IndentStyle::Tabs => "\t".to_string(),
+		fama_common::IndentStyle::Spaces => " ".repeat(CONFIG.indent_width as usize),
+	}
+}
+
 /// Format TOML source code using Taplo formatter
 pub fn format_toml(source: &str, _file_path: &str) -> Result<String, String> {
 	use taplo::formatter::{format_syntax, Options};
@@ -32,7 +41,7 @@ pub fn format_toml(source: &str, _file_path: &str) -> Result<String, String> {
 
 	let options = Options {
 		column_width: TAPLO_COLUMN_WIDTH,
-		indent_string: TAPLO_INDENT_STRING.to_string(),
+		indent_string: get_indent_string(),
 		crlf: TAPLO_CRLF,
 		trailing_newline: true,
 		align_entries: false,
