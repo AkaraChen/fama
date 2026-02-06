@@ -54,6 +54,16 @@ pub enum Semicolons {
 	AsNeeded,
 }
 
+/// Brace style for blocks (SameLine/NewLine)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BraceStyle {
+	/// Same line style (K&R) - braces on same line as control statement
+	#[default]
+	SameLine,
+	/// New line style (Allman) - braces on new line
+	NewLine,
+}
+
 /// Centralized format configuration
 ///
 /// All formatters should use this config to ensure consistent formatting
@@ -84,6 +94,10 @@ pub struct FormatConfig {
 	pub semicolons: Semicolons,
 	/// Spaces inside brackets in objects (default: true)
 	pub bracket_spacing: bool,
+
+	// === Brace style (CSS, C-family) ===
+	/// Brace style for blocks (default: SameLine)
+	pub brace_style: BraceStyle,
 }
 
 /// Global format configuration constant
@@ -102,6 +116,8 @@ pub const CONFIG: FormatConfig = FormatConfig {
 	trailing_comma: TrailingComma::All,
 	semicolons: Semicolons::Always,
 	bracket_spacing: true,
+	// Brace style
+	brace_style: BraceStyle::SameLine,
 };
 
 impl Default for FormatConfig {
