@@ -9,3 +9,4 @@ formatters/goffi/go/libgoffi*.h
 formatters/goffi/go/libgoffi.dylib
 formatters/goffi/go/libgoffi.so
 formatters/goffi/libshformatter.dylib
+.claude/ralph-loop.local.md
