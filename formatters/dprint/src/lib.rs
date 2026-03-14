@@ -63,17 +63,105 @@ pub fn format_markdown(
 		 _line_width: u32|
 		 -> Result<Option<String>, anyhow::Error> { Ok(None) };
 
-	match dprint_plugin_markdown::format_text(
+	let formatted = match dprint_plugin_markdown::format_text(
 		source,
 		&config,
 		format_code_block,
 	) {
-		Ok(Some(result)) => Ok(result),
-		Ok(None) => {
-			// No changes needed, return original content
-			Ok(source.to_string())
+		Ok(Some(result)) => result,
+		Ok(None) => return Ok(source.to_string()),
+		Err(e) => return Err(format!("Markdown formatting error: {}", e)),
+	};
+
+	Ok(normalize_table_padding(&formatted))
+}
+
+/// Strip excessive column padding from markdown tables
+fn normalize_table_padding(source: &str) -> String {
+	let lines: Vec<&str> = source.lines().collect();
+	let mut result = Vec::with_capacity(lines.len());
+	let len = lines.len();
+
+	let mut i = 0;
+	while i < len {
+		if i + 1 < len && is_table_row(lines[i]) && is_separator_row(lines[i + 1])
+		{
+			let table_start = i;
+			while i < len && (is_table_row(lines[i]) || is_separator_row(lines[i]))
+			{
+				i += 1;
+			}
+			let table_lines = &lines[table_start..i];
+			normalize_table(table_lines, &mut result);
+		} else {
+			result.push(lines[i].to_string());
+			i += 1;
 		}
-		Err(e) => Err(format!("Markdown formatting error: {}", e)),
+	}
+
+	let mut output = result.join("\n");
+	if source.ends_with('\n') {
+		output.push('\n');
+	}
+	output
+}
+
+fn is_table_row(line: &str) -> bool {
+	let trimmed = line.trim();
+	trimmed.starts_with('|') && trimmed.ends_with('|') && trimmed.len() > 1
+}
+
+fn is_separator_row(line: &str) -> bool {
+	let trimmed = line.trim();
+	if !trimmed.starts_with('|') || !trimmed.ends_with('|') {
+		return false;
+	}
+	trimmed[1..trimmed.len() - 1].split('|').all(|cell| {
+		let c = cell.trim();
+		!c.is_empty()
+			&& c.chars()
+				.all(|ch| ch == '-' || ch == ':' || ch == ' ')
+	})
+}
+
+fn normalize_table(table_lines: &[&str], result: &mut Vec<String>) {
+	for line in table_lines {
+		if is_separator_row(line) {
+			let cells: Vec<&str> =
+				line.trim()[1..line.trim().len() - 1].split('|').collect();
+			let normalized: Vec<String> = cells
+				.iter()
+				.map(|cell| {
+					let c = cell.trim();
+					let left_colon = c.starts_with(':');
+					let right_colon = c.ends_with(':');
+					match (left_colon, right_colon) {
+						(true, true) => " :---: ".to_string(),
+						(true, false) => " :--- ".to_string(),
+						(false, true) => " ---: ".to_string(),
+						(false, false) => " --- ".to_string(),
+					}
+				})
+				.collect();
+			result.push(format!("|{}|", normalized.join("|")));
+		} else {
+			let cells: Vec<&str> =
+				line.trim()[1..line.trim().len() - 1].split('|').collect();
+			let normalized: Vec<String> = cells
+				.iter()
+				.map(|cell| {
+					let trimmed = cell.trim_end();
+					if trimmed.is_empty() {
+						" ".to_string()
+					} else if trimmed.starts_with(' ') {
+						format!("{} ", trimmed)
+					} else {
+						format!(" {} ", trimmed)
+					}
+				})
+				.collect();
+			result.push(format!("|{}|", normalized.join("|")));
+		}
 	}
 }
 
@@ -221,5 +309,70 @@ mod tests {
 		let source = "test";
 		let result = format_file(source, "test.js", FileType::JavaScript);
 		assert!(result.is_err());
+	}
+
+	#[test]
+	fn test_normalize_table_strips_excessive_padding() {
+		// Simulate what dprint produces: separator padded to match long cell
+		let input = "| Name | Link                                                                                                           |\n| :--- | :------------------------------------------------------------------------------------------------------------- |\n| foo  | [very long badge url](https://img.shields.io/badge/Download-x64-0078D6.svg?logo=windows&logoColor=white)       |\n";
+		let result = normalize_table_padding(input);
+		// Separator should be reduced to minimum dashes
+		assert!(result.contains("| :--- | :--- |"));
+		// Cell content should be preserved without trailing spaces
+		assert!(result.contains("| foo |"));
+	}
+
+	#[test]
+	fn test_normalize_table_preserves_alignment() {
+		let input = "| Left | Center | Right |\n| :----------- | :-----------: | -----------: |\n| a            | b             | c            |\n";
+		let result = normalize_table_padding(input);
+		assert!(result.contains(":---"));
+		assert!(result.contains(":---:"));
+		assert!(result.contains("---:"));
+		// Should not contain long dashes
+		assert!(!result.contains("-------"));
+	}
+
+	#[test]
+	fn test_normalize_table_preserves_non_table_content() {
+		let input = "# Title\n\nSome paragraph text.\n\n- list item\n";
+		let result = normalize_table_padding(input);
+		assert_eq!(result, input);
+	}
+
+	#[test]
+	fn test_normalize_table_real_world_badge_table() {
+		let long_url = "[![Badge](https://img.shields.io/badge/Download-x64-0078D6.svg?logo=windows)](https://github.com/user/repo/releases/download/v1.0.0/app-1.0.0-windows-x86_64.zip)";
+		let padded_sep = "-".repeat(long_url.len());
+		let padded_spaces = " ".repeat(long_url.len() - 2);
+		let input = format!(
+			"| OS{}| Link{}|\n| :{}| :{}|\n| **Win**{}| {} |\n",
+			" ".repeat(long_url.len() - 2),
+			" ".repeat(long_url.len() - 4),
+			padded_sep,
+			padded_sep,
+			padded_spaces,
+			long_url,
+		);
+		let result = normalize_table_padding(&input);
+		// No line should have excessive dashes
+		for line in result.lines() {
+			if is_separator_row(line) {
+				assert!(
+					line.len() < 40,
+					"separator too long: {} chars",
+					line.len()
+				);
+			}
+		}
+	}
+
+	#[test]
+	fn test_normalize_table_mixed_content() {
+		let input = "# Header\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nParagraph after table.\n";
+		let result = normalize_table_padding(input);
+		assert!(result.contains("# Header"));
+		assert!(result.contains("Paragraph after table."));
+		assert!(result.contains("| A |"));
 	}
 }
