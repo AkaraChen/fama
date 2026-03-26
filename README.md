@@ -1,6 +1,20 @@
 # Fama
 
+[中文](./README_zh-CN.md) | English
+
 **One command. Every language. Zero config.**
+
+## Installation
+
+**macOS / Linux**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AkaraChen/fama/master/install.sh | sh
+```
+
+**Windows**
+
+Download from [Releases](https://github.com/AkaraChen/fama/releases), extract `fama.exe`, and add it to your PATH.
 
 ## Philosophy
 
@@ -137,18 +151,6 @@ This generates:
 
 - `.editorconfig` - Editor-agnostic configuration
 - `rustfmt.toml` - Rust-specific formatting rules
-
-## Install
-
-**macOS / Linux**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/AkaraChen/fama/master/install.sh | sh
-```
-
-**Windows**
-
-Download from [Releases](https://github.com/AkaraChen/fama/releases), extract `fama.exe`, and add it to your PATH.
 
 ---
 
