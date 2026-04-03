@@ -91,3 +91,18 @@ pub fn stage_files(files: &[std::path::PathBuf]) -> anyhow::Result<usize> {
 
 	Ok(path_args.len())
 }
+
+/// Commit staged files with a message
+pub fn commit_files(message: &str) -> anyhow::Result<()> {
+	let output = Command::new("git")
+		.args(["commit", "-m", message])
+		.output()
+		.map_err(|e| anyhow::anyhow!("Failed to run git commit: {}", e))?;
+
+	if !output.status.success() {
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		return Err(anyhow::anyhow!("git commit failed: {}", stderr));
+	}
+
+	Ok(())
+}
