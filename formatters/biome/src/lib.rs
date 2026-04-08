@@ -15,8 +15,8 @@ use biome_js_formatter::context::{JsFormatOptions, Semicolons};
 use biome_js_syntax::{AnyJsRoot, JsFileSource};
 
 use biome_graphql_parser::parse_graphql;
-use biome_html_parser::parse_html;
-use biome_js_parser::parse;
+use biome_html_parser::{parse_html, HtmlParseOptions};
+use biome_js_parser::{parse, JsParserOptions};
 use biome_json_parser::parse_json;
 use biome_json_syntax::JsonFileSource;
 
@@ -119,12 +119,13 @@ fn sort_imports(
 	result_root
 }
 
-/// Format JavaScript source code
-pub fn format_javascript(
+/// Internal helper for formatting JS-family files (JS, TS, JSX, TSX)
+fn format_js_family(
 	source: &str,
 	file_path: &str,
+	source_type: JsFileSource,
+	file_type_name: &str,
 ) -> Result<String, String> {
-	let source_type = JsFileSource::js_module();
 	let options = JsFormatOptions::new(source_type)
 		.with_indent_style(BIOME_INDENT_STYLE)
 		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
@@ -135,10 +136,10 @@ pub fn format_javascript(
 		.with_semicolons(BIOME_SEMICOLONS)
 		.with_bracket_spacing(BracketSpacing::from(BIOME_BRACKET_SPACING));
 
-	let parsed = parse(source, source_type, Default::default());
+	let parsed = parse(source, source_type, JsParserOptions::default());
 
 	if parsed.has_errors() {
-		return Err(format!("Parse errors in JavaScript file"));
+		return Err(format!("Parse errors in {file_type_name} file"));
 	}
 
 	// Sort imports before formatting
@@ -147,114 +148,32 @@ pub fn format_javascript(
 	let syntax = sorted_root.syntax();
 
 	let formatted = biome_js_formatter::format_node(options, syntax)
-		.map_err(|e| format!("Format error: {:?}", e))?;
+		.map_err(|e| format!("Format error: {e:?}"))?;
 
 	formatted
 		.print()
 		.map(|p| p.as_code().to_string())
-		.map_err(|e| format!("Print error: {:?}", e))
+		.map_err(|e| format!("Print error: {e:?}"))
+}
+
+/// Format JavaScript source code
+pub fn format_javascript(source: &str, file_path: &str) -> Result<String, String> {
+	format_js_family(source, file_path, JsFileSource::js_module(), "JavaScript")
 }
 
 /// Format TypeScript source code
-pub fn format_typescript(
-	source: &str,
-	file_path: &str,
-) -> Result<String, String> {
-	let source_type = JsFileSource::ts();
-	let options = JsFormatOptions::new(source_type)
-		.with_indent_style(BIOME_INDENT_STYLE)
-		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
-		.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap())
-		.with_line_ending(BIOME_LINE_ENDING)
-		.with_quote_style(BIOME_QUOTE_STYLE)
-		.with_trailing_commas(BIOME_TRAILING_COMMAS)
-		.with_semicolons(BIOME_SEMICOLONS)
-		.with_bracket_spacing(BracketSpacing::from(BIOME_BRACKET_SPACING));
-
-	let parsed = parse(source, source_type, Default::default());
-
-	if parsed.has_errors() {
-		return Err(format!("Parse errors in TypeScript file"));
-	}
-
-	// Sort imports before formatting
-	let root = parsed.tree();
-	let sorted_root = sort_imports(&root, source_type, file_path);
-	let syntax = sorted_root.syntax();
-
-	let formatted = biome_js_formatter::format_node(options, syntax)
-		.map_err(|e| format!("Format error: {:?}", e))?;
-
-	formatted
-		.print()
-		.map(|p| p.as_code().to_string())
-		.map_err(|e| format!("Print error: {:?}", e))
+pub fn format_typescript(source: &str, file_path: &str) -> Result<String, String> {
+	format_js_family(source, file_path, JsFileSource::ts(), "TypeScript")
 }
 
 /// Format JSX source code
 pub fn format_jsx(source: &str, file_path: &str) -> Result<String, String> {
-	let source_type = JsFileSource::jsx();
-	let options = JsFormatOptions::new(source_type)
-		.with_indent_style(BIOME_INDENT_STYLE)
-		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
-		.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap())
-		.with_line_ending(BIOME_LINE_ENDING)
-		.with_quote_style(BIOME_QUOTE_STYLE)
-		.with_trailing_commas(BIOME_TRAILING_COMMAS)
-		.with_semicolons(BIOME_SEMICOLONS)
-		.with_bracket_spacing(BracketSpacing::from(BIOME_BRACKET_SPACING));
-
-	let parsed = parse(source, source_type, Default::default());
-
-	if parsed.has_errors() {
-		return Err(format!("Parse errors in JSX file"));
-	}
-
-	// Sort imports before formatting
-	let root = parsed.tree();
-	let sorted_root = sort_imports(&root, source_type, file_path);
-	let syntax = sorted_root.syntax();
-
-	let formatted = biome_js_formatter::format_node(options, syntax)
-		.map_err(|e| format!("Format error: {:?}", e))?;
-
-	formatted
-		.print()
-		.map(|p| p.as_code().to_string())
-		.map_err(|e| format!("Print error: {:?}", e))
+	format_js_family(source, file_path, JsFileSource::jsx(), "JSX")
 }
 
 /// Format TSX source code
 pub fn format_tsx(source: &str, file_path: &str) -> Result<String, String> {
-	let source_type = JsFileSource::tsx();
-	let options = JsFormatOptions::new(source_type)
-		.with_indent_style(BIOME_INDENT_STYLE)
-		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
-		.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap())
-		.with_line_ending(BIOME_LINE_ENDING)
-		.with_quote_style(BIOME_QUOTE_STYLE)
-		.with_trailing_commas(BIOME_TRAILING_COMMAS)
-		.with_semicolons(BIOME_SEMICOLONS)
-		.with_bracket_spacing(BracketSpacing::from(BIOME_BRACKET_SPACING));
-
-	let parsed = parse(source, source_type, Default::default());
-
-	if parsed.has_errors() {
-		return Err(format!("Parse errors in TSX file"));
-	}
-
-	// Sort imports before formatting
-	let root = parsed.tree();
-	let sorted_root = sort_imports(&root, source_type, file_path);
-	let syntax = sorted_root.syntax();
-
-	let formatted = biome_js_formatter::format_node(options, syntax)
-		.map_err(|e| format!("Format error: {:?}", e))?;
-
-	formatted
-		.print()
-		.map(|p| p.as_code().to_string())
-		.map_err(|e| format!("Print error: {:?}", e))
+	format_js_family(source, file_path, JsFileSource::tsx(), "TSX")
 }
 
 /// Format JSON source code
@@ -303,12 +222,12 @@ fn format_json_internal(
 	let syntax = parsed.syntax();
 
 	let formatted = biome_json_formatter::format_node(options, &syntax)
-		.map_err(|e| format!("Format error: {:?}", e))?;
+		.map_err(|e| format!("Format error: {e:?}"))?;
 
 	formatted
 		.print()
 		.map(|p| p.as_code().to_string())
-		.map_err(|e| format!("Print error: {:?}", e))
+		.map_err(|e| format!("Print error: {e:?}"))
 }
 
 /// Format HTML source code
@@ -318,7 +237,7 @@ pub fn format_html(source: &str, _file_path: &str) -> Result<String, String> {
 		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
 		.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap());
 
-	let parsed = parse_html(source, Default::default());
+	let parsed = parse_html(source, HtmlParseOptions::default());
 
 	if parsed.has_errors() {
 		return Err(format!("Parse errors in HTML file"));
@@ -327,12 +246,12 @@ pub fn format_html(source: &str, _file_path: &str) -> Result<String, String> {
 	let syntax = parsed.syntax();
 
 	let formatted = biome_html_formatter::format_node(options, &syntax, false)
-		.map_err(|e| format!("Format error: {:?}", e))?;
+		.map_err(|e| format!("Format error: {e:?}"))?;
 
 	formatted
 		.print()
 		.map(|p| p.as_code().to_string())
-		.map_err(|e| format!("Print error: {:?}", e))
+		.map_err(|e| format!("Print error: {e:?}"))
 }
 
 /// Format Vue SFC source code (limited - extracts and formats template/script/style)
@@ -356,10 +275,7 @@ pub fn format_svelte(source: &str, file_path: &str) -> Result<String, String> {
 		Ok(result) => Ok(result),
 		Err(_) => {
 			// If HTML parser fails, return original content (Svelte has features HTML parser can't handle)
-			eprintln!(
-                "Warning: {} syntax not fully supported, file may not be properly formatted",
-                file_path
-            );
+			eprintln!("Warning: {file_path} syntax not fully supported, file may not be properly formatted");
 			Ok(source.to_string())
 		}
 	}
@@ -373,10 +289,7 @@ pub fn format_astro(source: &str, file_path: &str) -> Result<String, String> {
 		Ok(result) => Ok(result),
 		Err(_) => {
 			// If HTML parser fails, return original content (Astro has features HTML parser can't handle)
-			eprintln!(
-                "Warning: {} syntax not fully supported, file may not be properly formatted",
-                file_path
-            );
+			eprintln!("Warning: {file_path} syntax not fully supported, file may not be properly formatted");
 			Ok(source.to_string())
 		}
 	}
@@ -405,12 +318,12 @@ pub fn format_graphql(
 	let syntax = parsed.syntax();
 
 	let formatted = biome_graphql_formatter::format_node(options, &syntax)
-		.map_err(|e| format!("Format error: {:?}", e))?;
+		.map_err(|e| format!("Format error: {e:?}"))?;
 
 	formatted
 		.print()
 		.map(|p| p.as_code().to_string())
-		.map_err(|e| format!("Print error: {:?}", e))
+		.map_err(|e| format!("Print error: {e:?}"))
 }
 
 /// Format a file based on its file type
