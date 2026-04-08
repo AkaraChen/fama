@@ -27,6 +27,9 @@ anyhow = "1.0"
 rayon = "1.11"
 pathdiff = "0.2"
 
+[dev-dependencies]
+tempfile = "3.14"
+
 [[bin]]
 name = "fama"
 path = "src/main.rs"
