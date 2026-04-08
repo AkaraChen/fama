@@ -44,7 +44,7 @@ pub fn format_lua(source: &str, _file_path: &str) -> Result<String, String> {
 	};
 
 	format_code(source, config, None, OutputVerification::None)
-		.map_err(|e| format!("StyLua error: {}", e))
+		.map_err(|e| format!("StyLua error: {e}"))
 }
 
 #[cfg(test)]

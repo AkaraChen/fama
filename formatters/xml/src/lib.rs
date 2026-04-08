@@ -84,7 +84,7 @@ pub fn format_xml(source: &str, _file_path: &str) -> Result<String, String> {
 					.map_err(|e| e.to_string())?;
 			}
 			Ok(Event::Eof) => break,
-			Err(e) => return Err(format!("XML parse error: {:?}", e)),
+			Err(e) => return Err(format!("XML parse error: {e:?}")),
 		}
 		buf.clear();
 	}

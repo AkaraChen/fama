@@ -36,7 +36,7 @@ pub fn format_dockerfile(
 	match format_text(&PathBuf::from(file_path), source, &config) {
 		Ok(Some(formatted)) => Ok(formatted),
 		Ok(None) => Ok(source.to_string()), // Already formatted
-		Err(e) => Err(format!("Dockerfile formatting error: {}", e)),
+		Err(e) => Err(format!("Dockerfile formatting error: {e}")),
 	}
 }
 

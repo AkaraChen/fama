@@ -43,7 +43,7 @@ pub fn format_php(source: &str, file_path: &str) -> Result<String, String> {
 
 	formatter
 		.format_code(file_path, source)
-		.map_err(|e| format!("Mago error: {}", e))
+		.map_err(|e| format!("Mago error: {e}"))
 }
 
 #[cfg(test)]
