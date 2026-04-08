@@ -157,9 +157,9 @@ pub enum FileType {
 pub fn detect_file_type(path: &str) -> FileType {
 	let path = Path::new(path);
 	match path.extension().and_then(|ext| ext.to_str()) {
-		Some("js") | Some("cjs") | Some("mjs") => FileType::JavaScript,
-		Some("ts") | Some("mts") => FileType::TypeScript,
-		Some("jsx") | Some("mjsx") => FileType::Jsx,
+		Some("js" | "cjs" | "mjs") => FileType::JavaScript,
+		Some("ts" | "mts") => FileType::TypeScript,
+		Some("jsx" | "mjsx") => FileType::Jsx,
 		Some("tsx") => FileType::Tsx,
 		Some("json") => FileType::Json,
 		Some("jsonc") => FileType::Jsonc,
@@ -167,33 +167,30 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("scss") => FileType::Scss,
 		Some("less") => FileType::Less,
 		Some("sass") => FileType::Sass,
-		Some("html") | Some("htm") => FileType::Html,
+		Some("html" | "htm") => FileType::Html,
 		Some("vue") => FileType::Vue,
 		Some("svelte") => FileType::Svelte,
 		Some("astro") => FileType::Astro,
-		Some("yaml") | Some("yml") => FileType::Yaml,
+		Some("yaml" | "yml") => FileType::Yaml,
 		Some("toml") => FileType::Toml,
-		Some("md") | Some("markdown") => FileType::Markdown,
+		Some("md" | "markdown") => FileType::Markdown,
 		Some("rs") => FileType::Rust,
 		Some("py") => FileType::Python,
 		Some("lua") => FileType::Lua,
-		Some("rb") | Some("rake") | Some("gemspec") | Some("ru") => {
-			FileType::Ruby
-		}
-		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
+		Some("rb" | "rake" | "gemspec" | "ru") => FileType::Ruby,
+		Some("sh" | "bash" | "zsh") => FileType::Shell,
 		Some("go") => FileType::Go,
 		Some("zig") => FileType::Zig,
-		Some("hcl") | Some("tf") | Some("tfvars") => FileType::Hcl,
-		Some("graphql") | Some("gql") => FileType::GraphQL,
+		Some("hcl" | "tf" | "tfvars") => FileType::Hcl,
+		Some("graphql" | "gql") => FileType::GraphQL,
 		Some("sql") => FileType::Sql,
 		Some("xml") => FileType::Xml,
-		Some("php") | Some("phtml") => FileType::Php,
+		Some("php" | "phtml") => FileType::Php,
 		// C-family languages
-		Some("c") | Some("h") => FileType::C,
-		Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx")
-		| Some("hh") => FileType::Cpp,
+		Some("c" | "h") => FileType::C,
+		Some("cpp" | "cc" | "cxx" | "hpp" | "hxx" | "hh") => FileType::Cpp,
 		Some("cs") => FileType::CSharp,
-		Some("m") | Some("mm") => FileType::ObjectiveC,
+		Some("m" | "mm") => FileType::ObjectiveC,
 		Some("java") => FileType::Java,
 		Some("proto") => FileType::Protobuf,
 		_ => {
