@@ -110,7 +110,7 @@ mod tests {
 		
 		assert!(result.is_ok());
 		// JSON should be formatted
-		assert_eq!(result.unwrap(), true);
+		assert!(result.unwrap());
 	}
 
 	#[test]
@@ -121,9 +121,9 @@ mod tests {
 		let original_content = fs::read_to_string(&file_path).unwrap();
 
 		let result = format_file(&file_path, true);
-		
+
 		assert!(result.is_ok());
-		assert_eq!(result.unwrap(), true);
+		assert!(result.unwrap());
 		// File should NOT be modified in check mode
 		let after_content = fs::read_to_string(&file_path).unwrap();
 		assert_eq!(original_content, after_content);

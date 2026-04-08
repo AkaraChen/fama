@@ -7,6 +7,6 @@
 fn test_integration_placeholder() {
     // Integration tests are run via the binary directly
     // See: cargo test for unit tests
-    assert!(true);
+    // Placeholder: real integration tests run the binary directly
 }
 

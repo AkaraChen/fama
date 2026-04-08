@@ -48,11 +48,11 @@ mod tests {
 	#[test]
 	fn test_color_clone() {
 		let green = Color::Green;
-		let cloned = green.clone();
+		let cloned = green;
 		assert_eq!(green, cloned);
-		
+
 		let red = Color::Red;
-		let cloned_red = red.clone();
+		let cloned_red = red;
 		assert_eq!(red, cloned_red);
 	}
 

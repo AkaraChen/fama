@@ -333,7 +333,7 @@ mod tests {
 		let files = result.unwrap();
 		// gitignore should filter out excluded.js but may or may not depending on implementation
 		// Just verify the test runs without error
-		assert!(files.len() >= 0);
+		let _ = files;
 	}
 
 	#[test]
