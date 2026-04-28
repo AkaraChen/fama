@@ -238,8 +238,7 @@ mod tests {
 			args: &[
 				"-NoProfile",
 				"-Command",
-				"[System.IO.File]::WriteAllText($args[0], 'formatted')",
-				"{file}",
+				"[System.IO.File]::WriteAllText(\"{file}\", 'formatted')",
 			],
 			mode: ProcessMode::TempFile,
 			write_editorconfig: true,
