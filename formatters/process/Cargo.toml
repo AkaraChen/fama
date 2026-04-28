@@ -1,0 +1,9 @@
+[package]
+name = "fama-process"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+fama-common = { path = "../../common" }
+tempfile = "3.14"
