@@ -44,11 +44,11 @@ Fama 帮你做决定，所以你不必做。它选择合理的默认值并普遍
 
 **约定优于配置。** 只有一种风格。它有效。使用它。
 
-**通用。** 一个工具格式化 30+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、YAML、TOML、Markdown、Rust、Python、Lua、Ruby、PHP、Shell、Go、Zig、HCL、Dockerfile、SQL、XML、C、C++、C#、Objective-C、Java 和 Protobuf。到处都是相同的命令。
+**通用。** 一个工具格式化 30+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、YAML、TOML、Markdown、Rust、Python、Lua、Ruby、PHP、Shell、Go、Zig、HCL、Dockerfile、SQL、XML、Kotlin、C、C++、C#、Objective-C、Java 和 Protobuf。到处都是相同的命令。
 
 **快速。** 格式化永远不应该是你等待的东西。
 
-**小巧。** 一个 13 MB 的二进制文件。下载只需 5 MB tar.gz。没有运行时依赖。没有包管理器。没有插件。放在你的 PATH 里就能工作。随时可以通过再次运行安装脚本更新。
+**小巧。** 一个 13 MB 的二进制文件承载内置 formatter。process mode 的语言也可以依赖宿主机已安装的 formatter CLI，例如 Kotlin 使用 `ktfmt`。放在你的 PATH 里就能工作。随时可以通过再次运行安装脚本更新。
 
 **安静。** 它格式化改变的内容并告诉你它做了什么。仅此而已。
 
@@ -124,6 +124,7 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 | **Zig**         | zigffi       | ❌       | ❌   | ❌       | ❌   | ❌       | 使用 Zig 默认值                  |
 | **SQL**         | sqruff       | ✅       | N/A  | N/A      | N/A  | N/A      | 关键字大写                        |
 | **XML**         | quick-xml    | ✅       | N/A  | N/A      | N/A  | N/A      |                                   |
+| **Kotlin**      | ktfmt（process） | ✅*  | N/A  | N/A      | N/A  | N/A      | *在支持的范围内读取生成的 `.editorconfig`；要求 PATH 中可用 `ktfmt` |
 | **C/C++**       | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **C#**          | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **Objective-C** | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
@@ -136,6 +137,7 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 
 - **Go**: 使用 `gofmt` 默认值（tab 用于缩进）
 - **HCL**: 使用 `hclwrite` 默认值（2 空格）
+- **Kotlin**: 通过 process mode 调用宿主机上的 `ktfmt`
 - **Zig**: 使用 Zig 内置格式化工具的默认风格
 - **Ruby**: 使用嵌入的 `rubyfmt` 固定风格
 
@@ -149,7 +151,7 @@ fama --export
 
 这会生成：
 
-- `.editorconfig` - 编辑器无关的配置
+- `.editorconfig` - 编辑器无关的配置，也会被 `ktfmt` 这类 process-mode formatter 使用
 - `rustfmt.toml` - Rust 特定的格式化规则
 
 ---

@@ -1869,6 +1869,7 @@ dependencies = [
  "fama-clang",
  "fama-common",
  "fama-php",
+ "fama-process",
  "fama-sqruff",
  "fama-zigffi",
  "glob",
@@ -1906,6 +1907,14 @@ dependencies = [
  "mago-formatter",
  "mago-interner",
  "mago-php-version",
+]
+
+[[package]]
+name = "fama-process"
+version = "0.1.0"
+dependencies = [
+ "fama-common",
+ "tempfile",
 ]
 
 [[package]]

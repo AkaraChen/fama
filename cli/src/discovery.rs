@@ -19,7 +19,7 @@ const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"scss", "less", "html", "vue", "svelte", "astro", "yaml", "yml", "md",
 	"rs", "py", "lua", "rb", "rake", "gemspec", "ru", "sh", "bash", "zsh",
 	"go", "zig", "hcl", "tf", "tfvars", "toml", "graphql", "gql", "sql", "xml",
-	"php", "phtml", // C-family languages
+	"php", "phtml", "kt", "kts", // C-family languages
 	"c", "h", "cpp", "cc", "cxx", "hpp", "hxx", "hh", "cs", "m", "mm", "java",
 	"proto",
 ];
@@ -167,6 +167,7 @@ mod tests {
 		assert!(is_supported_path(Path::new("test.rs")));
 		assert!(is_supported_path(Path::new("test.py")));
 		assert!(is_supported_path(Path::new("test.go")));
+		assert!(is_supported_path(Path::new("test.kt")));
 	}
 
 	#[test]
@@ -262,7 +263,7 @@ mod tests {
 	#[test]
 	fn test_discover_files_invalid_glob_pattern() {
 		let result = discover_files(Some("[invalid"));
-		
+
 		assert!(result.is_err());
 		assert!(result.unwrap_err().contains("Invalid glob pattern"));
 	}
@@ -298,7 +299,7 @@ mod tests {
 	#[test]
 	fn test_is_supported_file_with_directory() {
 		let temp_dir = TempDir::new().unwrap();
-		
+
 		assert!(!is_supported_file(temp_dir.path()));
 	}
 
@@ -307,7 +308,7 @@ mod tests {
 		let temp_dir = TempDir::new().unwrap();
 		let file_path = temp_dir.path().join("test.js");
 		fs::write(&file_path, "content").unwrap();
-		
+
 		assert!(is_supported_file(&file_path));
 	}
 
@@ -316,7 +317,7 @@ mod tests {
 		let temp_dir = TempDir::new().unwrap();
 		let file_path = temp_dir.path().join("test.xyz");
 		fs::write(&file_path, "content").unwrap();
-		
+
 		assert!(!is_supported_file(&file_path));
 	}
 

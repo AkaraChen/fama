@@ -16,6 +16,7 @@ members = [
 	"formatters/xml",
 	"formatters/ruby",
 	"formatters/php",
+	"formatters/process",
 ]
 resolver = "2"
 
