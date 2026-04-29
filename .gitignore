@@ -9,3 +9,5 @@ formatters/goffi/go/libgoffi*.h
 formatters/goffi/go/libgoffi.dylib
 formatters/goffi/go/libgoffi.so
 formatters/goffi/libshformatter.dylib
+.env.luna
+/.luna
