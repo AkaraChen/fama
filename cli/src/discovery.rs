@@ -9,15 +9,41 @@ const IGNORED_FILENAMES: &[&str] = &[
 	".terraform.lock.hcl",
 ];
 
-const SUPPORTED_EXTENSIONS: &[&str] = &[
-	"js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts", "json", "jsonc", "css",
-	"scss", "less", "html", "vue", "svelte", "astro", "yaml", "yml", "md",
-	"rs", "py", "lua", "rb", "rake", "gemspec", "ru", "sh", "bash", "zsh",
-	"go", "zig", "hcl", "tf", "tfvars", "toml", "graphql", "gql", "sql", "xml",
-	"php", "phtml", // C-family languages
-	"c", "h", "cpp", "cc", "cxx", "hpp", "hxx", "hh", "cs", "m", "mm", "java",
-	"proto",
-];
+/// O(1) extension match via match jump table (replaces linear slice scan).
+#[inline]
+fn is_supported_extension(ext: &str) -> bool {
+	matches!(
+		ext,
+		"js" | "jsx"
+			| "ts" | "tsx"
+			| "mjs" | "mjsx"
+			| "mts" | "json"
+			| "jsonc" | "css"
+			| "scss" | "less"
+			| "html" | "vue"
+			| "svelte" | "astro"
+			| "yaml" | "yml"
+			| "md" | "rs"
+			| "py" | "lua"
+			| "rb" | "rake"
+			| "gemspec" | "ru"
+			| "sh" | "bash"
+			| "zsh" | "go"
+			| "zig" | "hcl"
+			| "tf" | "tfvars"
+			| "toml" | "graphql"
+			| "gql" | "sql"
+			| "xml" | "php"
+			| "phtml" // C-family languages
+			| "c" | "h"
+			| "cpp" | "cc"
+			| "cxx" | "hpp"
+			| "hxx" | "hh"
+			| "cs" | "m"
+			| "mm" | "java"
+			| "proto"
+	)
+}
 
 /// Check if a file is supported for formatting
 fn is_supported_path(path: &Path) -> bool {
@@ -29,7 +55,7 @@ fn is_supported_path(path: &Path) -> bool {
 	}
 	// First check by extension (fast path)
 	if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-		if SUPPORTED_EXTENSIONS.contains(&ext) {
+		if is_supported_extension(ext) {
 			return true;
 		}
 	}
@@ -49,7 +75,8 @@ fn walk_with_pattern(
 	base: &Path,
 	pattern: Option<&glob::Pattern>,
 ) -> Result<Vec<PathBuf>, String> {
-	let mut files: Vec<PathBuf> = WalkBuilder::new(base)
+	// Order is not required for correctness (formatting is independent per file).
+	let files: Vec<PathBuf> = WalkBuilder::new(base)
 		.hidden(false)
 		.build()
 		.filter_map(|entry| entry.ok())
@@ -63,7 +90,6 @@ fn walk_with_pattern(
 		.map(|entry| entry.path().to_path_buf())
 		.collect();
 
-	files.sort();
 	Ok(files)
 }
 
@@ -78,7 +104,7 @@ fn walk_with_pattern(
 /// - Glob pattern: "src/*.rs" or "**/*.js" → expands and filters
 ///
 /// # Returns
-/// A sorted list of file paths matching the pattern and supported extensions
+/// A list of file paths matching the pattern and supported extensions
 pub fn discover_files(pattern: Option<&str>) -> Result<Vec<PathBuf>, String> {
 	let pattern = pattern.unwrap_or("**/*");
 

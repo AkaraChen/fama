@@ -2,10 +2,22 @@
 //
 // Provides SQL code formatting using the sqruff crate.
 
+use std::sync::OnceLock;
+
 use ahash::AHashMap;
 use fama_common::{IndentStyle, CONFIG};
 use sqruff_lib::core::config::{FluffConfig, Value};
 use sqruff_lib::core::linter::core::Linter;
+
+/// Cached linter; CONFIG is process-static so one instance is enough.
+static LINTER: OnceLock<Linter> = OnceLock::new();
+
+fn get_linter() -> &'static Linter {
+	LINTER.get_or_init(|| {
+		let config = create_config();
+		Linter::new(config, None, None, false)
+	})
+}
 
 /// Format SQL source code using sqruff
 ///
@@ -17,9 +29,7 @@ use sqruff_lib::core::linter::core::Linter;
 /// * `Ok(String)` - Formatted SQL code
 /// * `Err(String)` - Error message if formatting fails
 pub fn format_sql(source: &str, _file_path: &str) -> Result<String, String> {
-	let config = create_config();
-	let linter = Linter::new(config, None, None, false);
-	let linted_file = linter.lint_string(source, None, true);
+	let linted_file = get_linter().lint_string(source, None, true);
 	Ok(linted_file.fix_string())
 }
 

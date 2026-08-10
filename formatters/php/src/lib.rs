@@ -31,10 +31,6 @@ pub fn format_php(source: &str, file_path: &str) -> Result<String, String> {
 			CONFIG.trailing_comma,
 			fama_common::TrailingComma::All
 		),
-		trailing_semicolon: matches!(
-			CONFIG.semicolons,
-			fama_common::Semicolons::Always
-		),
 		..FormatSettings::default()
 	};
 
