@@ -11,5 +11,3 @@ crate-type = [ "rlib" ]
 [dependencies]
 fama-common = { path = "../../common" }
 rust-format = "0.3"
-rayon = "1.11"
-rustc-hash = "2"

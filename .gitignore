@@ -11,5 +11,3 @@ formatters/goffi/go/libgoffi.so
 formatters/goffi/libshformatter.dylib
 .env.luna
 /.luna
-/.grok/workflows
-benchmark.md

@@ -3,11 +3,10 @@
 //! This formatter uses a standalone WASM module compiled from clang-format
 //! and runs it via wasmi with WASI support.
 
-use std::cell::RefCell;
 use std::sync::OnceLock;
 
 use fama_common::{FileType, IndentStyle, CONFIG};
-use wasmi::{Config, Engine, Linker, Memory, Module, Store, TypedFunc};
+use wasmi::{Engine, Instance, Linker, Memory, Module, Store, TypedFunc};
 use wasmi_wasi::{WasiCtx, WasiCtxBuilder};
 
 /// Embedded clang-format WASM binary
@@ -38,55 +37,25 @@ struct StoreCtx {
 	wasi: WasiCtx,
 }
 
-/// Cached compiled WASM module (Sync; shared across threads)
-struct CachedModule {
+/// Cached WASM instance for reuse
+struct CachedInstance {
 	engine: Engine,
 	module: Module,
 }
 
-static CACHED_MODULE: OnceLock<CachedModule> = OnceLock::new();
+static CACHED_MODULE: OnceLock<CachedInstance> = OnceLock::new();
 
-fn get_cached_module() -> &'static CachedModule {
+fn get_cached_module() -> &'static CachedInstance {
 	CACHED_MODULE.get_or_init(|| {
-		// Tune wasmi for repeated format calls: more reusable stacks for
-		// concurrent rayon workers, skip custom-section parse cost, fuel off
-		// (default) so hot-path execution does no fuel accounting.
-		let mut config = Config::default();
-		config.set_cached_stacks(16);
-		config.ignore_custom_sections(true);
-		config.consume_fuel(false);
-		let engine = Engine::new(&config);
+		let engine = Engine::default();
 		let module = Module::new(&engine, CLANG_FORMAT_WASM)
 			.expect("Failed to compile WASM module");
-		CachedModule { engine, module }
+		CachedInstance { engine, module }
 	})
 }
 
-/// Cached TypedFunc exports resolved once per worker instance.
-struct WorkerFuncs {
-	malloc: TypedFunc<i32, i32>,
-	free: TypedFunc<i32, ()>,
-	wasm_format: TypedFunc<(i32, i32, i32, i32), i32>,
-	get_result_ptr: TypedFunc<(), i32>,
-	get_result_len: TypedFunc<(), i32>,
-	free_result: TypedFunc<(), ()>,
-}
-
-/// Per-worker WASM runtime. Store/Instance are not Sync, so each rayon
-/// worker reuses its own instance (wasm_init + set_style once per thread).
-/// TypedFuncs are resolved once at create time to avoid export lookup per file.
-struct WorkerInstance {
-	store: Store<StoreCtx>,
-	memory: Memory,
-	funcs: WorkerFuncs,
-}
-
-thread_local! {
-	static WORKER: RefCell<Option<WorkerInstance>> = const { RefCell::new(None) };
-}
-
 /// Create a new store and instance for formatting
-fn create_instance() -> Result<WorkerInstance, String> {
+fn create_instance() -> Result<(Store<StoreCtx>, Instance, Memory), String> {
 	let cached = get_cached_module();
 
 	// Create WASI context
@@ -125,30 +94,10 @@ fn create_instance() -> Result<WorkerInstance, String> {
 	init.call(&mut store, ())
 		.map_err(|e| format!("Failed to call wasm_init: {}", e))?;
 
-	// Resolve hot-path exports once (used every format call)
-	let malloc: TypedFunc<i32, i32> = instance
-		.get_typed_func(&store, "malloc")
-		.map_err(|e| format!("Failed to get malloc: {}", e))?;
-	let free: TypedFunc<i32, ()> = instance
-		.get_typed_func(&store, "free")
-		.map_err(|e| format!("Failed to get free: {}", e))?;
-	let wasm_format: TypedFunc<(i32, i32, i32, i32), i32> = instance
-		.get_typed_func(&store, "wasm_format")
-		.map_err(|e| format!("Failed to get wasm_format: {}", e))?;
-	let get_result_ptr: TypedFunc<(), i32> = instance
-		.get_typed_func(&store, "wasm_get_result_ptr")
-		.map_err(|e| format!("Failed to get wasm_get_result_ptr: {}", e))?;
-	let get_result_len: TypedFunc<(), i32> = instance
-		.get_typed_func(&store, "wasm_get_result_len")
-		.map_err(|e| format!("Failed to get wasm_get_result_len: {}", e))?;
-	let free_result: TypedFunc<(), ()> = instance
-		.get_typed_func(&store, "wasm_free_result")
-		.map_err(|e| format!("Failed to get wasm_free_result: {}", e))?;
-
 	// Set formatting style based on fama config
 	let style = generate_style_config();
 	let style_ptr =
-		write_string_to_memory(&mut store, &memory, &malloc, &style)?;
+		write_string_to_memory(&mut store, &memory, &instance, &style)?;
 	let style_len = style.len() as i32;
 
 	let set_style: TypedFunc<(i32, i32), i32> = instance
@@ -160,35 +109,14 @@ fn create_instance() -> Result<WorkerInstance, String> {
 		.map_err(|e| format!("Failed to set style: {}", e))?;
 
 	// Free style string memory
+	let free: TypedFunc<i32, ()> = instance
+		.get_typed_func(&store, "free")
+		.map_err(|e| format!("Failed to get free: {}", e))?;
+
 	free.call(&mut store, style_ptr)
 		.map_err(|e| format!("Failed to free style: {}", e))?;
 
-	Ok(WorkerInstance {
-		store,
-		memory,
-		funcs: WorkerFuncs {
-			malloc,
-			free,
-			wasm_format,
-			get_result_ptr,
-			get_result_len,
-			free_result,
-		},
-	})
-}
-
-/// Run `f` with this thread's WASM instance, creating it on first use.
-fn with_worker<R>(
-	f: impl FnOnce(&mut WorkerInstance) -> Result<R, String>,
-) -> Result<R, String> {
-	WORKER.with(|cell| {
-		let mut slot = cell.borrow_mut();
-		if slot.is_none() {
-			*slot = Some(create_instance()?);
-		}
-		let worker = slot.as_mut().expect("just initialized");
-		f(worker)
-	})
+	Ok((store, instance, memory))
 }
 
 /// Add Emscripten-specific stub functions
@@ -278,11 +206,16 @@ fn add_emscripten_stubs(linker: &mut Linker<StoreCtx>) -> Result<(), String> {
 fn write_string_to_memory(
 	store: &mut Store<StoreCtx>,
 	memory: &Memory,
-	malloc: &TypedFunc<i32, i32>,
+	instance: &Instance,
 	s: &str,
 ) -> Result<i32, String> {
 	let bytes = s.as_bytes();
 	let len = bytes.len() as i32;
+
+	// Allocate memory using malloc
+	let malloc: TypedFunc<i32, i32> = instance
+		.get_typed_func(&*store, "malloc")
+		.map_err(|e| format!("Failed to get malloc: {}", e))?;
 
 	let ptr = malloc
 		.call(&mut *store, len)
@@ -319,117 +252,128 @@ fn read_string_from_memory(
 	String::from_utf8(buffer).map_err(|e| format!("Invalid UTF-8: {}", e))
 }
 
-/// Format code using clang-format WASM.
+/// Format code using clang-format WASM
+///
+/// # Arguments
+/// * `content` - The source code to format
+/// * `path` - The file path (used to determine language)
+/// * `file_type` - The detected file type
 ///
 /// # Returns
-/// * `Ok(String)` - The formatted code (clone of input when already formatted)
+/// * `Ok(String)` - The formatted code
 /// * `Err(String)` - Error message if formatting failed
 pub fn format_file(
 	content: &str,
 	path: &str,
-	file_type: FileType,
-) -> Result<String, String> {
-	match format_file_changed(content, path, file_type)? {
-		Some(formatted) => Ok(formatted),
-		// Status-2 / identical: still need an owned String for this API.
-		None => Ok(content.to_string()),
-	}
-}
-
-/// Format and report whether the body changed, without allocating a full copy
-/// of the input when status is "unchanged" (status code 2).
-///
-/// * `Ok(None)` — already formatted (no `String` allocation for the body)
-/// * `Ok(Some(s))` — reformatted body
-pub fn format_file_changed(
-	content: &str,
-	path: &str,
 	_file_type: FileType,
-) -> Result<Option<String>, String> {
-	with_worker(|worker| {
-		let store = &mut worker.store;
-		let memory = &worker.memory;
-		let funcs = &worker.funcs;
+) -> Result<String, String> {
+	let (mut store, instance, memory) = create_instance()?;
 
-		// Write input strings to WASM memory
-		let code_ptr =
-			write_string_to_memory(store, memory, &funcs.malloc, content)?;
-		let code_len = content.len() as i32;
+	// Write input strings to WASM memory
+	let code_ptr =
+		write_string_to_memory(&mut store, &memory, &instance, content)?;
+	let code_len = content.len() as i32;
 
-		let filename_ptr =
-			write_string_to_memory(store, memory, &funcs.malloc, path)?;
-		let filename_len = path.len() as i32;
+	let filename_ptr =
+		write_string_to_memory(&mut store, &memory, &instance, path)?;
+	let filename_len = path.len() as i32;
 
-		// Call format
-		let status = funcs
-			.wasm_format
-			.call(
-				&mut *store,
-				(code_ptr, code_len, filename_ptr, filename_len),
-			)
-			.map_err(|e| format!("Failed to call wasm_format: {}", e))?;
+	// Get the format function
+	let format: TypedFunc<(i32, i32, i32, i32), i32> = instance
+		.get_typed_func(&store, "wasm_format")
+		.map_err(|e| format!("Failed to get wasm_format: {}", e))?;
 
-		// Free input memory
-		funcs
-			.free
-			.call(&mut *store, code_ptr)
-			.map_err(|e| format!("Failed to free code: {}", e))?;
-		funcs
-			.free
-			.call(&mut *store, filename_ptr)
-			.map_err(|e| format!("Failed to free filename: {}", e))?;
+	// Call format
+	let status = format
+		.call(&mut store, (code_ptr, code_len, filename_ptr, filename_len))
+		.map_err(|e| format!("Failed to call wasm_format: {}", e))?;
 
-		match status {
-			0 => {
-				// Success - get the result
-				let result_ptr = funcs
-					.get_result_ptr
-					.call(&mut *store, ())
-					.map_err(|e| format!("Failed to get result ptr: {}", e))?;
-				let result_len = funcs
-					.get_result_len
-					.call(&mut *store, ())
-					.map_err(|e| format!("Failed to get result len: {}", e))?;
+	// Free input memory
+	let free: TypedFunc<i32, ()> = instance
+		.get_typed_func(&store, "free")
+		.map_err(|e| format!("Failed to get free: {}", e))?;
 
-				let result = read_string_from_memory(
-					store, memory, result_ptr, result_len,
-				)?;
+	free.call(&mut store, code_ptr)
+		.map_err(|e| format!("Failed to free code: {}", e))?;
+	free.call(&mut store, filename_ptr)
+		.map_err(|e| format!("Failed to free filename: {}", e))?;
 
-				funcs
-					.free_result
-					.call(&mut *store, ())
-					.map_err(|e| format!("Failed to free result: {}", e))?;
-
-				Ok(Some(result))
-			}
-			1 => {
-				// Error - get error message
-				let err_ptr = funcs
-					.get_result_ptr
-					.call(&mut *store, ())
-					.map_err(|e| format!("Failed to get error ptr: {}", e))?;
-				let err_len = funcs
-					.get_result_len
-					.call(&mut *store, ())
-					.map_err(|e| format!("Failed to get error len: {}", e))?;
-
-				let error_msg =
-					read_string_from_memory(store, memory, err_ptr, err_len)?;
-
-				funcs.free_result.call(&mut *store, ()).map_err(|e| {
-					format!("Failed to free error result: {}", e)
+	match status {
+		0 => {
+			// Success - get the result
+			let get_ptr: TypedFunc<(), i32> = instance
+				.get_typed_func(&store, "wasm_get_result_ptr")
+				.map_err(|e| {
+					format!("Failed to get wasm_get_result_ptr: {}", e)
+				})?;
+			let get_len: TypedFunc<(), i32> = instance
+				.get_typed_func(&store, "wasm_get_result_len")
+				.map_err(|e| {
+					format!("Failed to get wasm_get_result_len: {}", e)
+				})?;
+			let free_result: TypedFunc<(), ()> = instance
+				.get_typed_func(&store, "wasm_free_result")
+				.map_err(|e| {
+					format!("Failed to get wasm_free_result: {}", e)
 				})?;
 
-				Err(error_msg)
-			}
-			2 => {
-				// Unchanged: skip WASM result-pointer read / free_result and
-				// do not allocate a copy of the input body.
-				Ok(None)
-			}
-			_ => Err(format!("Unknown status code: {}", status)),
+			let result_ptr = get_ptr
+				.call(&mut store, ())
+				.map_err(|e| format!("Failed to get result ptr: {}", e))?;
+			let result_len = get_len
+				.call(&mut store, ())
+				.map_err(|e| format!("Failed to get result len: {}", e))?;
+
+			let result = read_string_from_memory(
+				&store, &memory, result_ptr, result_len,
+			)?;
+
+			free_result
+				.call(&mut store, ())
+				.map_err(|e| format!("Failed to free result: {}", e))?;
+
+			Ok(result)
 		}
-	})
+		1 => {
+			// Error - get error message
+			let get_ptr: TypedFunc<(), i32> = instance
+				.get_typed_func(&store, "wasm_get_result_ptr")
+				.map_err(|e| {
+					format!("Failed to get wasm_get_result_ptr: {}", e)
+				})?;
+			let get_len: TypedFunc<(), i32> = instance
+				.get_typed_func(&store, "wasm_get_result_len")
+				.map_err(|e| {
+					format!("Failed to get wasm_get_result_len: {}", e)
+				})?;
+			let free_result: TypedFunc<(), ()> = instance
+				.get_typed_func(&store, "wasm_free_result")
+				.map_err(|e| {
+					format!("Failed to get wasm_free_result: {}", e)
+				})?;
+
+			let err_ptr = get_ptr
+				.call(&mut store, ())
+				.map_err(|e| format!("Failed to get error ptr: {}", e))?;
+			let err_len = get_len
+				.call(&mut store, ())
+				.map_err(|e| format!("Failed to get error len: {}", e))?;
+
+			let error_msg =
+				read_string_from_memory(&store, &memory, err_ptr, err_len)?;
+
+			free_result
+				.call(&mut store, ())
+				.map_err(|e| format!("Failed to free error result: {}", e))?;
+
+			Err(error_msg)
+		}
+		2 => {
+			// Unchanged - return original content
+			Ok(content.to_string())
+		}
+		_ => Err(format!("Unknown status code: {}", status)),
+	}
 }
 
 #[cfg(test)]
@@ -474,14 +418,5 @@ mod tests {
 		assert!(style.contains("UseTab: Always"), "Style: {}", style);
 		assert!(style.contains("IndentWidth: 4"), "Style: {}", style);
 		assert!(style.contains("ColumnLimit: 80"), "Style: {}", style);
-	}
-
-	#[test]
-	fn test_instance_reuse_across_calls() {
-		// Multiple formats on the same thread must reuse TLS instance safely
-		let a = format_file("int a(){return 1;}", "a.c", FileType::C).unwrap();
-		let b = format_file("int b(){return 2;}", "b.c", FileType::C).unwrap();
-		assert!(a.contains("int a()"));
-		assert!(b.contains("int b()"));
 	}
 }

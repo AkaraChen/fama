@@ -14,14 +14,7 @@ extern crate stylua;
 
 use clap::Parser;
 use color::Color;
-use fama_common::FileType;
-use formatter::FileOutcome;
 use rayon::prelude::*;
-use rustc_hash::FxHashSet;
-use std::path::PathBuf;
-
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[derive(Parser)]
 #[command(name = "fama")]
@@ -83,35 +76,6 @@ impl FormatStats {
 		self.errors.extend(other.errors);
 		self
 	}
-
-	fn record_outcome(&mut self, path: &std::path::Path, outcome: FileOutcome, debug: bool) {
-		match outcome {
-			FileOutcome::Formatted => {
-				if debug {
-					eprintln!(
-						"{}",
-						Color::Green.paint(&path.display().to_string())
-					);
-				}
-				self.formatted += 1;
-			}
-			FileOutcome::Unchanged => {
-				if debug {
-					eprintln!("{}", path.display());
-				}
-				self.unchanged += 1;
-			}
-			FileOutcome::Error(e) => {
-				if debug {
-					eprintln!(
-						"{}",
-						Color::Red.paint(&path.display().to_string())
-					);
-				}
-				self.errors.push(e);
-			}
-		}
-	}
 }
 
 fn run(options: Cli) -> anyhow::Result<()> {
@@ -119,7 +83,7 @@ fn run(options: Cli) -> anyhow::Result<()> {
 	let debug = options.debug;
 	let check = options.check;
 	let quiet = options.quiet;
-	let mut all_files: Vec<PathBuf> = Vec::new();
+	let mut all_files: Vec<std::path::PathBuf> = Vec::new();
 
 	// Get files from git if --staged or --changed is specified
 	if options.staged || options.changed {
@@ -144,40 +108,47 @@ fn run(options: Cli) -> anyhow::Result<()> {
 		}
 	}
 
-	// Remove duplicates while preserving order (FxHash; no clone on duplicates)
-	let mut seen =
-		FxHashSet::with_capacity_and_hasher(all_files.len(), Default::default());
-	let mut files = Vec::with_capacity(all_files.len());
-	for p in all_files {
-		// contains via Borrow<Path> — skip clone when already seen
-		if seen.contains(p.as_path()) {
-			continue;
-		}
-		seen.insert(p.clone());
-		files.push(p);
-	}
+	// Remove duplicates while preserving order
+	let mut seen = std::collections::HashSet::new();
+	let files: Vec<_> = all_files
+		.into_iter()
+		.filter(|p| seen.insert(p.clone()))
+		.collect();
 
-	// Partition rustfmt multi-path batch from the rest. Shell/Go/Hcl go through
-	// per-file rayon (goffi *_batch is sequential inside Go and steals pool
-	// occupancy from C-family WASM workers).
-	let mut rust_files = Vec::new();
-	let mut other_files = Vec::new();
-
-	for f in files {
-		match formatter::file_type_of(&f) {
-			FileType::Rust => rust_files.push(f),
-			_ => other_files.push(f),
-		}
-	}
-
-	// Run rustfmt batch lane alongside per-file par_iter for everything else
-	// (including Shell/Go/Hcl and C-family clang WASM).
-	let (other_stats, rust_stats) = rayon::join(
-		|| format_others(&other_files, check, debug),
-		|| format_batch_rust(&rust_files, check, debug),
-	);
-
-	let stats = other_stats.merge(rust_stats);
+	// Parallel formatting with fold/reduce pattern
+	let stats = files
+		.par_iter()
+		.fold(FormatStats::default, |mut stats, file| {
+			match formatter::format_file(file, check) {
+				Ok(true) => {
+					if debug {
+						// Green for formatted files
+						eprintln!(
+							"{}",
+							Color::Green.paint(&file.display().to_string())
+						);
+					}
+					stats.formatted += 1;
+				}
+				Ok(false) => {
+					if debug {
+						eprintln!("{}", file.display());
+					}
+					stats.unchanged += 1;
+				}
+				Err(e) => {
+					if debug {
+						eprintln!(
+							"{}",
+							Color::Red.paint(&file.display().to_string())
+						);
+					}
+					stats.errors.push(e.to_string());
+				}
+			}
+			stats
+		})
+		.reduce(FormatStats::default, FormatStats::merge);
 
 	// Print collected errors (always print errors)
 	for error in &stats.errors {
@@ -203,46 +174,10 @@ fn run(options: Cli) -> anyhow::Result<()> {
 		}
 	}
 
-	// Exit non-zero when check finds dirty files, or when any path errored
-	// (e.g. rustfmt syntax failure) — avoid false-green exit 0 with only errors.
-	if (check && stats.formatted > 0) || !stats.errors.is_empty() {
+	// Exit with non-zero if check mode and files need formatting
+	if check && stats.formatted > 0 {
 		std::process::exit(1);
 	}
 
 	Ok(())
-}
-
-fn format_others(files: &[PathBuf], check: bool, debug: bool) -> FormatStats {
-	files
-		.par_iter()
-		.fold(FormatStats::default, |mut stats, file| {
-			match formatter::format_file(file, check) {
-				Ok(true) => {
-					stats.record_outcome(file, FileOutcome::Formatted, debug);
-				}
-				Ok(false) => {
-					stats.record_outcome(file, FileOutcome::Unchanged, debug);
-				}
-				Err(e) => {
-					stats.record_outcome(
-						file,
-						FileOutcome::Error(e.to_string()),
-						debug,
-					);
-				}
-			}
-			stats
-		})
-		.reduce(FormatStats::default, FormatStats::merge)
-}
-
-fn format_batch_rust(files: &[PathBuf], check: bool, debug: bool) -> FormatStats {
-	if files.is_empty() {
-		return FormatStats::default();
-	}
-	let mut stats = FormatStats::default();
-	for (path, outcome) in formatter::format_rust_batch(files, check) {
-		stats.record_outcome(&path, outcome, debug);
-	}
-	stats
 }
