@@ -167,6 +167,12 @@ quote_type = {quote_type}
 [*.{{sh,bash,zsh}}]
 indent_style = {indent_style}
 indent_size = {indent_size}
+
+# Kotlin files (ktfmt only supports spaces)
+[*.{{kt,kts}}]
+indent_style = space
+indent_size = 4
+tab_width = 4
 "#,
 		indent_size = config.indent_width,
 		line_width = config.line_width
@@ -426,18 +432,20 @@ mod tests {
 	}
 
 	#[test]
+	fn test_detect_kotlin() {
+		assert_eq!(detect_file_type("test.kt"), FileType::Kotlin);
+		assert_eq!(detect_file_type("main.kt"), FileType::Kotlin);
+		assert_eq!(detect_file_type("build.gradle.kts"), FileType::Kotlin);
+		assert_eq!(detect_file_type("settings.gradle.kts"), FileType::Kotlin);
+		assert_eq!(detect_file_type("path/to/file.kt"), FileType::Kotlin);
+	}
+
+	#[test]
 	fn test_detect_php() {
 		assert_eq!(detect_file_type("test.php"), FileType::Php);
 		assert_eq!(detect_file_type("index.php"), FileType::Php);
 		assert_eq!(detect_file_type("template.phtml"), FileType::Php);
 		assert_eq!(detect_file_type("path/to/file.php"), FileType::Php);
-	}
-
-	#[test]
-	fn test_detect_kotlin() {
-		assert_eq!(detect_file_type("test.kt"), FileType::Kotlin);
-		assert_eq!(detect_file_type("build.gradle.kts"), FileType::Kotlin);
-		assert_eq!(detect_file_type("path/to/file.kt"), FileType::Kotlin);
 	}
 
 	#[test]

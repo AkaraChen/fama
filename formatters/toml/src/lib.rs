@@ -11,6 +11,15 @@ const TAPLO_INDENT_STRING: &str = match CONFIG.indent_style {
 	fama_common::IndentStyle::Spaces => " ", // Placeholder, actual string is generated at runtime
 };
 
+/// Get indent string based on current CONFIG
+/// This function is used at runtime to respect CONFIG changes
+fn get_indent_string() -> String {
+	match CONFIG.indent_style {
+		fama_common::IndentStyle::Tabs => "\t".to_string(),
+		fama_common::IndentStyle::Spaces => " ".repeat(CONFIG.indent_width as usize),
+	}
+}
+
 /// Format TOML source code using Taplo formatter
 pub fn format_toml(source: &str, _file_path: &str) -> Result<String, String> {
 	use taplo::formatter::{format_syntax, Options};

@@ -5,8 +5,11 @@ use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
 /// Exact filenames to ignore (generated/lock files that have supported extensions)
-const IGNORED_FILENAMES: &[&str] =
-	&["pnpm-lock.yaml", "package-lock.json", ".terraform.lock.hcl"];
+const IGNORED_FILENAMES: &[&str] = &[
+	"pnpm-lock.yaml",
+	"package-lock.json",
+	".terraform.lock.hcl",
+];
 
 /// Glob patterns for files to ignore (minified files, etc.)
 const IGNORED_PATTERNS: &[(&str, &str)] = &[
@@ -19,7 +22,8 @@ const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"scss", "less", "html", "vue", "svelte", "astro", "yaml", "yml", "md",
 	"rs", "py", "lua", "rb", "rake", "gemspec", "ru", "sh", "bash", "zsh",
 	"go", "zig", "hcl", "tf", "tfvars", "toml", "graphql", "gql", "sql", "xml",
-	"php", "phtml", "kt", "kts", // C-family languages
+	"php", "phtml", // C-family languages
+	"kt", "kts",
 	"c", "h", "cpp", "cc", "cxx", "hpp", "hxx", "hh", "cs", "m", "mm", "java",
 	"proto",
 ];

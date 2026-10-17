@@ -9,4 +9,8 @@ formatters/goffi/go/libgoffi*.h
 formatters/goffi/go/libgoffi.dylib
 formatters/goffi/go/libgoffi.so
 formatters/goffi/libshformatter.dylib
+# Kotlin formatter binaries
+formatters/kotlin/bin/
+.env.luna
+/.luna
 .claude/ralph-loop.local.md

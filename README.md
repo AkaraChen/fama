@@ -50,6 +50,8 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Small.** A single 13 MB binary for built-in formatters. Download is just a 5 MB tar.gz. Process-mode languages can also rely on host-installed formatter CLIs, such as `ktfmt` for Kotlin. Drop it in your PATH and it just works. Update anytime by running the install script again.
 
+**Self-contained.** Everything Fama needs is inside the binary. Language-specific formatters are either statically linked or bundled as pinned native images, so there are no runtime dependencies and no surprises from your machine.
+
 **Quiet.** It formats what changed and tells you what it did. Nothing more.
 
 ## Usage
@@ -74,6 +76,12 @@ fama --export
 - Semicolons
 
 This is not negotiable. That's the point.
+
+### Per-language exceptions
+
+Some languages cannot honor the Fama style and use their formatter's own defaults instead:
+
+- **Kotlin** — formatted with ktfmt, which only supports space indentation (4 spaces). Line width and trailing commas are still pinned to the Fama defaults.
 
 ## Configuration Options
 
