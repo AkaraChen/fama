@@ -143,6 +143,7 @@ pub enum FileType {
 	Sql,
 	Xml,
 	Php,
+	Kotlin,
 	// C-family languages (clang-format)
 	C,
 	Cpp,
@@ -196,6 +197,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("m") | Some("mm") => FileType::ObjectiveC,
 		Some("java") => FileType::Java,
 		Some("proto") => FileType::Protobuf,
+		Some("kt") | Some("kts") => FileType::Kotlin,
 		_ => {
 			// Check for special filenames
 			if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -358,6 +360,15 @@ mod tests {
 		assert_eq!(detect_file_type("test.sql"), FileType::Sql);
 		assert_eq!(detect_file_type("query.sql"), FileType::Sql);
 		assert_eq!(detect_file_type("path/to/schema.sql"), FileType::Sql);
+	}
+
+	#[test]
+	fn test_detect_kotlin() {
+		assert_eq!(detect_file_type("test.kt"), FileType::Kotlin);
+		assert_eq!(detect_file_type("main.kt"), FileType::Kotlin);
+		assert_eq!(detect_file_type("build.gradle.kts"), FileType::Kotlin);
+		assert_eq!(detect_file_type("settings.gradle.kts"), FileType::Kotlin);
+		assert_eq!(detect_file_type("path/to/file.kt"), FileType::Kotlin);
 	}
 
 	#[test]

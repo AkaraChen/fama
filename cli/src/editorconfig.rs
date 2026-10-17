@@ -45,7 +45,13 @@ indent_size = {indent_size}
 tab_width = {indent_size}
 max_line_length = {line_width}
 
-# JavaScript/TypeScript
+# Kotlin files (ktfmt only supports spaces)
+	[*.{kt,kts}]
+	indent_style = space
+	indent_size = 4
+	tab_width = 4
+
+	# JavaScript/TypeScript
 [*.{{js,jsx,ts,tsx,mjs,cjs}}]
 quote_type = {quote_type}
 

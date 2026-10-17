@@ -30,11 +30,13 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Convention over configuration.** There is one style. It works. Use it.
 
-**Universal.** One tool formats your JavaScript, TypeScript, JSX, TSX, JSON, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, YAML, TOML, Markdown, Rust, Python, Lua, Shell, Go, and Dockerfile. Same command everywhere.
+**Universal.** One tool formats your JavaScript, TypeScript, JSX, TSX, JSON, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, YAML, TOML, Markdown, Rust, Python, Lua, Shell, Go, Dockerfile, Kotlin, and more. Same command everywhere.
 
 **Fast.** Formatting should never be the thing you're waiting for.
 
-**Small.** A single 13 MB binary. Download is just a 5 MB tar.gz. No runtime dependencies. No package managers. No plugins. Drop it in your PATH and it just works. Update anytime by running the install script again.
+**Small.** A single binary. Download is just a 5 MB tar.gz. No package managers. No plugins. Drop it in your PATH and it just works. Update anytime by running the install script again.
+
+**Self-contained.** Everything Fama needs is inside the binary. Language-specific formatters are either statically linked or bundled as pinned native images, so there are no runtime dependencies and no surprises from your machine.
 
 **Quiet.** It formats what changed and tells you what it did. Nothing more.
 
@@ -60,6 +62,12 @@ fama --export
 - Semicolons
 
 This is not negotiable. That's the point.
+
+### Per-language exceptions
+
+Some languages cannot honor the Fama style and use their formatter's own defaults instead:
+
+- **Kotlin** — formatted with ktfmt, which only supports space indentation (4 spaces). Line width and trailing commas are still pinned to the Fama defaults.
 
 ## Install
 

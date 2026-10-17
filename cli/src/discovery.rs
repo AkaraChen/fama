@@ -15,6 +15,7 @@ const SUPPORTED_EXTENSIONS: &[&str] = &[
 	"rs", "py", "lua", "rb", "rake", "gemspec", "ru", "sh", "bash", "zsh",
 	"go", "zig", "hcl", "tf", "tfvars", "toml", "graphql", "gql", "sql", "xml",
 	"php", "phtml", // C-family languages
+	"kt", "kts",
 	"c", "h", "cpp", "cc", "cxx", "hpp", "hxx", "hh", "cs", "m", "mm", "java",
 	"proto",
 ];

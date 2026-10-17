@@ -28,7 +28,7 @@ fama --export    # Generate .editorconfig and rustfmt.toml files
 
 ### Workspace Structure
 
-The project is a Cargo workspace with 10 crates:
+The project is a Cargo workspace with 17 crates:
 
 - `cli/` - Main CLI application with file discovery and routing
 - `common/` - Shared types: `FileType` enum, `FormatConfig`, indentation/quote styles
@@ -40,7 +40,14 @@ The project is a Cargo workspace with 10 crates:
   - `python/` - Python (via ruff crates)
   - `lua/` - Lua (via stylua crate)
   - `goffi/` - Shell scripts and Go (Go FFI wrapper around mvdan/sh and go/format)
+  - `zigffi/` - Zig (via zigfmt)
   - `dockerfile/` - Dockerfile formatting
+  - `sqruff/` - SQL (via sqruff)
+  - `xml/` - XML
+  - `ruby/` - Ruby (via prism)
+  - `php/` - PHP
+  - `clang/` - C-family (C/C++/C#/Java/Protobuf via clang-format)
+  - `kotlin/` - Kotlin (via ktfmt v0.65 native images)
 
 ### Data Flow
 
@@ -84,7 +91,7 @@ The `goffi` crate provides both Shell and Go formatting via CGO:
 ```bash
 cargo test                           # All workspace tests
 cargo test -p fama-common            # Test specific crate
-cargo test -p fama-cli               # Test CLI crate
+cargo test -p fama                   # Test CLI crate
 cargo test <test_name>               # Run a single test
 cargo test -p fama-common <test_name> # Run single test in specific crate
 ```
@@ -98,6 +105,22 @@ cargo test -p fama-common <test_name> # Run single test in specific crate
 5. Add routing case in `cli/src/formatter.rs`
 6. Update the `cli/Cargo.toml` dependencies
 
+### Bundled native-image formatters (ktfmt)
+
+Some formatters are external native binaries. To add one:
+
+1. Create the formatter crate with `build.rs` that selects a target-specific
+   `bin/<target-triple>/<binary>` path.
+2. Download pinned, checksum-verified assets into `bin/<triple>/` using a
+   dependency-free script under the crate directory.
+3. Add the binary directory to `.gitignore` (or commit the binaries for
+   release-only embedding).
+4. In the formatter crate, extract the bundled bytes to a private temp dir at
+   runtime and launch the subprocess with an isolated working directory so
+   ambient repository config cannot affect output.
+5. On targets without a bundled image, fail explicitly rather than silently
+   falling back.
+
 ## Key Dependencies
 
 - **Biome**: Git-pinned for HTML support (specific commit)
@@ -105,3 +128,6 @@ cargo test -p fama-common <test_name> # Run single test in specific crate
 - **dprint + Malva**: Published crates for data/style formats
 - **mvdan/sh**: Go library for shell formatting via FFI
 - **stylua**: Lua formatter
+- **ktfmt**: Kotlin formatter, v0.65 native images (Apache-2.0). Assets are
+  downloaded and verified by `formatters/kotlin/download.py` before a release
+  build; see that crate's `README.md` for the target map and checksums.
