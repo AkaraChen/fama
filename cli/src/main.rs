@@ -18,7 +18,7 @@ use rayon::prelude::*;
 
 #[derive(Parser)]
 #[command(name = "fama")]
-#[command(about = "A code formatter for frontend projects", long_about = None)]
+#[command(about = "A code formatter for many languages", long_about = None)]
 struct Cli {
 	/// Glob patterns to match files
 	#[arg(default_values_t = ["**/*".to_string()])]
@@ -47,6 +47,10 @@ struct Cli {
 	/// Only format git changed (uncommitted) files
 	#[arg(long, group = "git_filter")]
 	changed: bool,
+
+	/// Format changed files and commit with message "style: fmt"
+	#[arg(long)]
+	commit: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -66,6 +70,7 @@ struct FormatStats {
 	formatted: usize,
 	unchanged: usize,
 	errors: Vec<String>,
+	formatted_files: Vec<std::path::PathBuf>,
 }
 
 impl FormatStats {
@@ -74,6 +79,7 @@ impl FormatStats {
 		self.formatted += other.formatted;
 		self.unchanged += other.unchanged;
 		self.errors.extend(other.errors);
+		self.formatted_files.extend(other.formatted_files);
 		self
 	}
 }
@@ -85,8 +91,8 @@ fn run(options: Cli) -> anyhow::Result<()> {
 	let quiet = options.quiet;
 	let mut all_files: Vec<std::path::PathBuf> = Vec::new();
 
-	// Get files from git if --staged or --changed is specified
-	if options.staged || options.changed {
+	// Get files from git if --staged, --changed, or --commit is specified
+	if options.staged || options.changed || options.commit {
 		let git_files = git::get_git_files(options.staged)?;
 		if git_files.is_empty() {
 			if !quiet {
@@ -116,7 +122,7 @@ fn run(options: Cli) -> anyhow::Result<()> {
 		.collect();
 
 	// Parallel formatting with fold/reduce pattern
-	let stats = files
+	let mut stats = files
 		.par_iter()
 		.fold(FormatStats::default, |mut stats, file| {
 			match formatter::format_file(file, check) {
@@ -129,6 +135,7 @@ fn run(options: Cli) -> anyhow::Result<()> {
 						);
 					}
 					stats.formatted += 1;
+					stats.formatted_files.push(file.clone());
 				}
 				Ok(false) => {
 					if debug {
@@ -150,6 +157,41 @@ fn run(options: Cli) -> anyhow::Result<()> {
 		})
 		.reduce(FormatStats::default, FormatStats::merge);
 
+	// If --staged was used, automatically re-stage formatted files
+	let restaged_count = if options.staged && !stats.formatted_files.is_empty() {
+		match git::stage_files(&stats.formatted_files) {
+			Ok(count) => count,
+			Err(e) => {
+				stats.errors.push(format!("Failed to re-stage files: {}", e));
+				0
+			}
+		}
+	} else {
+		0
+	};
+
+	// If --commit was used, stage formatted files and commit
+	if options.commit && !stats.formatted_files.is_empty() {
+		match git::stage_files(&stats.formatted_files) {
+			Ok(count) if count > 0 => {
+				match git::commit_files("style: fmt") {
+					Ok(_) => {
+						if !quiet {
+							println!("Committed {} files with message 'style: fmt'", count);
+						}
+					}
+					Err(e) => {
+						stats.errors.push(format!("Failed to commit: {}", e));
+					}
+				}
+			}
+			Ok(_) => {}
+			Err(e) => {
+				stats.errors.push(format!("Failed to stage files for commit: {}", e));
+			}
+		}
+	}
+
 	// Print collected errors (always print errors)
 	for error in &stats.errors {
 		eprintln!("Error: {}", error);
@@ -165,12 +207,16 @@ fn run(options: Cli) -> anyhow::Result<()> {
 				stats.errors.len()
 			);
 		} else {
-			println!(
+			let mut message = format!(
 				"Formatted {} files, {} unchanged, {} errors",
 				stats.formatted,
 				stats.unchanged,
 				stats.errors.len()
 			);
+			if restaged_count > 0 {
+				message.push_str(&format!(", restaged {}", restaged_count));
+			}
+			println!("{}", message);
 		}
 	}
 

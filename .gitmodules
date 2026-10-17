@@ -1,6 +1,10 @@
-[submodule "vendor/rubyfmt"]
-	path = vendor/rubyfmt
+[submodule "formatters/ruby/rubyfmt"]
+	path = formatters/ruby/rubyfmt
 	url = https://github.com/AkaraChen/rubyfmt.git
+	branch = trunk
 [submodule "formatters/clang/clang-format"]
 	path = formatters/clang/clang-format
 	url = https://github.com/AkaraChen/clang-format.git
+[submodule "action"]
+	path = action
+	url = https://github.com/akarachen/setup-fama.git

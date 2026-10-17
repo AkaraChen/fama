@@ -19,6 +19,7 @@ xml-fmt = { path = "../formatters/xml" }
 ruby-fmt = { path = "../formatters/ruby" }
 php-fmt = { path = "../formatters/php", package = "fama-php" }
 fama-clang = { path = "../formatters/clang" }
+fama-process = { path = "../formatters/process" }
 fama-common = { path = "../common" }
 kotlin-fmt = { path = "../formatters/kotlin", package = "fama-kotlin" }
 ignore = "0.4"
@@ -27,6 +28,9 @@ clap = { version = "4.5", features = [ "derive" ] }
 anyhow = "1.0"
 rayon = "1.11"
 pathdiff = "0.2"
+
+[dev-dependencies]
+tempfile = "3.14"
 
 [[bin]]
 name = "fama"

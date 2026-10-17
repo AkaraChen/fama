@@ -1,4 +1,4 @@
-//! Git integration for filtering files by git status
+// git.rs - Git integration for filtering files by git status
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -62,4 +62,166 @@ pub fn get_git_files(staged: bool) -> anyhow::Result<Vec<PathBuf>> {
 		.collect();
 
 	Ok(files)
+}
+
+/// Stage files with git add
+/// Returns the number of files successfully staged
+pub fn stage_files(files: &[std::path::PathBuf]) -> anyhow::Result<usize> {
+	if files.is_empty() {
+		return Ok(0);
+	}
+
+	// Convert paths to strings for git command
+	let path_args: Vec<String> = files
+		.iter()
+		.filter_map(|p| p.to_str())
+		.map(String::from)
+		.collect();
+
+	let output = Command::new("git")
+		.arg("add")
+		.args(&path_args)
+		.output()
+		.map_err(|e| anyhow::anyhow!("Failed to run git add: {}", e))?;
+
+	if !output.status.success() {
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		return Err(anyhow::anyhow!("git add failed: {}", stderr));
+	}
+
+	Ok(path_args.len())
+}
+
+/// Commit staged files with a message
+pub fn commit_files(message: &str) -> anyhow::Result<()> {
+	let output = Command::new("git")
+		.args(["commit", "-m", message])
+		.output()
+		.map_err(|e| anyhow::anyhow!("Failed to run git commit: {}", e))?;
+
+	if !output.status.success() {
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		return Err(anyhow::anyhow!("git commit failed: {}", stderr));
+	}
+
+	Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::fs;
+	use tempfile::TempDir;
+
+	fn git_available() -> bool {
+		Command::new("git").arg("--version").output().is_ok()
+	}
+
+	fn init_git_repo(dir: &std::path::Path) {
+		if !git_available() {
+			return;
+		}
+		let _ = Command::new("git")
+			.args(["init", "--quiet"])
+			.current_dir(dir)
+			.output();
+
+		let _ = Command::new("git")
+			.args(["config", "user.email", "test@test.com"])
+			.current_dir(dir)
+			.output();
+
+		let _ = Command::new("git")
+			.args(["config", "user.name", "Test"])
+			.current_dir(dir)
+			.output();
+	}
+
+	fn stage_file(dir: &std::path::Path, file: &str) {
+		if !git_available() {
+			return;
+		}
+		let _ = Command::new("git")
+			.args(["add", file])
+			.current_dir(dir)
+			.output();
+	}
+
+	fn commit(dir: &std::path::Path, message: &str) {
+		if !git_available() {
+			return;
+		}
+		let _ = Command::new("git")
+			.args(["commit", "-m", message, "--quiet"])
+			.current_dir(dir)
+			.output();
+	}
+
+	#[test]
+	fn test_get_git_root_success() {
+		if !git_available() {
+			return;
+		}
+		let temp_dir = TempDir::new().unwrap();
+		init_git_repo(temp_dir.path());
+
+		let original_dir = std::env::current_dir().unwrap();
+		let _ = std::env::set_current_dir(temp_dir.path());
+
+		let result = get_git_root();
+
+		let _ = std::env::set_current_dir(original_dir);
+
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn test_get_git_root_not_git_repo() {
+		if !git_available() {
+			return;
+		}
+		let temp_dir = TempDir::new().unwrap();
+
+		let original_dir = std::env::current_dir().unwrap();
+		let _ = std::env::set_current_dir(temp_dir.path());
+
+		let result = get_git_root();
+
+		let _ = std::env::set_current_dir(original_dir);
+
+		assert!(result.is_err());
+	}
+
+	#[test]
+	fn test_stage_files_empty_list() {
+		let result = stage_files(&[]);
+
+		assert!(result.is_ok());
+		assert_eq!(result.unwrap(), 0);
+	}
+
+	#[test]
+	fn test_commit_files_no_staged_changes() {
+		if !git_available() {
+			return;
+		}
+		let temp_dir = TempDir::new().unwrap();
+		init_git_repo(temp_dir.path());
+
+		// Create and commit an initial file so the repo is valid
+		let file_path = temp_dir.path().join("init.txt");
+		fs::write(&file_path, "init").unwrap();
+		stage_file(temp_dir.path(), "init.txt");
+		commit(temp_dir.path(), "initial commit");
+
+		let original_dir = std::env::current_dir().unwrap();
+		let _ = std::env::set_current_dir(temp_dir.path());
+
+		// commit_files with nothing staged should fail
+		let result = commit_files("style: fmt");
+
+		let _ = std::env::set_current_dir(original_dir);
+
+		assert!(result.is_err());
+	}
 }

@@ -1870,6 +1870,7 @@ dependencies = [
  "fama-common",
  "fama-kotlin",
  "fama-php",
+ "fama-process",
  "fama-sqruff",
  "fama-zigffi",
  "glob",
@@ -1881,6 +1882,7 @@ dependencies = [
  "ruff",
  "rustfmt",
  "stylua 0.1.0",
+ "tempfile",
  "toml-fmt",
  "xml-fmt",
 ]
@@ -1914,6 +1916,14 @@ dependencies = [
  "mago-formatter",
  "mago-interner",
  "mago-php-version",
+]
+
+[[package]]
+name = "fama-process"
+version = "0.1.0"
+dependencies = [
+ "fama-common",
+ "tempfile",
 ]
 
 [[package]]

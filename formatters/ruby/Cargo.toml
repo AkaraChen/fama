@@ -10,4 +10,4 @@ crate-type = [ "rlib" ]
 
 [dependencies]
 fama-common = { path = "../../common" }
-rubyfmt = { path = "../../vendor/rubyfmt/librubyfmt", default-features = false }
+rubyfmt = { path = "rubyfmt/librubyfmt", default-features = false }
