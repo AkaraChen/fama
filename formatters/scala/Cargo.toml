@@ -1,0 +1,13 @@
+[package]
+name = "fama-scala"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "scala_fmt"
+crate-type = [ "rlib" ]
+
+[dependencies]
+fama-common = { path = "../../common" }
+fama-process = { path = "../process" }

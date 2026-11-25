@@ -174,7 +174,7 @@ indent_size = {indent_size}
 }
 
 /// File type enum for language detection
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FileType {
 	JavaScript,
 	TypeScript,
@@ -207,6 +207,11 @@ pub enum FileType {
 	Xml,
 	Php,
 	Kotlin,
+	Scala,
+	Nix,
+	CMake,
+	R,
+	Elixir,
 	// C-family languages (clang-format)
 	C,
 	Cpp,
@@ -253,6 +258,11 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("xml") => FileType::Xml,
 		Some("php") | Some("phtml") => FileType::Php,
 		Some("kt") | Some("kts") => FileType::Kotlin,
+		Some("scala") | Some("sc") => FileType::Scala,
+		Some("nix") => FileType::Nix,
+		Some("cmake") => FileType::CMake,
+		Some("R") | Some("r") => FileType::R,
+		Some("ex") | Some("exs") => FileType::Elixir,
 		// C-family languages
 		Some("c") | Some("h") => FileType::C,
 		Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx")
@@ -267,6 +277,10 @@ pub fn detect_file_type(path: &str) -> FileType {
 				// Dockerfile
 				if name == "Dockerfile" || name.starts_with("Dockerfile.") {
 					return FileType::Dockerfile;
+				}
+				// CMake
+				if name == "CMakeLists.txt" || name.ends_with(".cmake.in") {
+					return FileType::CMake;
 				}
 				// Ruby files without extensions
 				if matches!(

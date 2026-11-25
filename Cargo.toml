@@ -18,6 +18,11 @@ members = [
 	"formatters/php",
 	"formatters/process",
 	"formatters/kotlin-worker",
+	"formatters/cmake",
+	"formatters/nix",
+	"formatters/scala",
+	"formatters/r",
+	"formatters/elixir",
 ]
 resolver = "2"
 

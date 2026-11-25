@@ -20,6 +20,11 @@ ruby-fmt = { path = "../formatters/ruby" }
 php-fmt = { path = "../formatters/php", package = "fama-php" }
 fama-clang = { path = "../formatters/clang" }
 fama-process = { path = "../formatters/process" }
+cmake-fmt = { path = "../formatters/cmake", package = "fama-cmake" }
+nix-fmt = { path = "../formatters/nix", package = "fama-nix" }
+scala-fmt = { path = "../formatters/scala", package = "fama-scala" }
+air-fmt = { path = "../formatters/r", package = "fama-r" }
+elixir-fmt = { path = "../formatters/elixir", package = "fama-elixir" }
 fama-kotlin-worker = { path = "../formatters/kotlin-worker" }
 fama-common = { path = "../common" }
 ignore = "0.4"

@@ -1,0 +1,13 @@
+[package]
+name = "fama-cmake"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "cmake_fmt"
+crate-type = [ "rlib" ]
+
+[dependencies]
+fama-common = { path = "../../common" }
+cmakefmt-rust = "2"

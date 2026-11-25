@@ -2,6 +2,7 @@
 
 use fama_common::{detect_file_type, FileType};
 use rayon::prelude::*;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -67,35 +68,58 @@ fn record(
 	}
 }
 
-/// Format all files, parallelizing per file and batching Rust files.
+/// Batch backends: languages whose formatter crates expose
+/// `format_batch(&[&str]) -> Vec<Result<String, String>>` and are therefore
+/// formatted in chunks with one formatter invocation per chunk.
+fn batch_backend(
+	file_type: FileType,
+) -> Option<fn(&[&str]) -> Vec<Result<String, String>>> {
+	match file_type {
+		FileType::Rust => Some(rustfmt::format_batch),
+		FileType::Scala => Some(scala_fmt::format_batch),
+		FileType::R => Some(air_fmt::format_batch),
+		FileType::Elixir => Some(elixir_fmt::format_batch),
+		_ => None,
+	}
+}
+
+/// Format all files, parallelizing per file and batching the batchable
+/// languages (see [`batch_backend`]).
 ///
-/// Rust files are handled in chunks: each chunk is read up front, formatted
-/// with a single rustfmt invocation, and written back per file (see
-/// [`rustfmt::format_batch`]). Every other file type goes through the regular
-/// per-file path.
+/// Batched languages are handled in chunks: each chunk is read up front,
+/// formatted with a single formatter invocation, and written back per file.
+/// Every other file type goes through the regular per-file path.
 pub fn format_files(
 	files: &[PathBuf],
 	check: bool,
 	debug: bool,
 ) -> FormatStats {
-	let mut rust_files: Vec<&PathBuf> = Vec::new();
+	let mut batch_groups: HashMap<FileType, Vec<&PathBuf>> = HashMap::new();
 	let mut other_files: Vec<&PathBuf> = Vec::new();
 	for file in files {
-		if matches!(
-			detect_file_type(file.to_str().unwrap_or("")),
-			FileType::Rust
-		) {
-			rust_files.push(file);
-		} else {
-			other_files.push(file);
+		let file_type = detect_file_type(file.to_str().unwrap_or(""));
+		match batch_backend(file_type) {
+			Some(_) => batch_groups
+				.entry(file_type)
+				.or_default()
+				.push(file),
+			None => other_files.push(file),
 		}
 	}
 
-	// Rust files: one rustfmt process per chunk, chunks in parallel
-	let rust_stats: FormatStats = rust_files
-		.par_chunks(RUST_BATCH_SIZE)
-		.map(|chunk| format_rust_chunk(chunk, check, debug))
-		.reduce(FormatStats::default, FormatStats::merge);
+	// Batched languages: one formatter invocation per chunk, chunks in parallel
+	let mut batched_stats = FormatStats::default();
+	for (file_type, group) in batch_groups {
+		let backend = match batch_backend(file_type) {
+			Some(backend) => backend,
+			None => continue,
+		};
+		let stats: FormatStats = group
+			.par_chunks(RUST_BATCH_SIZE)
+			.map(|chunk| format_batch_chunk(backend, chunk, check, debug))
+			.reduce(FormatStats::default, FormatStats::merge);
+		batched_stats = batched_stats.merge(stats);
+	}
 
 	// Everything else: one file at a time, in parallel
 	let other_stats: FormatStats = other_files
@@ -107,11 +131,12 @@ pub fn format_files(
 		})
 		.reduce(FormatStats::default, FormatStats::merge);
 
-	rust_stats.merge(other_stats)
+	batched_stats.merge(other_stats)
 }
 
-/// Format a chunk of Rust files with a single rustfmt invocation
-fn format_rust_chunk(
+/// Format a chunk of same-language files with a single batch invocation
+fn format_batch_chunk(
+	backend: fn(&[&str]) -> Vec<Result<String, String>>,
 	files: &[&PathBuf],
 	check: bool,
 	debug: bool,
@@ -226,6 +251,11 @@ fn format_content(
 		// available (FAMA_KTFMT_WORKER or `ktfmt-worker` on PATH); the client
 		// falls back to the process-based ktfmt path otherwise.
 		FileType::Kotlin => fama_kotlin_worker::format_kotlin(content, path),
+		FileType::CMake => cmake_fmt::format_cmake(content, path),
+		FileType::Nix => nix_fmt::format_nix(content, path),
+		FileType::Scala => scala_fmt::format_scala(content, path),
+		FileType::R => air_fmt::format_r(content, path),
+		FileType::Elixir => elixir_fmt::format_elixir(content, path),
 
 		FileType::Unknown => Err("Unknown file type".to_string()),
 	}

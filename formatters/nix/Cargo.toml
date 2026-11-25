@@ -1,0 +1,13 @@
+[package]
+name = "fama-nix"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "nix_fmt"
+crate-type = [ "rlib" ]
+
+[dependencies]
+fama-common = { path = "../../common" }
+alejandra = "3.1.0"

@@ -1,0 +1,13 @@
+[package]
+name = "fama-elixir"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "elixir_fmt"
+crate-type = [ "rlib" ]
+
+[dependencies]
+fama-common = { path = "../../common" }
+fama-process = { path = "../process" }
