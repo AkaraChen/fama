@@ -44,11 +44,11 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Convention over configuration.** There is one style. It works. Use it.
 
-**Universal.** One tool formats 30+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, C, C++, C#, Objective-C, Java, and Protobuf. Same command everywhere.
+**Universal.** One tool formats 30+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Scala, Nix, CMake, R, Elixir, C, C++, C#, Objective-C, Java, and Protobuf. Same command everywhere.
 
 **Fast.** Formatting should never be the thing you're waiting for.
 
-**Small.** A single 13 MB binary for built-in formatters. Download is just a 5 MB tar.gz. Process-mode languages can also rely on host-installed formatter CLIs, such as `ktfmt` for Kotlin — or the bundled `ktfmt-worker` native image for the fastest Kotlin runs. Drop it in your PATH and it just works. Update anytime by running the install script again.
+**Small.** A single 13 MB binary for built-in formatters. Download is just a 5 MB tar.gz. Process-mode languages can also rely on host-installed formatter CLIs, such as `ktfmt-worker`/`ktfmt` for Kotlin, `scalafmt` for Scala and `air` for R — or the bundled `ktfmt-worker` native image for the fastest Kotlin runs. Drop it in your PATH and it just works. Update anytime by running the install script again.
 
 **Quiet.** It formats what changed and tells you what it did. Nothing more.
 

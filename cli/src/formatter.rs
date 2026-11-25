@@ -68,12 +68,13 @@ fn record(
 	}
 }
 
+/// A batch formatter: takes the chunk's sources, returns one result per input
+type BatchFn = fn(&[&str]) -> Vec<Result<String, String>>;
+
 /// Batch backends: languages whose formatter crates expose
 /// `format_batch(&[&str]) -> Vec<Result<String, String>>` and are therefore
 /// formatted in chunks with one formatter invocation per chunk.
-fn batch_backend(
-	file_type: FileType,
-) -> Option<fn(&[&str]) -> Vec<Result<String, String>>> {
+fn batch_backend(file_type: FileType) -> Option<BatchFn> {
 	match file_type {
 		FileType::Rust => Some(rustfmt::format_batch),
 		FileType::Scala => Some(scala_fmt::format_batch),
@@ -136,7 +137,7 @@ pub fn format_files(
 
 /// Format a chunk of same-language files with a single batch invocation
 fn format_batch_chunk(
-	backend: fn(&[&str]) -> Vec<Result<String, String>>,
+	backend: BatchFn,
 	files: &[&PathBuf],
 	check: bool,
 	debug: bool,
@@ -161,7 +162,7 @@ fn format_batch_chunk(
 
 	let refs: Vec<&str> = contents.iter().map(String::as_str).collect();
 	for ((file, original), formatted) in
-		kept.iter().zip(&contents).zip(rustfmt::format_batch(&refs))
+		kept.iter().zip(&contents).zip(backend(&refs))
 	{
 		let result = formatted.and_then(|formatted| {
 			let changed = formatted != *original;

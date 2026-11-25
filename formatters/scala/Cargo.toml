@@ -10,4 +10,4 @@ crate-type = [ "rlib" ]
 
 [dependencies]
 fama-common = { path = "../../common" }
-fama-process = { path = "../process" }
+tempfile = "3.14"

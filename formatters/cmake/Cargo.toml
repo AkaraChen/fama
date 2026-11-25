@@ -10,4 +10,5 @@ crate-type = [ "rlib" ]
 
 [dependencies]
 fama-common = { path = "../../common" }
-cmakefmt-rust = "2"
+# Library-only use: `format_source` needs no CLI deps (clap, walkdir, rayon, …)
+cmakefmt-rust = { version = "2", default-features = false }
