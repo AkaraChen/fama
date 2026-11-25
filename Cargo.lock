@@ -2561,7 +2561,6 @@ dependencies = [
 name = "goffi"
 version = "0.1.0"
 dependencies = [
- "cc",
  "fama-common",
  "libc",
 ]
@@ -4051,7 +4050,6 @@ dependencies = [
 name = "ruby-fmt"
 version = "0.1.0"
 dependencies = [
- "fama-common",
  "rubyfmt",
 ]
 

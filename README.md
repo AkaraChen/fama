@@ -48,7 +48,7 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Fast.** Formatting should never be the thing you're waiting for.
 
-**Small.** A single 13 MB binary for built-in formatters. Download is just a 5 MB tar.gz. Process-mode languages can also rely on host-installed formatter CLIs, such as `ktfmt-worker`/`ktfmt` for Kotlin, `scalafmt` for Scala and `air` for R — or the bundled `ktfmt-worker` native image for the fastest Kotlin runs. Drop it in your PATH and it just works. Update anytime by running the install script again.
+**Small.** A single static binary for built-in formatters — no toolchains to install at runtime. Process-mode languages can also rely on host-installed formatter CLIs, such as `ktfmt-worker`/`ktfmt` for Kotlin, `scalafmt` for Scala, `air` for R and `mix` for Elixir — or the bundled `ktfmt-worker` native image for the fastest Kotlin runs. Drop it in your PATH and it just works. Update anytime by running the install script again.
 
 **Quiet.** It formats what changed and tells you what it did. Nothing more.
 
@@ -125,6 +125,11 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 | **SQL**         | sqruff       | ✅           | N/A   | N/A            | N/A        | N/A             | Keywords capitalized              |
 | **XML**         | quick-xml    | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
 | **Kotlin**      | ktfmt (worker)  | ✅*       | N/A   | N/A            | N/A        | N/A             | *Uses generated `.editorconfig`; via the persistent `ktfmt-worker` (recommended) or host `ktfmt` CLI |
+| **Scala**       | scalafmt     | ✅*          | N/A   | N/A            | N/A        | N/A             | *maxColumn, indent only; official native binary; spaces (scalafmt has no tab mode) |
+| **Nix**         | alejandra    | ❌           | N/A   | N/A            | N/A        | N/A             | Opinionated alejandra style       |
+| **CMake**       | cmakefmt     | ❌           | N/A   | N/A            | N/A        | N/A             | cmakefmt defaults                 |
+| **R**           | Air          | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent, line-width, line-ending via generated `air.toml`; host `air` binary |
+| **Elixir**      | mix format   | ✅*          | N/A   | N/A            | N/A        | N/A             | *line_length via generated `.formatter.exs`; requires Elixir on PATH |
 | **Dart**        | dart_style   | ✅*          | N/A   | N/A            | N/A        | N/A             | *line_width, line_ending only; via WASM (dart2wasm + wasmtime) |
 | **C/C++**       | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
 | **C#**          | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
@@ -139,6 +144,9 @@ Some formatters use hardcoded styles that cannot be configured:
 
 - **Go**: Uses `gofmt` defaults (tabs for indentation)
 - **HCL**: Uses `hclwrite` defaults (2 spaces)
+- **Nix**: Uses alejandra's fixed, opinionated style
+- **CMake**: Uses cmakefmt defaults (lowercased commands, capitalized spec keywords)
+- **Scala**: scalafmt has no tab mode — Scala is indented with 4 spaces even though fama's default is tabs; `maxColumn` and indent follow fama's config
 - **Kotlin**: Uses ktfmt in kotlinlang style; the optional `ktfmt-worker` native image speeds up large runs (see `ktfmt-worker/README.md`)
 - **Dart**: Uses dart_style with fama's `line_width` and `line_ending` settings; runs in-process as a WASM module
 - **Zig**: Uses Zig's built-in formatter with default style

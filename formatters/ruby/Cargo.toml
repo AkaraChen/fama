@@ -9,5 +9,4 @@ name = "ruby_fmt"
 crate-type = [ "rlib" ]
 
 [dependencies]
-fama-common = { path = "../../common" }
 rubyfmt = { path = "rubyfmt/librubyfmt", default-features = false }

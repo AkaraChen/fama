@@ -44,11 +44,11 @@ Fama 帮你做决定，所以你不必做。它选择合理的默认值并普遍
 
 **约定优于配置。** 只有一种风格。它有效。使用它。
 
-**通用。** 一个工具格式化 30+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、YAML、TOML、Markdown、Rust、Python、Lua、Ruby、PHP、Shell、Go、Zig、HCL、Dockerfile、SQL、XML、Kotlin、Dart、C、C++、C#、Objective-C、Java 和 Protobuf。到处都是相同的命令。
+**通用。** 一个工具格式化 30+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、YAML、TOML、Markdown、Rust、Python、Lua、Ruby、PHP、Shell、Go、Zig、HCL、Dockerfile、SQL、XML、Kotlin、Dart、Scala、Nix、CMake、R、Elixir、WGSL、C、C++、C#、Objective-C、Java 和 Protobuf。到处都是相同的命令。
 
 **快速。** 格式化永远不应该是你等待的东西。
 
-**小巧。** 一个 13 MB 的二进制文件承载内置 formatter。process mode 的语言也可以依赖宿主机已安装的 formatter CLI，例如 Kotlin 使用 `ktfmt`。放在你的 PATH 里就能工作。随时可以通过再次运行安装脚本更新。
+**小巧。** 单个静态二进制承载内置 formatter——运行时不需要安装任何工具链。process mode 的语言也可以依赖宿主机已安装的 formatter CLI，例如 Kotlin 使用 `ktfmt-worker`/`ktfmt`、Scala 使用 `scalafmt`、R 使用 `air`、Elixir 使用 `mix`——内置的 `ktfmt-worker` native image 可带来最快的 Kotlin 体验。放在你的 PATH 里就能工作。随时可以通过再次运行安装脚本更新。
 
 **安静。** 它格式化改变的内容并告诉你它做了什么。仅此而已。
 
@@ -124,13 +124,19 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 | **Zig**         | zigffi       | ❌       | ❌   | ❌       | ❌   | ❌       | 使用 Zig 默认值                  |
 | **SQL**         | sqruff       | ✅       | N/A  | N/A      | N/A  | N/A      | 关键字大写                        |
 | **XML**         | quick-xml    | ✅       | N/A  | N/A      | N/A  | N/A      |                                   |
-| **Kotlin**      | ktfmt（process） | ✅*  | N/A  | N/A      | N/A  | N/A      | *在支持的范围内读取生成的 `.editorconfig`；要求 PATH 中可用 `ktfmt` |
+| **Kotlin**      | ktfmt（worker） | ✅*  | N/A  | N/A      | N/A  | N/A      | *在支持的范围内读取生成的 `.editorconfig`；推荐常驻 `ktfmt-worker`，或 PATH 中的 `ktfmt` CLI |
+| **Scala**       | scalafmt     | ✅*     | N/A  | N/A      | N/A  | N/A      | *仅 maxColumn、缩进；官方 native 二进制；用空格（scalafmt 无 tab 模式） |
+| **Nix**         | alejandra    | ❌       | N/A  | N/A      | N/A  | N/A      | alejandra 固定风格                |
+| **CMake**       | cmakefmt     | ❌       | N/A  | N/A      | N/A  | N/A      | cmakefmt 默认风格                 |
+| **R**           | Air          | ✅*     | N/A  | N/A      | N/A  | N/A      | *缩进、行宽、换行经由生成的 `air.toml`；需要宿主 `air` 二进制 |
+| **Elixir**      | mix format   | ✅*     | N/A  | N/A      | N/A  | N/A      | *line_length 经由生成的 `.formatter.exs`；需要 PATH 中的 Elixir |
 | **Dart**        | dart_style   | ✅*     | N/A  | N/A      | N/A  | N/A      | *仅 line_width, line_ending；通过 WASM（dart2wasm + wasmtime） |
 | **C/C++**       | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **C#**          | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **Objective-C** | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **Java**        | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **Protobuf**    | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
+| **WGSL**        | wgsl-formatter | ✅     | N/A  | N/A      | N/A  | N/A      | wgsl-analyzer 原生 crate          |
 
 ### 关于硬编码风格的说明
 
@@ -138,7 +144,10 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 
 - **Go**: 使用 `gofmt` 默认值（tab 用于缩进）
 - **HCL**: 使用 `hclwrite` 默认值（2 空格）
-- **Kotlin**: 通过 process mode 调用宿主机上的 `ktfmt`
+- **Nix**: 使用 alejandra 固定的主观风格
+- **CMake**: 使用 cmakefmt 默认风格（命令小写、规范关键字大写）
+- **Scala**: scalafmt 无 tab 模式——Scala 固定用 4 空格缩进（即使 fama 默认是 tab）；maxColumn 与缩进宽度跟随 fama 配置
+- **Kotlin**: 使用 kotlinlang 风格的 ktfmt；可选的 `ktfmt-worker` native image 可大幅加速大型仓库（见 `ktfmt-worker/README.md`）
 - **Zig**: 使用 Zig 内置格式化工具的默认风格
 - **Ruby**: 使用嵌入的 `rubyfmt` 固定风格
 

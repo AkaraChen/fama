@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Fama is a unified cross-language code formatter written in Rust that aggregates multiple specialized formatters into a single CLI tool. It formats 30+ languages (JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, C, C++, C#, Objective-C, Java, Protobuf) through a unified interface while respecting a centralized configuration.
+Fama is a unified cross-language code formatter written in Rust that aggregates multiple specialized formatters into a single CLI tool. It formats 30+ languages (JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Dart, Scala, Nix, CMake, R, Elixir, WGSL, C, C++, C#, Objective-C, Java, Protobuf) through a unified interface while respecting a centralized configuration.
 
 ## Build Commands
 
@@ -28,7 +28,7 @@ fama --export    # Generate .editorconfig and rustfmt.toml files
 
 ### Workspace Structure
 
-The project is a Cargo workspace with 15 crates:
+The project is a Cargo workspace with 25 crates:
 
 - `cli/` - Main CLI application with file discovery and routing
 - `common/` - Shared types: `FileType` enum, `FormatConfig`, indentation/quote styles
