@@ -49,6 +49,11 @@ The project is a Cargo workspace with 15 crates:
   - `clang/` - C/C++/C#/Objective-C/Java/Protobuf (via clang-format WASM)
   - `process/` - Process-based formatters for host-installed CLIs (ktfmt CLI, etc.)
   - `kotlin-worker/` - Kotlin via the persistent ktfmt-worker protocol (falls back to the process path)
+  - `cmake/` - CMake (via cmakefmt-rust crate)
+  - `nix/` - Nix (via the alejandra crate)
+  - `scala/` - Scala (via the scalafmt native binary, batched)
+  - `r/` - R (via Air, batched)
+  - `elixir/` - Elixir (via `mix format`, batched)
 
 ### Data Flow
 
