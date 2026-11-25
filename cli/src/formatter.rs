@@ -222,7 +222,10 @@ fn format_content(
 		FileType::Xml => xml_fmt::format_xml(content, path),
 		FileType::Sql => fama_sqruff::format_sql(content, path),
 		FileType::Php => php_fmt::format_php(content, path),
-		FileType::Kotlin => fama_process::format_kotlin(content, path),
+		// Kotlin goes through the persistent ktfmt-worker when one is
+		// available (FAMA_KTFMT_WORKER or `ktfmt-worker` on PATH); the client
+		// falls back to the process-based ktfmt path otherwise.
+		FileType::Kotlin => fama_kotlin_worker::format_kotlin(content, path),
 
 		FileType::Unknown => Err("Unknown file type".to_string()),
 	}
