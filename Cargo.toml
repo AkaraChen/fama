@@ -24,6 +24,7 @@ members = [
 	"formatters/r",
 	"formatters/elixir",
 	"formatters/wgsl",
+	"formatters/dart",
 ]
 resolver = "2"
 

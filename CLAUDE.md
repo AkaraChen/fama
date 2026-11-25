@@ -55,6 +55,7 @@ The project is a Cargo workspace with 15 crates:
   - `r/` - R (via Air, batched)
   - `elixir/` - Elixir (via `mix format`, batched)
   - `wgsl/` - WGSL shaders (via the wgsl-formatter crate from wgsl-analyzer, git-pinned)
+  - `dart/` - Dart via dart_style compiled to WASM (dart2wasm output hosted in-process on wasmtime)
 
 ### Data Flow
 

@@ -44,7 +44,7 @@ Fama 帮你做决定，所以你不必做。它选择合理的默认值并普遍
 
 **约定优于配置。** 只有一种风格。它有效。使用它。
 
-**通用。** 一个工具格式化 30+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、YAML、TOML、Markdown、Rust、Python、Lua、Ruby、PHP、Shell、Go、Zig、HCL、Dockerfile、SQL、XML、Kotlin、C、C++、C#、Objective-C、Java 和 Protobuf。到处都是相同的命令。
+**通用。** 一个工具格式化 30+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、YAML、TOML、Markdown、Rust、Python、Lua、Ruby、PHP、Shell、Go、Zig、HCL、Dockerfile、SQL、XML、Kotlin、Dart、C、C++、C#、Objective-C、Java 和 Protobuf。到处都是相同的命令。
 
 **快速。** 格式化永远不应该是你等待的东西。
 
@@ -125,6 +125,7 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 | **SQL**         | sqruff       | ✅       | N/A  | N/A      | N/A  | N/A      | 关键字大写                        |
 | **XML**         | quick-xml    | ✅       | N/A  | N/A      | N/A  | N/A      |                                   |
 | **Kotlin**      | ktfmt（process） | ✅*  | N/A  | N/A      | N/A  | N/A      | *在支持的范围内读取生成的 `.editorconfig`；要求 PATH 中可用 `ktfmt` |
+| **Dart**        | dart_style   | ✅*     | N/A  | N/A      | N/A  | N/A      | *仅 line_width, line_ending；通过 WASM（dart2wasm + wasmtime） |
 | **C/C++**       | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **C#**          | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **Objective-C** | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |

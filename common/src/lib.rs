@@ -213,6 +213,7 @@ pub enum FileType {
 	R,
 	Elixir,
 	Wgsl,
+	Dart,
 	// C-family languages (clang-format)
 	C,
 	Cpp,
@@ -265,6 +266,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("R") | Some("r") => FileType::R,
 		Some("ex") | Some("exs") => FileType::Elixir,
 		Some("wgsl") => FileType::Wgsl,
+		Some("dart") => FileType::Dart,
 		// C-family languages
 		Some("c") | Some("h") => FileType::C,
 		Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx")
@@ -465,6 +467,12 @@ mod tests {
 		assert_eq!(detect_file_type("test.kt"), FileType::Kotlin);
 		assert_eq!(detect_file_type("build.gradle.kts"), FileType::Kotlin);
 		assert_eq!(detect_file_type("path/to/file.kt"), FileType::Kotlin);
+	}
+
+	#[test]
+	fn test_detect_dart() {
+		assert_eq!(detect_file_type("test.dart"), FileType::Dart);
+		assert_eq!(detect_file_type("path/to/main.dart"), FileType::Dart);
 	}
 
 	#[test]
