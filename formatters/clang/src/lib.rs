@@ -7,6 +7,7 @@
 //! interpreter this crate used previously.
 
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use fama_common::{FileType, IndentStyle, CONFIG};
@@ -14,6 +15,53 @@ use wasmtime::{Engine, Instance, Linker, Memory, Module, Store, TypedFunc};
 
 /// Embedded clang-format WASM binary
 const CLANG_FORMAT_WASM: &[u8] = include_bytes!("../wasm/clang-format.wasm");
+
+/// sha256 prefix of the embedded wasm bytes; binds precompiled artifacts to
+/// the exact module they were compiled from
+fn artifact_hash() -> String {
+	use sha2::{Digest, Sha256};
+	let mut hasher = Sha256::new();
+	hasher.update(CLANG_FORMAT_WASM);
+	let digest = hasher.finalize();
+	digest.iter().map(|b| format!("{b:02x}")).collect::<String>()
+		[..16].to_string()
+}
+
+/// Filename of the precompiled module artifact for this fama build
+pub fn precompiled_artifact_name() -> String {
+	format!("clang-format-{}.wasmu", artifact_hash())
+}
+
+/// Candidate locations of a precompiled module: next to the fama binary
+/// (shipped with releases) and the per-user cache (seeded by fama itself)
+fn precompiled_artifact_candidates() -> Vec<PathBuf> {
+	let name = precompiled_artifact_name();
+	let mut paths = Vec::new();
+	if let Ok(exe) = std::env::current_exe() {
+		if let Some(dir) = exe.parent() {
+			paths.push(dir.join(&name));
+		}
+	}
+	let home = std::env::var_os("HOME")
+		.or_else(|| std::env::var_os("USERPROFILE"));
+	if let Some(home) = home {
+		paths.push(PathBuf::from(home).join(".cache/fama").join(&name));
+	}
+	paths
+}
+
+/// Build the engine, compile the embedded module and return the serialized
+/// precompiled artifact (used by release CI to ship per-platform `.wasmu`
+/// files next to the fama binary)
+pub fn serialize_compiled_module() -> Result<Vec<u8>, String> {
+	let mut cfg = wasmtime::Config::new();
+	cfg.wasm_backtrace_max_frames(None);
+	let engine = wasmtime::Engine::new(&cfg)
+		.expect("Failed to create wasmtime engine");
+	let module = Module::new(&engine, CLANG_FORMAT_WASM)
+		.expect("Failed to compile WASM module");
+	module.serialize().map_err(|e| format!("Failed to serialize module: {e:?}"))
+}
 
 /// Generate clang-format style configuration based on fama's FormatConfig
 fn generate_style_config() -> String {
@@ -54,9 +102,50 @@ static CACHED_MODULE: OnceLock<CachedInstance> = OnceLock::new();
 
 fn get_cached_module() -> &'static CachedInstance {
 	CACHED_MODULE.get_or_init(|| {
-		let engine = Engine::default();
+		let mut cfg = wasmtime::Config::new();
+		// wasmtime's default backtrace capture adds per-call overhead on
+		// this hot path and clang-format failures are surfaced as errors
+		// anyway; the diagnostics value does not justify it here
+		cfg.wasm_backtrace_max_frames(None);
+		let engine = wasmtime::Engine::new(&cfg)
+			.expect("Failed to create wasmtime engine");
+
+		// Prefer a precompiled artifact (shipped with releases or cached by
+		// a previous run): deserializing takes milliseconds versus ~1.5s to
+		// compile the 2.7MB module with Cranelift
+		for path in precompiled_artifact_candidates() {
+			if !path.is_file() {
+				continue;
+			}
+			// SAFETY: the artifact was written by this same binary (its
+			// filename is bound to the sha256 of the embedded module bytes)
+			// in a trusted location, and deserialize validates the wasmtime
+			// version and host feature compatibility; any mismatch falls
+			// back to compiling below
+			if let Ok(module) =
+				unsafe { Module::deserialize_file(&engine, &path) }
+			{
+				return CachedInstance { engine, module };
+			}
+		}
+
 		let module = Module::new(&engine, CLANG_FORMAT_WASM)
 			.expect("Failed to compile WASM module");
+
+		// Store the compiled module for future runs (best effort, user cache)
+		if let Ok(artifact) = module.serialize() {
+			let mut candidates = precompiled_artifact_candidates();
+			if let Some(cache_path) = candidates.pop() {
+				if let Some(dir) = cache_path.parent() {
+					let _ = std::fs::create_dir_all(dir);
+					let tmp = cache_path.with_extension("wasmu.tmp");
+					if std::fs::write(&tmp, &artifact).is_ok() {
+						let _ = std::fs::rename(&tmp, &cache_path);
+					}
+				}
+			}
+		}
+
 		CachedInstance { engine, module }
 	})
 }
@@ -233,8 +322,6 @@ fn create_instance() -> Result<(Store<StoreCtx>, Instance, Memory), String> {
 	let instance = linker
 		.instantiate(&mut store, &cached.module)
 		.map_err(|e| format!("Failed to instantiate module: {}", e))?;
-
-	// Get memory export
 	let memory = instance
 		.get_memory(&mut store, "memory")
 		.ok_or_else(|| "Failed to get memory export".to_string())?;

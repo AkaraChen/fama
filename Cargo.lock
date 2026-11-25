@@ -2009,6 +2009,7 @@ version = "0.1.0"
 dependencies = [
  "fama-common",
  "rayon",
+ "sha2",
  "wasmtime",
 ]
 
