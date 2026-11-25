@@ -2115,6 +2115,7 @@ dependencies = [
  "fama-clang",
  "fama-cmake",
  "fama-common",
+ "fama-dart",
  "fama-elixir",
  "fama-kotlin-worker",
  "fama-nix",
@@ -2160,6 +2161,17 @@ dependencies = [
 [[package]]
 name = "fama-common"
 version = "0.1.0"
+
+[[package]]
+name = "fama-dart"
+version = "0.1.0"
+dependencies = [
+ "fama-common",
+ "fancy-regex 0.14.0",
+ "rayon",
+ "sha2",
+ "wasmtime",
+]
 
 [[package]]
 name = "fama-elixir"

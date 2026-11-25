@@ -1,0 +1,21 @@
+[package]
+name = "fama-dart"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = [ "staticlib", "rlib" ]
+
+[dependencies]
+fama-common = { path = "../../common" }
+wasmtime = "51.0.0"
+sha2 = "0.10"
+fancy-regex = "0.14"
+
+[[bin]]
+name = "dart-precompile"
+path = "src/bin/dart_precompile.rs"
+
+[dev-dependencies]
+rayon = "1.11"

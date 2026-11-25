@@ -44,7 +44,7 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Convention over configuration.** There is one style. It works. Use it.
 
-**Universal.** One tool formats 30+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Scala, Nix, CMake, R, Elixir, WGSL, C, C++, C#, Objective-C, Java, and Protobuf. Same command everywhere.
+**Universal.** One tool formats 30+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Scala, Nix, CMake, R, Elixir, WGSL, Dart, C, C++, C#, Objective-C, Java, and Protobuf. Same command everywhere.
 
 **Fast.** Formatting should never be the thing you're waiting for.
 
@@ -125,6 +125,7 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 | **SQL**         | sqruff       | ✅           | N/A   | N/A            | N/A        | N/A             | Keywords capitalized              |
 | **XML**         | quick-xml    | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
 | **Kotlin**      | ktfmt (worker)  | ✅*       | N/A   | N/A            | N/A        | N/A             | *Uses generated `.editorconfig`; via the persistent `ktfmt-worker` (recommended) or host `ktfmt` CLI |
+| **Dart**        | dart_style   | ✅*          | N/A   | N/A            | N/A        | N/A             | *line_width, line_ending only; via WASM (dart2wasm + wasmtime) |
 | **C/C++**       | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
 | **C#**          | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
 | **Objective-C** | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
@@ -139,6 +140,7 @@ Some formatters use hardcoded styles that cannot be configured:
 - **Go**: Uses `gofmt` defaults (tabs for indentation)
 - **HCL**: Uses `hclwrite` defaults (2 spaces)
 - **Kotlin**: Uses ktfmt in kotlinlang style; the optional `ktfmt-worker` native image speeds up large runs (see `ktfmt-worker/README.md`)
+- **Dart**: Uses dart_style with fama's `line_width` and `line_ending` settings; runs in-process as a WASM module
 - **Zig**: Uses Zig's built-in formatter with default style
 - **Ruby**: Uses embedded `rubyfmt` with fixed style
 

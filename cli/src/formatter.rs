@@ -259,6 +259,9 @@ fn format_content(
 		FileType::Elixir => elixir_fmt::format_elixir(content, path),
 		FileType::Wgsl => wgsl_fmt::format_wgsl(content, path),
 
+		// Dart -> dart_style compiled to WASM, hosted in-process on wasmtime
+		FileType::Dart => fama_dart::format_file(content, path, file_type),
+
 		FileType::Unknown => Err("Unknown file type".to_string()),
 	}
 }
@@ -479,6 +482,16 @@ mod tests {
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
 		assert!(formatted.contains("x = 1"));
+	}
+
+	#[test]
+	fn test_format_content_dart() {
+		let content = "void main(){print('hello');}";
+		let result = format_content(content, "test.dart", FileType::Dart);
+
+		assert!(result.is_ok(), "dart formatting failed: {:?}", result);
+		let formatted = result.unwrap();
+		assert!(formatted.contains("print('hello')"), "Output: {formatted}");
 	}
 
 	#[test]
