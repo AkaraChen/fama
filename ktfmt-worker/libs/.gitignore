@@ -1,0 +1,3 @@
+# Downloaded from the ktfmt v0.65 GitHub release by scripts/fetch-libs.sh.
+# Not checked in: the with-dependencies jar is ~70 MB.
+*.jar

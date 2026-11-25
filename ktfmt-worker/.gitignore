@@ -1,0 +1,16 @@
+# Maven / native-image build outputs
+target/
+build/
+
+# Native image binary and generated sidecar libraries
+ktfmt-worker
+ktfmt-worker.exe
+libjava.so
+libjvm.so
+libawt.so
+libawt_headless.so
+libawt_xawt.so
+libfontmanager.so
+
+# GraalVM build error reports
+svm_err_*.md
