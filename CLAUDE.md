@@ -54,6 +54,7 @@ The project is a Cargo workspace with 15 crates:
   - `scala/` - Scala (via the scalafmt native binary, batched)
   - `r/` - R (via Air, batched)
   - `elixir/` - Elixir (via `mix format`, batched)
+  - `wgsl/` - WGSL shaders (via the wgsl-formatter crate from wgsl-analyzer, git-pinned)
 
 ### Data Flow
 

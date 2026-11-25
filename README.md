@@ -44,7 +44,7 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Convention over configuration.** There is one style. It works. Use it.
 
-**Universal.** One tool formats 30+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Scala, Nix, CMake, R, Elixir, C, C++, C#, Objective-C, Java, and Protobuf. Same command everywhere.
+**Universal.** One tool formats 30+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Scala, Nix, CMake, R, Elixir, WGSL, C, C++, C#, Objective-C, Java, and Protobuf. Same command everywhere.
 
 **Fast.** Formatting should never be the thing you're waiting for.
 
@@ -130,6 +130,7 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 | **Objective-C** | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
 | **Java**        | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
 | **Protobuf**    | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
+| **WGSL**        | wgsl-formatter | ✅         | N/A   | N/A            | N/A        | N/A             | Native crate from wgsl-analyzer   |
 
 ### Notes on Hardcoded Styles
 

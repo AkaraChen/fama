@@ -1,0 +1,17 @@
+[package]
+name = "fama-wgsl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "wgsl_fmt"
+crate-type = [ "rlib" ]
+
+[dependencies]
+fama-common = { path = "../../common" }
+# WGSL formatter core from wgsl-analyzer, git-pinned like the biome/ruff
+# dependencies. Provenance and the pinned revision are documented in
+# README.md; bump both crates to the same revision together.
+wgsl-formatter = { git = "https://github.com/wgsl-analyzer/wgsl-analyzer.git", rev = "963ec16ba47e33a99e613ef6231f6d8dff72ab63" }
+wgsl-syntax = { git = "https://github.com/wgsl-analyzer/wgsl-analyzer.git", rev = "963ec16ba47e33a99e613ef6231f6d8dff72ab63", package = "syntax" }
