@@ -13,8 +13,7 @@ extern crate rustfmt;
 extern crate stylua;
 
 use clap::Parser;
-use color::Color;
-use rayon::prelude::*;
+use std::path::Path;
 
 #[derive(Parser)]
 #[command(name = "fama")]
@@ -64,23 +63,23 @@ fn main() -> anyhow::Result<()> {
 	run(cli)
 }
 
-/// Statistics collected during formatting
-#[derive(Default)]
-struct FormatStats {
-	formatted: usize,
-	unchanged: usize,
-	errors: Vec<String>,
-	formatted_files: Vec<std::path::PathBuf>,
-}
-
-impl FormatStats {
-	/// Merge two FormatStats instances (used in parallel reduce)
-	fn merge(mut self, other: FormatStats) -> FormatStats {
-		self.formatted += other.formatted;
-		self.unchanged += other.unchanged;
-		self.errors.extend(other.errors);
-		self.formatted_files.extend(other.formatted_files);
-		self
+/// Warn about glob-like patterns that matched no files.
+/// Literal directories and existing files never warn (they either contribute
+/// files or fail discovery with an error).
+fn warn_empty_patterns(files: &[std::path::PathBuf], patterns: &[String]) {
+	for pattern in patterns {
+		let is_globish = pattern.contains(['*', '?', '[']);
+		let missing_literal = !is_globish
+			&& !Path::new(pattern).is_file()
+			&& !Path::new(pattern).is_dir();
+		if !(is_globish || missing_literal) {
+			continue;
+		}
+		let matched = glob::Pattern::new(pattern)
+			.is_ok_and(|glob| files.iter().any(|file| glob.matches_path(file)));
+		if !matched {
+			eprintln!("Warning: pattern '{}' matched 0 files", pattern);
+		}
 	}
 }
 
@@ -102,16 +101,14 @@ fn run(options: Cli) -> anyhow::Result<()> {
 		}
 		all_files.extend(git_files);
 	} else {
-		for pattern in &patterns {
-			let files =
-				discovery::discover_files(Some(pattern)).map_err(|e| {
-					anyhow::anyhow!("Failed to discover files: {}", e)
-				})?;
-			if files.is_empty() && !quiet {
-				eprintln!("Warning: pattern '{}' matched 0 files", pattern);
-			}
-			all_files.extend(files);
+		let pattern_refs: Vec<&str> =
+			patterns.iter().map(String::as_str).collect();
+		let files = discovery::discover_files_multi(&pattern_refs)
+			.map_err(|e| anyhow::anyhow!("Failed to discover files: {}", e))?;
+		if !quiet {
+			warn_empty_patterns(&files, &patterns);
 		}
+		all_files.extend(files);
 	}
 
 	// Remove duplicates while preserving order
@@ -121,48 +118,18 @@ fn run(options: Cli) -> anyhow::Result<()> {
 		.filter(|p| seen.insert(p.clone()))
 		.collect();
 
-	// Parallel formatting with fold/reduce pattern
-	let mut stats = files
-		.par_iter()
-		.fold(FormatStats::default, |mut stats, file| {
-			match formatter::format_file(file, check) {
-				Ok(true) => {
-					if debug {
-						// Green for formatted files
-						eprintln!(
-							"{}",
-							Color::Green.paint(&file.display().to_string())
-						);
-					}
-					stats.formatted += 1;
-					stats.formatted_files.push(file.clone());
-				}
-				Ok(false) => {
-					if debug {
-						eprintln!("{}", file.display());
-					}
-					stats.unchanged += 1;
-				}
-				Err(e) => {
-					if debug {
-						eprintln!(
-							"{}",
-							Color::Red.paint(&file.display().to_string())
-						);
-					}
-					stats.errors.push(e.to_string());
-				}
-			}
-			stats
-		})
-		.reduce(FormatStats::default, FormatStats::merge);
+	// Parallel formatting; Rust files batched, everything else per file
+	let mut stats = formatter::format_files(&files, check, debug);
 
 	// If --staged was used, automatically re-stage formatted files
-	let restaged_count = if options.staged && !stats.formatted_files.is_empty() {
+	let restaged_count = if options.staged && !stats.formatted_files.is_empty()
+	{
 		match git::stage_files(&stats.formatted_files) {
 			Ok(count) => count,
 			Err(e) => {
-				stats.errors.push(format!("Failed to re-stage files: {}", e));
+				stats
+					.errors
+					.push(format!("Failed to re-stage files: {}", e));
 				0
 			}
 		}
@@ -173,21 +140,24 @@ fn run(options: Cli) -> anyhow::Result<()> {
 	// If --commit was used, stage formatted files and commit
 	if options.commit && !stats.formatted_files.is_empty() {
 		match git::stage_files(&stats.formatted_files) {
-			Ok(count) if count > 0 => {
-				match git::commit_files("style: fmt") {
-					Ok(_) => {
-						if !quiet {
-							println!("Committed {} files with message 'style: fmt'", count);
-						}
-					}
-					Err(e) => {
-						stats.errors.push(format!("Failed to commit: {}", e));
+			Ok(count) if count > 0 => match git::commit_files("style: fmt") {
+				Ok(_) => {
+					if !quiet {
+						println!(
+							"Committed {} files with message 'style: fmt'",
+							count
+						);
 					}
 				}
-			}
+				Err(e) => {
+					stats.errors.push(format!("Failed to commit: {}", e));
+				}
+			},
 			Ok(_) => {}
 			Err(e) => {
-				stats.errors.push(format!("Failed to stage files for commit: {}", e));
+				stats
+					.errors
+					.push(format!("Failed to stage files for commit: {}", e));
 			}
 		}
 	}

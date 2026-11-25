@@ -23,13 +23,14 @@ use biome_json_syntax::JsonFileSource;
 // Analyzer imports for import sorting
 use biome_analyze::{
 	ActionCategory, AnalysisFilter, AnalyzerOptions, ControlFlow,
-	RuleCategoriesBuilder, SourceActionKind,
+	RuleCategoriesBuilder, RuleFilter, RuleMeta, SourceActionKind,
 };
+use biome_js_analyze::assist::source::organize_imports::OrganizeImports;
 use biome_js_analyze::JsAnalyzerServices;
 use biome_module_graph::ModuleGraph;
 use biome_project_layout::ProjectLayout;
 use biome_rowan::AstNode;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use fama_common::{FileType, CONFIG};
 
@@ -58,6 +59,19 @@ const BIOME_SEMICOLONS: Semicolons = match CONFIG.semicolons {
 };
 const BIOME_BRACKET_SPACING: bool = CONFIG.bracket_spacing;
 
+/// Only run the OrganizeImports rule during analysis. Without this filter the
+/// analyzer matches every assist rule in the group on every file, even though
+/// only import sorting is used.
+static ORGANIZE_IMPORTS_FILTER: [RuleFilter<'static>; 1] = [RuleFilter::Rule(
+	"source",
+	<OrganizeImports as RuleMeta>::METADATA.name,
+)];
+
+/// Shared empty analyzer services. The import sorter never consults them, but
+/// they must be provided to the analyzer; building them per file is waste.
+static SHARED_MODULE_GRAPH: OnceLock<Arc<ModuleGraph>> = OnceLock::new();
+static SHARED_PROJECT_LAYOUT: OnceLock<Arc<ProjectLayout>> = OnceLock::new();
+
 /// Sort imports in a JavaScript/TypeScript file using Biome's OrganizeImports analyzer rule.
 ///
 /// This function runs the analyzer to detect unsorted imports and applies the
@@ -67,16 +81,21 @@ const BIOME_BRACKET_SPACING: bool = CONFIG.bracket_spacing;
 /// 3. Bare packages (@scope/pkg, pkg)
 /// 4. Aliases (#, @/, ~, $, %)
 /// 5. Relative/absolute paths
+///
+/// The tree is parsed once by the caller and shared between this analyzer run
+/// and the formatter. Returns the reorganized root, or `None` when the file
+/// needs no changes (no tree copy is made in that case).
 fn sort_imports(
 	root: &AnyJsRoot,
 	source_type: JsFileSource,
 	file_path: &str,
-) -> AnyJsRoot {
+) -> Option<AnyJsRoot> {
 	// Build a filter that enables the assist category (which includes organizeImports)
 	let categories = RuleCategoriesBuilder::default().with_assist().build();
 
 	let filter = AnalysisFilter {
 		categories,
+		enabled_rules: Some(&ORGANIZE_IMPORTS_FILTER),
 		..AnalysisFilter::default()
 	};
 
@@ -84,14 +103,18 @@ fn sort_imports(
 	let options = AnalyzerOptions::default().with_file_path(file_path);
 
 	// Create minimal services required by the analyzer
+	let module_graph =
+		SHARED_MODULE_GRAPH.get_or_init(|| Arc::new(ModuleGraph::default()));
+	let project_layout =
+		SHARED_PROJECT_LAYOUT.get_or_init(|| Arc::new(ProjectLayout::default()));
 	let services = JsAnalyzerServices::from((
-		Arc::new(ModuleGraph::default()),
-		Arc::new(ProjectLayout::default()),
+		module_graph.clone(),
+		project_layout.clone(),
 		source_type,
 	));
 
 	// Run the analyzer and collect OrganizeImports actions
-	let mut result_root = root.clone();
+	let mut sorted_root: Option<AnyJsRoot> = None;
 
 	let _ = biome_js_analyze::analyze(
 		root,
@@ -108,7 +131,7 @@ fn sort_imports(
 					// Apply the mutation to sort imports
 					let new_syntax = action.mutation.commit();
 					if let Some(new_root) = AnyJsRoot::cast(new_syntax) {
-						result_root = new_root;
+						sorted_root = Some(new_root);
 					}
 				}
 			}
@@ -116,7 +139,7 @@ fn sort_imports(
 		},
 	);
 
-	result_root
+	sorted_root
 }
 
 /// Internal helper for formatting JS-family files (JS, TS, JSX, TSX)
@@ -142,10 +165,13 @@ fn format_js_family(
 		return Err(format!("Parse errors in {file_type_name} file"));
 	}
 
-	// Sort imports before formatting
+	// Sort imports before formatting (no tree copy unless imports change)
 	let root = parsed.tree();
-	let sorted_root = sort_imports(&root, source_type, file_path);
-	let syntax = sorted_root.syntax();
+	let sorted = sort_imports(&root, source_type, file_path);
+	let syntax = match &sorted {
+		Some(sorted_root) => sorted_root.syntax(),
+		None => root.syntax(),
+	};
 
 	let formatted = biome_js_formatter::format_node(options, syntax)
 		.map_err(|e| format!("Format error: {e:?}"))?;

@@ -1,8 +1,156 @@
 // formatter.rs - Format routing logic
 
 use fama_common::{detect_file_type, FileType};
+use rayon::prelude::*;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// Number of Rust files formatted per rustfmt process invocation. Larger
+/// batches amortize the process spawn further but hold more content in memory.
+const RUST_BATCH_SIZE: usize = 64;
+
+/// Statistics collected during formatting
+#[derive(Default)]
+pub struct FormatStats {
+	pub formatted: usize,
+	pub unchanged: usize,
+	pub errors: Vec<String>,
+	pub formatted_files: Vec<PathBuf>,
+}
+
+impl FormatStats {
+	/// Merge two FormatStats instances (used in parallel reduce)
+	pub fn merge(mut self, other: FormatStats) -> FormatStats {
+		self.formatted += other.formatted;
+		self.unchanged += other.unchanged;
+		self.errors.extend(other.errors);
+		self.formatted_files.extend(other.formatted_files);
+		self
+	}
+}
+
+/// Record the outcome of formatting one file into the stats
+fn record(
+	stats: &mut FormatStats,
+	file: &Path,
+	result: Result<bool, String>,
+	debug: bool,
+) {
+	match result {
+		Ok(true) => {
+			if debug {
+				// Green for formatted files
+				eprintln!(
+					"{}",
+					crate::color::Color::Green
+						.paint(&file.display().to_string())
+				);
+			}
+			stats.formatted += 1;
+			stats.formatted_files.push(file.to_path_buf());
+		}
+		Ok(false) => {
+			if debug {
+				eprintln!("{}", file.display());
+			}
+			stats.unchanged += 1;
+		}
+		Err(e) => {
+			if debug {
+				eprintln!(
+					"{}",
+					crate::color::Color::Red.paint(&file.display().to_string())
+				);
+			}
+			stats.errors.push(e);
+		}
+	}
+}
+
+/// Format all files, parallelizing per file and batching Rust files.
+///
+/// Rust files are handled in chunks: each chunk is read up front, formatted
+/// with a single rustfmt invocation, and written back per file (see
+/// [`rustfmt::format_batch`]). Every other file type goes through the regular
+/// per-file path.
+pub fn format_files(
+	files: &[PathBuf],
+	check: bool,
+	debug: bool,
+) -> FormatStats {
+	let mut rust_files: Vec<&PathBuf> = Vec::new();
+	let mut other_files: Vec<&PathBuf> = Vec::new();
+	for file in files {
+		if matches!(
+			detect_file_type(file.to_str().unwrap_or("")),
+			FileType::Rust
+		) {
+			rust_files.push(file);
+		} else {
+			other_files.push(file);
+		}
+	}
+
+	// Rust files: one rustfmt process per chunk, chunks in parallel
+	let rust_stats: FormatStats = rust_files
+		.par_chunks(RUST_BATCH_SIZE)
+		.map(|chunk| format_rust_chunk(chunk, check, debug))
+		.reduce(FormatStats::default, FormatStats::merge);
+
+	// Everything else: one file at a time, in parallel
+	let other_stats: FormatStats = other_files
+		.par_iter()
+		.fold(FormatStats::default, |mut stats, file| {
+			let result = format_file(file, check).map_err(|e| e.to_string());
+			record(&mut stats, file, result, debug);
+			stats
+		})
+		.reduce(FormatStats::default, FormatStats::merge);
+
+	rust_stats.merge(other_stats)
+}
+
+/// Format a chunk of Rust files with a single rustfmt invocation
+fn format_rust_chunk(
+	files: &[&PathBuf],
+	check: bool,
+	debug: bool,
+) -> FormatStats {
+	let mut stats = FormatStats::default();
+	let mut contents: Vec<String> = Vec::with_capacity(files.len());
+	let mut kept: Vec<&PathBuf> = Vec::with_capacity(files.len());
+
+	for file in files {
+		match fs::read_to_string(file) {
+			Ok(content) => {
+				contents.push(content);
+				kept.push(file);
+			}
+			Err(e) => record(&mut stats, file, Err(e.to_string()), debug),
+		}
+	}
+
+	if contents.is_empty() {
+		return stats;
+	}
+
+	let refs: Vec<&str> = contents.iter().map(String::as_str).collect();
+	for ((file, original), formatted) in
+		kept.iter().zip(&contents).zip(rustfmt::format_batch(&refs))
+	{
+		let result = formatted.and_then(|formatted| {
+			let changed = formatted != *original;
+			if changed && !check {
+				fs::write(file, formatted)
+					.map_err(|e| format!("{}: {}", file.display(), e))?;
+			}
+			Ok(changed)
+		});
+		record(&mut stats, file, result, debug);
+	}
+
+	stats
+}
 
 /// Format a single file based on its detected type
 /// Returns true if the file was changed (or would be changed in check mode)

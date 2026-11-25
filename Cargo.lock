@@ -1891,6 +1891,7 @@ name = "fama-clang"
 version = "0.1.0"
 dependencies = [
  "fama-common",
+ "rayon",
  "wasmi",
  "wasmi_wasi",
 ]
@@ -3703,6 +3704,7 @@ version = "0.1.0"
 dependencies = [
  "fama-common",
  "rust-format",
+ "tempfile",
 ]
 
 [[package]]

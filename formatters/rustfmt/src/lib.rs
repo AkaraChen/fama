@@ -1,10 +1,13 @@
 //! Rust formatter using rustfmt
 //!
 //! This module provides Rust code formatting functionality via the rustfmt
-//! formatter, using the rust-format crate for a clean library API.
+//! formatter, using the rust-format crate for a clean library API, plus a
+//! batched mode that formats many files with a single rustfmt invocation.
 
 use fama_common::{FileType, CONFIG};
 use rust_format::{Config, Formatter, RustFmt};
+use std::io::Write;
+use std::process::Command;
 
 // Module-level constants - pre-converted config values
 const RUSTFMT_HARD_TABS: &str =
@@ -21,6 +24,21 @@ const RUSTFMT_NEWLINE_STYLE: &str = match CONFIG.line_ending {
 	fama_common::LineEnding::Lf => "Unix",
 	fama_common::LineEnding::Crlf => "Windows",
 };
+
+/// The `--config` options shared by every rustfmt invocation, matching the
+/// options that [`format_rust`] passes via rust-format.
+fn config_options() -> String {
+	format!(
+		"hard_tabs={},tab_spaces={},max_width={},newline_style={}",
+		RUSTFMT_HARD_TABS, RUSTFMT_TAB_SPACES, RUSTFMT_MAX_WIDTH, RUSTFMT_NEWLINE_STYLE
+	)
+}
+
+/// The rustfmt binary to invoke, honoring `RUSTFMT` like rust-format does
+fn rustfmt_binary() -> std::ffi::OsString {
+	std::env::var_os("RUSTFMT")
+		.unwrap_or_else(|| std::ffi::OsString::from("rustfmt"))
+}
 
 /// Format Rust source code
 ///
@@ -59,6 +77,94 @@ pub fn format_file(
 	}
 }
 
+/// Format multiple Rust sources with a single rustfmt invocation.
+///
+/// Each rustfmt process spawn costs far more than the formatting itself for
+/// typical files, so batching amortizes it across the whole chunk. Sources are
+/// written to a temporary directory, formatted in place by one process, and
+/// read back; the returned results line up 1:1 with the inputs.
+///
+/// If the batch invocation fails (any file with invalid syntax fails the whole
+/// batch), the chunk falls back to per-file formatting so errors stay isolated
+/// to the files that actually own them. If rustfmt cannot be spawned at all,
+/// every input gets the same error.
+///
+/// # Arguments
+/// * `contents` - The Rust sources to format
+///
+/// # Returns
+/// One result per input, in input order
+pub fn format_batch(contents: &[&str]) -> Vec<Result<String, String>> {
+	if contents.len() <= 1 {
+		return contents
+			.iter()
+			.map(|source| format_rust(source, "input.rs"))
+			.collect();
+	}
+
+	match format_batch_inner(contents) {
+		Ok(results) => results,
+		// Batch-level failure (temp dir, spawn): isolate via per-file formatting
+		Err(_) => contents
+			.iter()
+			.map(|source| format_rust(source, "input.rs"))
+			.collect(),
+	}
+}
+
+/// Write sources to temp files and format them all with one rustfmt process
+fn format_batch_inner(
+	contents: &[&str],
+) -> Result<Vec<Result<String, String>>, String> {
+	let temp_dir = tempfile::tempdir()
+		.map_err(|e| format!("Failed to create temp dir for rustfmt: {}", e))?;
+
+	let mut paths = Vec::with_capacity(contents.len());
+	for (index, content) in contents.iter().enumerate() {
+		let path = temp_dir.path().join(format!("input_{}.rs", index));
+		fs_write(&path, content)?;
+		paths.push(path);
+	}
+
+	// Same arguments rust-format passes (--edition 2021 + --config), with the
+	// default in-place emit mode that multi-file invocation requires.
+	let output = Command::new(rustfmt_binary())
+		.arg("--edition")
+		.arg("2021")
+		.arg("--config")
+		.arg(config_options())
+		.args(&paths)
+		.output()
+		.map_err(|e| format!("Failed to run rustfmt: {}", e))?;
+
+	if !output.status.success() {
+		// Some file(s) failed: re-format one by one so the error lands on the
+		// offending file instead of poisoning the whole batch
+		return Ok(contents
+			.iter()
+			.map(|source| format_rust(source, "input.rs"))
+			.collect());
+	}
+
+	Ok(paths
+		.iter()
+		.map(|path| {
+			fs_read(path)
+		})
+		.collect())
+}
+
+fn fs_write(path: &std::path::Path, content: &str) -> Result<(), String> {
+	std::fs::File::create(path)
+		.and_then(|mut file| file.write_all(content.as_bytes()))
+		.map_err(|e| format!("Failed to write {}: {}", path.display(), e))
+}
+
+fn fs_read(path: &std::path::Path) -> Result<String, String> {
+	std::fs::read_to_string(path)
+		.map_err(|e| format!("Failed to read rustfmt output {}: {}", path.display(), e))
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -71,6 +177,75 @@ mod tests {
 		// Check that formatting occurred (should have proper indentation)
 		assert!(result.contains("fn main()"));
 		assert!(result.contains("println!"));
+	}
+
+	#[test]
+	fn test_format_batch_matches_per_file() {
+		let sources = [
+			"fn a(){let x=1;}",
+			"fn b(){}",
+			"mod c { pub fn d(){} }",
+		];
+		let batched = format_batch(&sources);
+
+		assert_eq!(batched.len(), sources.len());
+		for (source, result) in sources.iter().zip(&batched) {
+			let formatted = result
+				.as_ref()
+				.unwrap_or_else(|e| panic!("batch failed: {e}"));
+			let expected =
+				format_rust(source, "input.rs").unwrap_or_else(|e| panic!("{e}"));
+			assert_eq!(
+				formatted, &expected,
+				"batch output differs from per-file output"
+			);
+		}
+	}
+
+	#[test]
+	fn test_format_batch_single_and_empty() {
+		assert!(format_batch(&[]).is_empty());
+
+		let single = format_batch(&["fn a(){let x=1;}"]);
+		assert_eq!(single.len(), 1);
+		assert!(single[0].as_ref().unwrap().contains("fn a()"));
+	}
+
+	#[test]
+	fn test_format_batch_isolates_invalid_source() {
+		// rustfmt fails the whole batch on a parse error; the fallback must
+		// isolate the error to the offending file only
+		let sources = [
+			"fn a(){let x=1;}",
+			"this is not rust at all {{{",
+			"fn b(){}",
+		];
+		let batched = format_batch(&sources);
+
+		assert_eq!(batched.len(), sources.len());
+		assert!(batched[0].is_ok(), "valid file a must succeed");
+		assert!(batched[1].is_err(), "invalid file must fail");
+		assert!(batched[2].is_ok(), "valid file b must succeed");
+	}
+
+	#[test]
+	fn test_format_batch_preserves_order() {
+		let names = ["zero", "one", "two", "three"];
+		let sources: Vec<String> = names
+			.iter()
+			.map(|name| format!("fn {name}(){{}}"))
+			.collect();
+		let refs: Vec<&str> = sources.iter().map(String::as_str).collect();
+		let batched = format_batch(&refs);
+
+		assert_eq!(batched.len(), names.len());
+		for (name, result) in names.iter().zip(&batched) {
+			let formatted = result.as_ref().unwrap();
+			assert!(
+				formatted.contains(&format!("fn {name}()")),
+				"order mismatch: expected {name}, got: {formatted}"
+			);
+		}
 	}
 
 	#[test]

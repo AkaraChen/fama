@@ -3,37 +3,96 @@
 use fama_common::{detect_file_type, FileType};
 use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 /// Exact filenames to ignore (generated/lock files that have supported extensions)
 const IGNORED_FILENAMES: &[&str] =
 	&["pnpm-lock.yaml", "package-lock.json", ".terraform.lock.hcl"];
 
 /// Glob patterns for files to ignore (minified files, etc.)
-const IGNORED_PATTERNS: &[(&str, &str)] = &[
+const IGNORED_PATTERN_SPECS: &[(&str, &str)] = &[
 	("*.min.css", "minified CSS"),
 	("*.min.js", "minified JavaScript"),
 ];
 
-const SUPPORTED_EXTENSIONS: &[&str] = &[
-	"js", "jsx", "ts", "tsx", "mjs", "mjsx", "mts", "json", "jsonc", "css",
-	"scss", "less", "html", "vue", "svelte", "astro", "yaml", "yml", "md",
-	"rs", "py", "lua", "rb", "rake", "gemspec", "ru", "sh", "bash", "zsh",
-	"go", "zig", "hcl", "tf", "tfvars", "toml", "graphql", "gql", "sql", "xml",
-	"php", "phtml", "kt", "kts", // C-family languages
-	"c", "h", "cpp", "cc", "cxx", "hpp", "hxx", "hh", "cs", "m", "mm", "java",
-	"proto",
-];
+/// Compiled ignore patterns, built once on first use
+static IGNORED_PATTERNS: OnceLock<Vec<glob::Pattern>> = OnceLock::new();
+
+fn ignored_patterns() -> &'static [glob::Pattern] {
+	IGNORED_PATTERNS.get_or_init(|| {
+		IGNORED_PATTERN_SPECS
+			.iter()
+			.filter_map(|(pattern, _)| glob::Pattern::new(pattern).ok())
+			.collect()
+	})
+}
 
 /// Check if a filename matches any ignored pattern
 fn is_ignored_by_pattern(filename: &str) -> bool {
-	for (pattern, _) in IGNORED_PATTERNS {
-		if let Ok(glob) = glob::Pattern::new(pattern) {
-			if glob.matches(filename) {
-				return true;
-			}
-		}
-	}
-	false
+	ignored_patterns().iter().any(|glob| glob.matches(filename))
+}
+
+/// Check if a file extension is supported for formatting
+fn is_supported_extension(ext: &str) -> bool {
+	matches!(
+		ext,
+		"js" | "jsx"
+			| "ts"
+			| "tsx"
+			| "mjs"
+			| "mjsx"
+			| "mts"
+			| "json"
+			| "jsonc"
+			| "css"
+			| "scss"
+			| "less"
+			| "html"
+			| "vue"
+			| "svelte"
+			| "astro"
+			| "yaml"
+			| "yml"
+			| "md"
+			| "rs"
+			| "py"
+			| "lua"
+			| "rb"
+			| "rake"
+			| "gemspec"
+			| "ru"
+			| "sh"
+			| "bash"
+			| "zsh"
+			| "go"
+			| "zig"
+			| "hcl"
+			| "tf"
+			| "tfvars"
+			| "toml"
+			| "graphql"
+			| "gql"
+			| "sql"
+			| "xml"
+			| "php"
+			| "phtml"
+			| "kt"
+			| "kts"
+			// C-family languages
+			| "c"
+			| "h"
+			| "cpp"
+			| "cc"
+			| "cxx"
+			| "hpp"
+			| "hxx"
+			| "hh"
+			| "cs"
+			| "m"
+			| "mm"
+			| "java"
+			| "proto"
+	)
 }
 
 /// Check if a file is supported for formatting
@@ -50,7 +109,7 @@ fn is_supported_path(path: &Path) -> bool {
 	}
 	// First check by extension (fast path)
 	if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-		if SUPPORTED_EXTENSIONS.contains(&ext) {
+		if is_supported_extension(ext) {
 			return true;
 		}
 	}
@@ -65,10 +124,11 @@ pub fn is_supported_file(path: &Path) -> bool {
 	path.is_file() && is_supported_path(path)
 }
 
-/// Walk a directory respecting .gitignore rules, optionally filtering by glob pattern
+/// Walk a directory respecting .gitignore rules, filtering by glob patterns.
+/// `None` matches every supported file; `Some(patterns)` matches if ANY pattern matches.
 fn walk_with_pattern(
 	base: &Path,
-	pattern: Option<&glob::Pattern>,
+	patterns: Option<&[glob::Pattern]>,
 ) -> Result<Vec<PathBuf>, String> {
 	let mut files: Vec<PathBuf> = WalkBuilder::new(base)
 		.hidden(false)
@@ -77,8 +137,10 @@ fn walk_with_pattern(
 		.filter(|entry| entry.file_type().is_some_and(|ft| ft.is_file()))
 		.filter(|entry| is_supported_path(entry.path()))
 		.filter(|entry| {
-			pattern
-				.map(|p| p.matches_path(entry.path()))
+			patterns
+				.map(|patterns| {
+					patterns.iter().any(|p| p.matches_path(entry.path()))
+				})
 				.unwrap_or(true)
 		})
 		.map(|entry| entry.path().to_path_buf())
@@ -102,37 +164,61 @@ fn walk_with_pattern(
 /// A sorted list of file paths matching the pattern and supported extensions
 pub fn discover_files(pattern: Option<&str>) -> Result<Vec<PathBuf>, String> {
 	let pattern = pattern.unwrap_or("**/*");
+	discover_files_multi(&[pattern])
+}
 
-	// Check if pattern is a literal file path (no glob characters)
-	if !pattern.contains(['*', '?', '[']) {
-		let path = PathBuf::from(pattern);
+/// Discover files matching multiple patterns with a single directory walk.
+///
+/// Accepts the same pattern types as [`discover_files`] (literal file, directory,
+/// or glob). Literal paths are resolved directly; all glob patterns share one
+/// walk of the current directory, so N patterns cost one traversal instead of N.
+///
+/// # Returns
+/// A sorted list of file paths matching any pattern and supported extensions
+pub fn discover_files_multi(patterns: &[&str]) -> Result<Vec<PathBuf>, String> {
+	let mut files: Vec<PathBuf> = Vec::new();
+	let mut glob_patterns: Vec<glob::Pattern> = Vec::new();
 
-		if path.is_file() {
-			// Single file - check if supported and return
-			if is_supported_path(&path) {
-				return Ok(vec![path]);
-			} else {
-				let ext = path
-					.extension()
-					.and_then(|e| e.to_str())
-					.unwrap_or("(none)");
-				return Err(format!(
-					"Unsupported file extension '{}': {}",
-					ext,
-					path.display()
-				));
+	for pattern in patterns {
+		// Check if pattern is a literal file path (no glob characters)
+		if !pattern.contains(['*', '?', '[']) {
+			let path = PathBuf::from(pattern);
+
+			if path.is_file() {
+				// Single file - check if supported and keep
+				if is_supported_path(&path) {
+					files.push(path);
+					continue;
+				} else {
+					let ext = path
+						.extension()
+						.and_then(|e| e.to_str())
+						.unwrap_or("(none)");
+					return Err(format!(
+						"Unsupported file extension '{}': {}",
+						ext,
+						path.display()
+					));
+				}
+			} else if path.is_dir() {
+				// Directory path - walk from there
+				files.extend(walk_with_pattern(&path, None)?);
+				continue;
 			}
-		} else if path.is_dir() {
-			// Directory path - walk from there
-			return walk_with_pattern(&path, None);
+			// Path doesn't exist, fall through to glob attempt
 		}
-		// Path doesn't exist, fall through to glob attempt
+
+		glob_patterns.push(glob::Pattern::new(pattern).map_err(|e| {
+			format!("Invalid glob pattern '{}': {}", pattern, e)
+		})?);
 	}
 
-	// It's a glob pattern - walk current directory and filter by pattern
-	let glob_pattern = glob::Pattern::new(pattern)
-		.map_err(|e| format!("Invalid glob pattern '{}': {}", pattern, e))?;
-	walk_with_pattern(Path::new("."), Some(&glob_pattern))
+	if !glob_patterns.is_empty() {
+		files.extend(walk_with_pattern(Path::new("."), Some(&glob_patterns))?);
+	}
+
+	files.sort();
+	Ok(files)
 }
 
 #[cfg(test)]
@@ -288,12 +374,67 @@ mod tests {
 		fs::write(temp_dir.path().join("b.rs"), "").unwrap();
 
 		let pattern = glob::Pattern::new("*.js").unwrap();
-		let result = walk_with_pattern(temp_dir.path(), Some(&pattern));
+		let result = walk_with_pattern(temp_dir.path(), Some(&[pattern]));
 
 		assert!(result.is_ok());
 		let files = result.unwrap();
 		assert_eq!(files.len(), 1);
 		assert!(files[0].ends_with("a.js"));
+	}
+
+	#[test]
+	fn test_walk_with_pattern_any_of_multiple_globs() {
+		let temp_dir = TempDir::new().unwrap();
+		fs::write(temp_dir.path().join("a.js"), "").unwrap();
+		fs::write(temp_dir.path().join("b.rs"), "").unwrap();
+		fs::write(temp_dir.path().join("c.py"), "").unwrap();
+
+		let patterns = [
+			glob::Pattern::new("*.js").unwrap(),
+			glob::Pattern::new("*.py").unwrap(),
+		];
+		let result = walk_with_pattern(temp_dir.path(), Some(&patterns));
+
+		assert!(result.is_ok());
+		let files = result.unwrap();
+		assert_eq!(files.len(), 2);
+		assert!(files[0].ends_with("a.js"));
+		assert!(files[1].ends_with("c.py"));
+	}
+
+	#[test]
+	fn test_discover_files_multi_union_of_literals() {
+		let temp_dir = TempDir::new().unwrap();
+		let src_dir = temp_dir.path().join("src");
+		fs::create_dir(&src_dir).unwrap();
+		fs::write(src_dir.join("lib.rs"), "pub fn lib() {}").unwrap();
+		fs::write(src_dir.join("notes.txt"), "").unwrap();
+		let standalone = temp_dir.path().join("standalone.toml");
+		fs::write(&standalone, "key = 1").unwrap();
+
+		// Literal-only patterns resolve without walking the current directory
+		let result = discover_files_multi(&[
+			src_dir.to_str().unwrap(),
+			standalone.to_str().unwrap(),
+		]);
+
+		assert!(result.is_ok());
+		let files = result.unwrap();
+		assert_eq!(files.len(), 2);
+		assert!(files[0].ends_with("lib.rs"));
+		assert!(files[1].ends_with("standalone.toml"));
+	}
+
+	#[test]
+	fn test_discover_files_multi_unsupported_literal_errors() {
+		let temp_dir = TempDir::new().unwrap();
+		let bad = temp_dir.path().join("bad.xyz");
+		fs::write(&bad, "content").unwrap();
+
+		let result = discover_files_multi(&[bad.to_str().unwrap()]);
+
+		assert!(result.is_err());
+		assert!(result.unwrap_err().contains("Unsupported file extension"));
 	}
 
 	#[test]
