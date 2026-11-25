@@ -47,6 +47,8 @@ The project is a Cargo workspace with 15 crates:
   - `ruby/` - Ruby (via rubyfmt)
   - `php/` - PHP (via Mago)
   - `clang/` - C/C++/C#/Objective-C/Java/Protobuf (via clang-format WASM)
+  - `process/` - Process-based formatters for host-installed CLIs (ktfmt CLI, etc.)
+  - `kotlin-worker/` - Kotlin via the persistent ktfmt-worker protocol (falls back to the process path)
 
 ### Data Flow
 

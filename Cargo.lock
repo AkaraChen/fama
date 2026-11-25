@@ -1984,6 +1984,7 @@ dependencies = [
  "dprint",
  "fama-clang",
  "fama-common",
+ "fama-kotlin-worker",
  "fama-php",
  "fama-process",
  "fama-sqruff",
@@ -2014,6 +2015,15 @@ dependencies = [
 [[package]]
 name = "fama-common"
 version = "0.1.0"
+
+[[package]]
+name = "fama-kotlin-worker"
+version = "0.1.0"
+dependencies = [
+ "fama-common",
+ "fama-process",
+ "tempfile",
+]
 
 [[package]]
 name = "fama-php"

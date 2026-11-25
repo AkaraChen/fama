@@ -1,0 +1,19 @@
+[package]
+name = "fama-kotlin-worker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "fama_kotlin_worker"
+
+[dependencies]
+fama-common = { path = "../../common" }
+fama-process = { path = "../process" }
+tempfile = "3.14"
+
+# Test double speaking the ktfmt-worker framing protocol. Built by `cargo
+# build`/`cargo test`; integration tests find it via CARGO_BIN_EXE_.
+[[bin]]
+name = "mock-ktfmt-worker"
+path = "src/bin/mock_ktfmt_worker.rs"

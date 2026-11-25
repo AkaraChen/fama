@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>dev.fama</groupId>
+    <artifactId>ktfmt-worker</artifactId>
+    <version>0.65</version>
+    <packaging>jar</packaging>
+
+    <name>ktfmt-worker</name>
+    <description>Persistent Kotlin formatting server wrapping ktfmt's public API, driven by fama over a framed stdin/stdout protocol.</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>17</maven.compiler.release>
+
+        <!-- ktfmt version fama targets; also the artifact version of this worker. -->
+        <ktfmt.version>0.65</ktfmt.version>
+        <!-- GraalVM version ktfmt v0.65 itself builds its native images with. -->
+        <graalvm.version>25.0.1</graalvm.version>
+        <native.maven.plugin.version>1.1.8</native.maven.plugin.version>
+    </properties>
+
+    <dependencies>
+        <!--
+          ktfmt with all dependencies bundled, from the v0.65 GitHub release. It is
+          not on Maven Central under these coordinates, so install it locally first:
+
+          mvn install:install-file \
+            -Dfile=libs/ktfmt-0.65-with-dependencies.jar \
+            -DgroupId=org.jetbrains.kotlinx \
+            -DartifactId=ktfmt-with-dependencies \
+            -Dversion=0.65 \
+            -Dpackaging=jar
+
+          scripts/fetch-libs.sh does this for you (download + install).
+        -->
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>ktfmt-with-dependencies</artifactId>
+            <version>${ktfmt.version}</version>
+        </dependency>
+
+        <!--
+          GraalVM native-image SDK annotations (@TargetClass, @Substitute), only
+          needed to compile the substitution below. `provided` keeps it off the
+          runtime classpath: on a plain JVM the substituted class is never
+          loaded. (The annotations live in the SDK module since GraalVM 23.1;
+          org.graalvm.nativeimage:svm no longer carries them.)
+        -->
+        <dependency>
+            <groupId>org.graalvm.sdk</groupId>
+            <artifactId>nativeimage</artifactId>
+            <version>${graalvm.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+          Native image build: mvn -Pnative package
+          Requires a GraalVM JDK with native-image on PATH (GRAALVM_HOME or JAVA_HOME
+          pointing at GraalVM). Produces target/ktfmt-worker(.exe).
+
+          Build flags mirror ktfmt v0.65's own native image build (see
+          buildSrc/src/main/kotlin/ktfmt.native-image.gradle.kts in the ktfmt repo);
+          the initialization rules ship as a native-image.properties resource.
+        -->
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <version>${native.maven.plugin.version}</version>
+                        <extensions>true</extensions>
+                        <executions>
+                            <execution>
+                                <id>build-native</id>
+                                <goals>
+                                    <goal>compile-no-fork</goal>
+                                </goals>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <mainClass>dev.fama.ktfmtworker.Main</mainClass>
+                            <imageName>ktfmt-worker</imageName>
+                            <!--
+                              ktfmt's own reachability metadata ships inside this
+                              project's resources; do not merge the plugin's
+                              upstream metadata repository on top of it (its
+                              guava/j2objc entries conflict with the shaded jar).
+                            -->
+                            <metadataRepositoryConfiguration>
+                                <enabled>false</enabled>
+                            </metadataRepositoryConfiguration>
+                            <buildArgs>
+                                <buildArg>-O3</buildArg>
+                                <buildArg>-march=compatibility</buildArg>
+                                <buildArg>--no-fallback</buildArg>
+                                <buildArg>--future-defaults=all</buildArg>
+                                <buildArg>--link-at-build-time=org.jetbrains.kotlinx.ktfmt</buildArg>
+                                <buildArg>--add-opens=java.base/java.util=ALL-UNNAMED</buildArg>
+                                <buildArg>--gc=serial</buildArg>
+                                <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                                <buildArg>-H:-UseContainerSupport</buildArg>
+                                <buildArg>-R:+InstallSegfaultHandler</buildArg>
+                                <buildArg>-H:-ReduceImplicitExceptionStackTraceInformation</buildArg>
+                                <buildArg>-J--enable-native-access=ALL-UNNAMED</buildArg>
+                                <buildArg>-J--illegal-native-access=allow</buildArg>
+                                <buildArg>-J--sun-misc-unsafe-memory-access=allow</buildArg>
+                                <!--
+                                  ktfmt additionally passes the "static-nolibc" flag on
+                                  Linux/macOS for a mostly-static executable. That flag is
+                                  unix-only and cannot be activated per-OS cleanly here, so
+                                  it is omitted; the build script applies it (see
+                                  scripts/build-native-image.sh).
+                                -->
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

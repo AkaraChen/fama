@@ -17,6 +17,7 @@ members = [
 	"formatters/ruby",
 	"formatters/php",
 	"formatters/process",
+	"formatters/kotlin-worker",
 ]
 resolver = "2"
 
