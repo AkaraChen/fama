@@ -257,6 +257,7 @@ fn format_content(
 		FileType::Scala => scala_fmt::format_scala(content, path),
 		FileType::R => air_fmt::format_r(content, path),
 		FileType::Elixir => elixir_fmt::format_elixir(content, path),
+		FileType::Wgsl => wgsl_fmt::format_wgsl(content, path),
 
 		FileType::Unknown => Err("Unknown file type".to_string()),
 	}

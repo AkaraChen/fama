@@ -212,6 +212,7 @@ pub enum FileType {
 	CMake,
 	R,
 	Elixir,
+	Wgsl,
 	// C-family languages (clang-format)
 	C,
 	Cpp,
@@ -263,6 +264,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("cmake") => FileType::CMake,
 		Some("R") | Some("r") => FileType::R,
 		Some("ex") | Some("exs") => FileType::Elixir,
+		Some("wgsl") => FileType::Wgsl,
 		// C-family languages
 		Some("c") | Some("h") => FileType::C,
 		Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx")
@@ -286,12 +288,18 @@ pub fn detect_file_type(path: &str) -> FileType {
 				if matches!(
 					name,
 					"Rakefile"
-						| "Gemfile" | "Guardfile"
-						| "Vagrantfile" | "Berksfile"
-						| "Capfile" | "Thorfile"
-						| "Fastfile" | "Appfile"
-						| "Matchfile" | "Snapfile"
-						| "Deliverfile" | "Scanfile"
+						| "Gemfile"
+						| "Guardfile"
+						| "Vagrantfile"
+						| "Berksfile"
+						| "Capfile"
+						| "Thorfile"
+						| "Fastfile"
+						| "Appfile"
+						| "Matchfile"
+						| "Snapfile"
+						| "Deliverfile"
+						| "Scanfile"
 						| "Gymfile"
 				) {
 					return FileType::Ruby;
@@ -335,6 +343,11 @@ mod tests {
 		assert_eq!(detect_file_type("test.json"), FileType::Json);
 		assert_eq!(detect_file_type("package.json"), FileType::Json);
 		assert_eq!(detect_file_type("tsconfig.jsonc"), FileType::Jsonc);
+	}
+
+	#[test]
+	fn test_detect_wgsl() {
+		assert_eq!(detect_file_type("shader.wgsl"), FileType::Wgsl);
 	}
 
 	#[test]

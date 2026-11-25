@@ -86,6 +86,7 @@ fn is_supported_extension(ext: &str) -> bool {
 			| "r"
 			| "ex"
 			| "exs"
+			| "wgsl"
 			// C-family languages
 			| "c"
 			| "h"
