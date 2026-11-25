@@ -9,8 +9,7 @@ crate-type = [ "staticlib", "rlib" ]
 
 [dependencies]
 fama-common = { path = "../../common" }
-wasmi = "0.40"
-wasmi_wasi = "0.40"
+wasmtime = "51.0.0"
 
 [dev-dependencies]
 rayon = "1.11"

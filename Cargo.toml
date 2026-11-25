@@ -33,3 +33,33 @@ lto = true
 codegen-units = 1
 strip = true
 panic = "abort"
+
+# Cranelift compiling the embedded clang-format.wasm is unbearably slow at
+# opt-level 0; optimize the wasmtime/cranelift stack in dev and test builds
+# too. fama's own crates stay at opt-level 0 for fast iteration.
+[profile.dev.package.wasmtime]
+opt-level = 3
+[profile.dev.package.wasmtime-environ]
+opt-level = 3
+[profile.dev.package.wasmtime-internal-core]
+opt-level = 3
+[profile.dev.package.wasmtime-internal-cranelift]
+opt-level = 3
+[profile.dev.package.cranelift-codegen]
+opt-level = 3
+[profile.dev.package.cranelift-frontend]
+opt-level = 3
+[profile.dev.package.cranelift-entity]
+opt-level = 3
+[profile.dev.package.cranelift-bforest]
+opt-level = 3
+[profile.dev.package.cranelift-bitset]
+opt-level = 3
+[profile.dev.package.cranelift-control]
+opt-level = 3
+[profile.dev.package.cranelift-native]
+opt-level = 3
+[profile.dev.package.cranelift-isle]
+opt-level = 3
+[profile.dev.package.cranelift-assembler-x64]
+opt-level = 3
