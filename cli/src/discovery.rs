@@ -150,26 +150,9 @@ fn walk_with_pattern(
 	Ok(files)
 }
 
-/// Discover files matching the given pattern while respecting .gitignore rules.
+/// Discover files matching the given patterns while respecting .gitignore rules.
 ///
-/// # Arguments
-/// * `pattern` - Optional glob pattern. If None, defaults to "**/*"
-///
-/// Pattern types supported:
-/// - Single file: "src/main.rs" → returns that file if extension is supported
-/// - Directory: "src/" → walks that directory
-/// - Glob pattern: "src/*.rs" or "**/*.js" → expands and filters
-///
-/// # Returns
-/// A sorted list of file paths matching the pattern and supported extensions
-pub fn discover_files(pattern: Option<&str>) -> Result<Vec<PathBuf>, String> {
-	let pattern = pattern.unwrap_or("**/*");
-	discover_files_multi(&[pattern])
-}
-
-/// Discover files matching multiple patterns with a single directory walk.
-///
-/// Accepts the same pattern types as [`discover_files`] (literal file, directory,
+/// Accepts the same pattern types for each entry: a literal file, a directory,
 /// or glob). Literal paths are resolved directly; all glob patterns share one
 /// walk of the current directory, so N patterns cost one traversal instead of N.
 ///
@@ -296,7 +279,7 @@ mod tests {
 		fs::write(&file_path, "console.log('hello');").unwrap();
 
 		// Test by directly passing the file path
-		let result = discover_files(Some(file_path.to_str().unwrap()));
+		let result = discover_files_multi(&[file_path.to_str().unwrap()]);
 
 		assert!(result.is_ok());
 		let files = result.unwrap();
@@ -310,7 +293,7 @@ mod tests {
 		let file_path = temp_dir.path().join("test.xyz");
 		fs::write(&file_path, "content").unwrap();
 
-		let result = discover_files(Some(file_path.to_str().unwrap()));
+		let result = discover_files_multi(&[file_path.to_str().unwrap()]);
 
 		assert!(result.is_err());
 		let err = result.unwrap_err();
@@ -323,7 +306,7 @@ mod tests {
 		let temp_dir = TempDir::new().unwrap();
 		let file_path = temp_dir.path().join("nonexistent.js");
 
-		let result = discover_files(Some(file_path.to_str().unwrap()));
+		let result = discover_files_multi(&[file_path.to_str().unwrap()]);
 
 		// Non-existent files with glob characters aren't matched
 		// Non-existent files without glob characters fall through
@@ -339,7 +322,7 @@ mod tests {
 		fs::write(src_dir.join("main.rs"), "fn main() {}").unwrap();
 		fs::write(src_dir.join("lib.rs"), "pub fn lib() {}").unwrap();
 
-		let result = discover_files(Some(src_dir.to_str().unwrap()));
+		let result = discover_files_multi(&[src_dir.to_str().unwrap()]);
 
 		assert!(result.is_ok());
 		let files = result.unwrap();
@@ -348,7 +331,7 @@ mod tests {
 
 	#[test]
 	fn test_discover_files_invalid_glob_pattern() {
-		let result = discover_files(Some("[invalid"));
+		let result = discover_files_multi(&["[invalid"]);
 
 		assert!(result.is_err());
 		assert!(result.unwrap_err().contains("Invalid glob pattern"));
