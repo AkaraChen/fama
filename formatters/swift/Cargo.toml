@@ -1,0 +1,18 @@
+[package]
+name = "fama-swift"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = [ "staticlib", "rlib" ]
+
+[dependencies]
+fama-common = { path = "../../common" }
+ruzstd = "0.7"
+sha2 = "0.10"
+wasmtime = "51.0.0"
+
+[[bin]]
+name = "swift-precompile"
+path = "src/bin/swift_precompile.rs"

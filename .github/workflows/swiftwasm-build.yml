@@ -1,0 +1,77 @@
+name: SwiftWasm build
+
+# Reproduces formatters/swift/wasm/swiftformat.wasm.zst from source:
+# Swift 6.3.0 (exact; the SDK's swiftmodules reject other point versions)
+# + the official SwiftWasm 6.3 wasip1 SDK + swift-format 603.0.0 unmodified.
+# Manual only (a ~10 minute toolchain download+build); the artifact is
+# vendored and bound to the fama binary by sha256.
+
+on:
+    workflow_dispatch:
+
+jobs:
+    build:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install toolchain runtime deps
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y --no-install-recommends \
+                    binutils gnupg2 libc6-dev libcurl4-openssl-dev libedit2 \
+                    libgcc-13-dev libpython3-dev libsqlite3-0 libstdc++-13-dev \
+                    libxml2-dev libncurses-dev libz3-dev pkg-config tzdata \
+                    unzip zlib1g-dev
+
+            - name: Install Swift 6.3 (official Ubuntu 24.04 tarball)
+              run: |
+                  curl -fsSL --retry 8 --retry-all-errors --retry-delay 10 \
+                    https://download.swift.org/swift-6.3-release/ubuntu2404/swift-6.3-RELEASE/swift-6.3-RELEASE-ubuntu24.04.tar.gz \
+                    -o /tmp/swift.tgz
+                  sudo mkdir -p /opt/swift
+                  sudo tar xzf /tmp/swift.tgz -C /opt/swift
+                  echo "/opt/swift/swift-6.3-RELEASE-ubuntu24.04/usr/bin" >> "$GITHUB_PATH"
+
+            - name: Install SwiftWasm 6.3 wasip1 SDK
+              run: |
+                  curl -fsSL --retry 8 --retry-all-errors --retry-delay 10 \
+                    -o /tmp/sdk.zip \
+                    https://github.com/swiftwasm/swift/releases/download/swift-wasm-6.3-RELEASE/swift-wasm-6.3-RELEASE-wasm32-unknown-wasip1.artifactbundle.zip
+                  unzip -q /tmp/sdk.zip -d /tmp/sdk
+                  swift sdk install /tmp/sdk/swift-wasm-6.3-RELEASE-wasm32-unknown-wasip1.artifactbundle
+                  swift sdk list
+
+            - name: Clone swift-format 603.0.0 (sibling of wasm-src)
+              run: git clone --depth 1 --branch 603.0.0 https://github.com/swiftlang/swift-format formatters/swift/swift-format
+
+            - uses: actions/cache@v4
+              with:
+                  path: |
+                      formatters/swift/wasm-src/.build-wasm
+                      ~/.cache/org.swift.swiftpm
+                  key: swiftwasm-build-${{ github.sha }}
+                  restore-keys: swiftwasm-build-
+
+            - name: Build wasm module
+              run: bash formatters/swift/wasm-src/build-ci.sh
+
+            - name: Strip custom sections (debug, name, producers)
+              run: python3 formatters/swift/wasm-src/strip.py formatters/swift/swiftformat.wasm
+
+            - name: Compress for vendoring
+              run: |
+                  zstd -19 -T0 -q -o swiftformat.wasm.zst formatters/swift/swiftformat.wasm
+                  ls -la formatters/swift/swiftformat.wasm swiftformat.wasm.zst
+
+            - name: Import table report
+              run: |
+                  python3 formatters/swift/wasm-src/imports.py formatters/swift/swiftformat.wasm | tee imports-report.txt
+                  grep -q "JS_IMPORTS: NONE" imports-report.txt || { echo "JS bridge leaked into the link graph"; exit 1; }
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: swiftformat-wasm
+                  path: |
+                      swiftformat.wasm.zst
+                      imports-report.txt

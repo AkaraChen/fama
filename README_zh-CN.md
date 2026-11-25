@@ -44,7 +44,7 @@ Fama 帮你做决定，所以你不必做。它选择合理的默认值并普遍
 
 **约定优于配置。** 只有一种风格。它有效。使用它。
 
-**通用。** 一个工具格式化 30+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、YAML、TOML、Markdown、Rust、Python、Lua、Ruby、PHP、Shell、Go、Zig、HCL、Dockerfile、SQL、XML、Kotlin、Dart、Scala、Nix、CMake、R、Elixir、WGSL、C、C++、C#、Objective-C、Java 和 Protobuf。到处都是相同的命令。
+**通用。** 一个工具格式化 30+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、YAML、TOML、Markdown、Rust、Python、Lua、Ruby、PHP、Shell、Go、Zig、HCL、Dockerfile、SQL、XML、Kotlin、Dart、Scala、Nix、CMake、R、Elixir、WGSL、Swift、C、C++、C#、Objective-C、Java 和 Protobuf。到处都是相同的命令。
 
 **快速。** 格式化永远不应该是你等待的东西。
 
@@ -137,6 +137,7 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 | **Java**        | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **Protobuf**    | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **WGSL**        | wgsl-formatter | ✅     | N/A  | N/A      | N/A  | N/A      | wgsl-analyzer 原生 crate          |
+| **Swift**       | swift-format | ✅*    | N/A  | N/A      | N/A  | N/A      | *缩进、行宽经生成的配置 JSON 传入，行尾由宿主处理；通过 WASM（SwiftWasm + wasmtime） |
 
 ### 关于硬编码风格的说明
 
@@ -148,6 +149,7 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 - **CMake**: 使用 cmakefmt 默认风格（命令小写、规范关键字大写）
 - **Scala**: scalafmt 无 tab 模式——Scala 固定用 4 空格缩进（即使 fama 默认是 tab）；maxColumn 与缩进宽度跟随 fama 配置
 - **Kotlin**: 使用 kotlinlang 风格的 ktfmt；可选的 `ktfmt-worker` native image 可大幅加速大型仓库（见 `ktfmt-worker/README.md`）
+- **Swift**: 使用 Apple 官方 swift-format（603.0.0，零补丁），缩进与行宽经生成的配置 JSON 传入；swift-format 无行尾开关，`line_ending` 由宿主侧处理；以 WASM 模块在进程内运行
 - **Zig**: 使用 Zig 内置格式化工具的默认风格
 - **Ruby**: 使用嵌入的 `rubyfmt` 固定风格
 

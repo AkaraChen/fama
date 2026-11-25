@@ -28,6 +28,7 @@ elixir-fmt = { path = "../formatters/elixir", package = "fama-elixir" }
 fama-kotlin-worker = { path = "../formatters/kotlin-worker" }
 wgsl-fmt = { path = "../formatters/wgsl", package = "fama-wgsl" }
 fama-dart = { path = "../formatters/dart" }
+fama-swift = { path = "../formatters/swift" }
 fama-common = { path = "../common" }
 ignore = "0.4"
 glob = "0.3"

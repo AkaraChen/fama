@@ -44,7 +44,7 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Convention over configuration.** There is one style. It works. Use it.
 
-**Universal.** One tool formats 30+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Scala, Nix, CMake, R, Elixir, WGSL, Dart, C, C++, C#, Objective-C, Java, and Protobuf. Same command everywhere.
+**Universal.** One tool formats 30+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Scala, Nix, CMake, R, Elixir, WGSL, Dart, Swift, C, C++, C#, Objective-C, Java, and Protobuf. Same command everywhere.
 
 **Fast.** Formatting should never be the thing you're waiting for.
 
@@ -137,6 +137,7 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 | **Java**        | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
 | **Protobuf**    | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
 | **WGSL**        | wgsl-formatter | ✅         | N/A   | N/A            | N/A        | N/A             | Native crate from wgsl-analyzer   |
+| **Swift**       | swift-format | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent style/width, line_width via generated config JSON, line_ending host-side; via WASM (SwiftWasm + wasmtime) |
 
 ### Notes on Hardcoded Styles
 
@@ -149,6 +150,7 @@ Some formatters use hardcoded styles that cannot be configured:
 - **Scala**: scalafmt has no tab mode — Scala is indented with 4 spaces even though fama's default is tabs; `maxColumn` and indent follow fama's config
 - **Kotlin**: Uses ktfmt in kotlinlang style; the optional `ktfmt-worker` native image speeds up large runs (see `ktfmt-worker/README.md`)
 - **Dart**: Uses dart_style with fama's `line_width` and `line_ending` settings; runs in-process as a WASM module
+- **Swift**: Uses Apple's swift-format (603.0.0, unpatched) with fama's `indent_style`/`indent_width`/`line_width` via a generated config JSON; `line_ending` is applied host-side because swift-format has no line-ending knob; runs in-process as a WASM module
 - **Zig**: Uses Zig's built-in formatter with default style
 - **Ruby**: Uses embedded `rubyfmt` with fixed style
 
