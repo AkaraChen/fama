@@ -8,9 +8,15 @@ let package = Package(
     .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "603.0.0")
   ],
   targets: [
+    .target(
+      name: "ICUStub",
+      path: "Sources/ICUStub",
+      publicHeadersPath: "include"
+    ),
     .executableTarget(
       name: "swiftformat_wasm",
       dependencies: [
+        "ICUStub",
         .product(name: "SwiftFormat", package: "swift-format"),
         .product(name: "SwiftDiagnostics", package: "swift-syntax")
       ],
@@ -19,6 +25,8 @@ let package = Package(
       ],
       linkerSettings: [
         .unsafeFlags([
+          "-Xlinker", "--gc-sections",
+          "-Xlinker", "--export=swiftformat_set_config",
           "-Xlinker", "--export=swiftformat_format",
           "-Xlinker", "--export=swiftformat_out_ptr",
           "-Xlinker", "--export=swiftformat_out_len",

@@ -13,10 +13,17 @@ exist only to satisfy wasi-libc startup.
 
 ## Size and startup cost
 
-The stripped module is ~62MB (~15MB zstd-compressed, embedded in the binary).
-Cranelift-compiling it takes ~5s, so releases ship per-platform precompiled
-artifacts (`swiftformat-<hash>.wasmu`, deserialized in ~70ms). Without one,
-the first run JITs once and caches the artifact to `~/.cache/fama`.
+The `wasm-src/` package links a minimal `ICUStub` (`Sources/ICUStub/icudt_stub.c`)
+before the SwiftWasm SDK archives to replace the ~32 MiB `icudt76l` locale/charset
+data archive that Foundation otherwise pulls in, builds with `-Osize` and
+`--gc-sections`, and post-processes with `wasm-opt -Oz --no-zero-filled-memory`
+plus `strip.py`.
+
+Cranelift-compiling the module takes a few seconds, so releases ship per-platform
+precompiled artifacts (`swiftformat-<hash>.wasmu`, deserialized in milliseconds).
+Without one, the first run JITs once and caches the artifact to `~/.cache/fama`.
+The artifact hash is computed at Rust build time from `wasm/swiftformat.wasm.zst`
+so warm runs never decompress the embedded module.
 
 ## Rebuilding the WASM Binary
 
@@ -32,6 +39,9 @@ The module is checked in at `wasm/swiftformat.wasm.zst`. To rebuild it
 
 ```bash
 (cd wasm-src && bash build-ci.sh)                        # -> ../swiftformat.wasm
+wasm-opt -Oz --no-zero-filled-memory \
+  -o ../swiftformat.opt.wasm ../swiftformat.wasm
+mv ../swiftformat.opt.wasm ../swiftformat.wasm
 python3 wasm-src/strip.py ../swiftformat.wasm            # drop debug/name sections
 zstd -19 -T0 -o wasm/swiftformat.wasm.zst ../swiftformat.wasm
 ```

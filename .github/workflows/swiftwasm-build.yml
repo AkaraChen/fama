@@ -19,7 +19,7 @@ jobs:
               run: |
                   sudo apt-get update
                   sudo apt-get install -y --no-install-recommends \
-                    binutils gnupg2 libc6-dev libcurl4-openssl-dev libedit2 \
+                    binaryen binutils gnupg2 libc6-dev libcurl4-openssl-dev libedit2 \
                     libgcc-13-dev libpython3-dev libsqlite3-0 libstdc++-13-dev \
                     libxml2-dev libncurses-dev libz3-dev pkg-config tzdata \
                     unzip zlib1g-dev
@@ -55,6 +55,14 @@ jobs:
 
             - name: Build wasm module
               run: bash formatters/swift/wasm-src/build-ci.sh
+
+            - name: Optimize wasm with Binaryen wasm-opt
+              run: |
+                  wasm-opt -Oz --no-zero-filled-memory \
+                    -o formatters/swift/swiftformat.opt.wasm \
+                    formatters/swift/swiftformat.wasm
+                  mv formatters/swift/swiftformat.opt.wasm formatters/swift/swiftformat.wasm
+                  ls -la formatters/swift/swiftformat.wasm
 
             - name: Strip custom sections (debug, name, producers)
               run: python3 formatters/swift/wasm-src/strip.py formatters/swift/swiftformat.wasm

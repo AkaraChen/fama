@@ -10,8 +10,10 @@ crate-type = [ "staticlib", "rlib" ]
 [dependencies]
 fama-common = { path = "../../common" }
 ruzstd = "0.7"
-sha2 = "0.10"
 wasmtime = "51.0.0"
+
+[build-dependencies]
+sha2 = "0.10"
 
 [[bin]]
 name = "swift-precompile"
