@@ -1,6 +1,5 @@
 // discovery.rs - File discovery with gitignore support
 
-use fama_common::{detect_file_type, FileType};
 use ignore::{WalkBuilder, WalkState};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -26,8 +25,7 @@ fn is_supported_path(path: &Path) -> bool {
 			return false;
 		}
 	}
-	let path_str = path.to_str().unwrap_or("");
-	!matches!(detect_file_type(path_str), FileType::Unknown)
+	crate::registry::registry().is_supported(path)
 }
 
 /// Check if a file is supported (has supported extension/filename and is a file)

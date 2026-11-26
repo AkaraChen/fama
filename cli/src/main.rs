@@ -3,16 +3,10 @@ mod discovery;
 mod editorconfig;
 mod formatter;
 mod git;
-
-extern crate biome;
-extern crate dockerfile;
-extern crate dprint;
-extern crate goffi;
-extern crate ruff;
-extern crate rustfmt;
-extern crate stylua;
+mod registry;
 
 use clap::Parser;
+use rayon::prelude::*;
 use std::path::Path;
 
 #[derive(Parser)]
@@ -50,10 +44,38 @@ struct Cli {
 	/// Format changed files and commit with message "style: fmt"
 	#[arg(long)]
 	commit: bool,
+
+	/// Precompile embedded WASM formatter modules into DIR
+	#[arg(long, hide = true, value_name = "DIR")]
+	precompile: Option<std::path::PathBuf>,
+}
+
+fn precompile_all(dir: &Path) -> anyhow::Result<()> {
+	let results: Vec<(&'static str, Result<std::path::PathBuf, String>)> =
+		registry::registry()
+			.all()
+			.par_iter()
+			.filter_map(|fmt| {
+				fmt.precompile(dir).map(|res| (fmt.name(), res))
+			})
+			.collect();
+
+	for (name, res) in results {
+		let path = res.map_err(|e| {
+			anyhow::anyhow!("Failed to precompile {name}: {e}")
+		})?;
+		let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+		eprintln!("precompiled {} ({} bytes)", path.display(), size);
+	}
+	Ok(())
 }
 
 fn main() -> anyhow::Result<()> {
 	let cli = Cli::parse();
+
+	if let Some(dir) = cli.precompile {
+		return precompile_all(&dir);
+	}
 
 	if cli.export {
 		editorconfig::export();

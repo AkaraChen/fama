@@ -9,14 +9,11 @@ crate-type = [ "staticlib", "rlib" ]
 
 [dependencies]
 fama-common = { path = "../../common" }
+fama-wasm = { path = "../wasm-runtime" }
 wasmtime = "51.0.0"
 
 [build-dependencies]
 sha2 = "0.10"
-
-[[bin]]
-name = "clang-precompile"
-path = "src/bin/clang_precompile.rs"
 
 [dev-dependencies]
 rayon = "1.11"

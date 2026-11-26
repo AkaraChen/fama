@@ -5,31 +5,15 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-biome = { path = "../formatters/biome" }
-dprint = { path = "../formatters/dprint" }
-toml-fmt = { path = "../formatters/toml" }
-rustfmt = { path = "../formatters/rustfmt" }
-ruff = { path = "../formatters/python" }
-stylua = { path = "../formatters/lua", package = "stylua" }
-goffi = { path = "../formatters/goffi", package = "goffi" }
-zigffi = { path = "../formatters/zigffi", package = "fama-zigffi" }
-dockerfile = { path = "../formatters/dockerfile" }
-fama-sqruff = { path = "../formatters/sqruff" }
-xml-fmt = { path = "../formatters/xml" }
-ruby-fmt = { path = "../formatters/ruby" }
-php-fmt = { path = "../formatters/php", package = "fama-php" }
+fama-common = { path = "../common" }
+fama-builtin = { path = "../formatters/builtin" }
 fama-clang = { path = "../formatters/clang" }
-fama-process = { path = "../formatters/process" }
-cmake-fmt = { path = "../formatters/cmake", package = "fama-cmake" }
-nix-fmt = { path = "../formatters/nix", package = "fama-nix" }
-scala-fmt = { path = "../formatters/scala", package = "fama-scala" }
-air-fmt = { path = "../formatters/r", package = "fama-r" }
-elixir-fmt = { path = "../formatters/elixir", package = "fama-elixir" }
-fama-kotlin-worker = { path = "../formatters/kotlin-worker" }
-wgsl-fmt = { path = "../formatters/wgsl", package = "fama-wgsl" }
 fama-dart = { path = "../formatters/dart" }
 fama-swift = { path = "../formatters/swift" }
-fama-common = { path = "../common" }
+goffi = { path = "../formatters/goffi" }
+zigffi = { path = "../formatters/zigffi", package = "fama-zigffi" }
+ruby-fmt = { path = "../formatters/ruby" }
+fama-kotlin-worker = { path = "../formatters/kotlin-worker" }
 ignore = "0.4"
 glob = "0.3"
 clap = { version = "4.5", features = [ "derive" ] }

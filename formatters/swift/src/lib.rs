@@ -26,14 +26,18 @@
 mod wasi;
 
 use std::borrow::Cow;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Condvar, Mutex, OnceLock};
 
-use fama_common::{FileType, IndentStyle, LineEnding, CONFIG};
+use fama_common::{
+	ExportedConfig, FormatConfig, Formatter, IndentStyle, LineEnding, CONFIG,
+};
 use wasmtime::{Engine, Instance, Linker, Memory, Module, Store, TypedFunc};
 
 /// zstd-compressed swift-format WASM module (see `build-wasm.sh`)
 const SWIFTFORMAT_WASM_ZST: &[u8] = include_bytes!("../wasm/swiftformat.wasm.zst");
+
+const ARTIFACT_PREFIX: &str = "swiftformat";
 
 /// Maximum number of concurrent guest instances kept in the pool.
 ///
@@ -62,57 +66,6 @@ fn decompress_module_bytes() -> Vec<u8> {
 /// hashing on the warm `.wasmu` path.
 fn artifact_hash() -> &'static str {
 	env!("SWIFTFORMAT_WASM_HASH")
-}
-
-/// Filename of the precompiled module artifact for this fama build
-pub fn precompiled_artifact_name() -> String {
-	format!("swiftformat-{}.wasmu", artifact_hash())
-}
-
-/// Candidate locations of a precompiled module: next to the fama binary
-/// (shipped with releases) and the per-user cache (seeded by fama itself)
-fn precompiled_artifact_candidates() -> Vec<PathBuf> {
-	let name = precompiled_artifact_name();
-	let mut paths = Vec::new();
-	if let Ok(exe) = std::env::current_exe() {
-		if let Some(dir) = exe.parent() {
-			paths.push(dir.join(&name));
-		}
-	}
-	let home =
-		std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
-	if let Some(home) = home {
-		paths.push(PathBuf::from(home).join(".cache/fama").join(&name));
-	}
-	paths
-}
-
-/// Build the engine, compile the embedded module and return the serialized
-/// precompiled artifact (used by release CI to ship per-platform `.wasmu`
-/// files next to the fama binary)
-pub fn serialize_compiled_module() -> Result<Vec<u8>, String> {
-	let engine = Engine::new(&engine_config())
-		.map_err(|e| format!("Failed to create engine: {e}"))?;
-	let wasm = decompress_module_bytes();
-	let module = Module::new(&engine, &wasm)
-		.map_err(|e| format!("Failed to compile WASM module: {e:?}"))?;
-	drop(wasm);
-	module
-		.serialize()
-		.map_err(|e| format!("Failed to serialize module: {e:?}"))
-}
-
-fn engine_config() -> wasmtime::Config {
-	let mut cfg = wasmtime::Config::new();
-	// Backtraces and unwind metadata add ~10+ MiB to the precompiled .wasmu
-	// artifact (address map + .eh_frame) and slow down Cranelift compilation;
-	// traps already surface the guest stderr tail.
-	cfg.wasm_backtrace_max_frames(None);
-	cfg.generate_address_map(false);
-	// Windows requires native unwind info for its x64 ABI
-	#[cfg(not(target_os = "windows"))]
-	cfg.native_unwind_info(false);
-	cfg
 }
 
 /// A fully initialized WASM instance ready to format files.
@@ -213,51 +166,21 @@ fn pool() -> &'static InstancePool {
 fn engine() -> &'static Engine {
 	static ENGINE: OnceLock<Engine> = OnceLock::new();
 	ENGINE.get_or_init(|| {
-		Engine::new(&engine_config()).expect("Failed to create wasmtime engine")
+		Engine::new(&fama_wasm::default_engine_config())
+			.expect("Failed to create wasmtime engine")
 	})
 }
 
 fn cached_module() -> &'static Module {
 	static CACHED: OnceLock<Module> = OnceLock::new();
 	CACHED.get_or_init(|| {
-		let engine = engine();
-
-		for path in precompiled_artifact_candidates() {
-			if !path.is_file() {
-				continue;
-			}
-			// SAFETY: the artifact was written by this same binary (its
-			// filename is bound to the sha256 of the embedded module bytes)
-			// in a trusted location, and deserialize validates the wasmtime
-			// version and host feature compatibility; any mismatch falls
-			// back to compiling below
-			if let Ok(module) =
-				unsafe { Module::deserialize_file(engine, &path) }
-			{
-				return module;
-			}
-		}
-
-		let wasm = decompress_module_bytes();
-		let module = Module::new(engine, &wasm)
-			.expect("Failed to compile swift-format WASM module");
-		drop(wasm);
-
-		// Seed the artifact cache for future runs (best effort).
-		if let Ok(artifact) = module.serialize() {
-			let mut candidates = precompiled_artifact_candidates();
-			if let Some(cache_path) = candidates.pop() {
-				if let Some(dir) = cache_path.parent() {
-					let _ = std::fs::create_dir_all(dir);
-					let tmp = cache_path.with_extension("wasmu.tmp");
-					if std::fs::write(&tmp, &artifact).is_ok() {
-						let _ = std::fs::rename(&tmp, &cache_path);
-					}
-				}
-			}
-		}
-
-		module
+		fama_wasm::load_or_compile(
+			engine(),
+			ARTIFACT_PREFIX,
+			artifact_hash(),
+			|| Cow::Owned(decompress_module_bytes()),
+		)
+		.expect("Failed to compile swift-format WASM module")
 	})
 }
 
@@ -524,23 +447,84 @@ fn config_json() -> &'static [u8] {
 	.as_bytes()
 }
 
+fn render_swift_format(config: &FormatConfig) -> String {
+	// The guest decodes exactly this JSON (swift-format's Configuration
+	// allows JSON5, so the header comment is fine), so editor integrations
+	// running real swift-format agree with fama's output. Line endings are
+	// handled by fama at format time; the config file has no such knob.
+	let indentation = match config.indent_style {
+		IndentStyle::Tabs => "\"tabs\": 1".to_string(),
+		IndentStyle::Spaces => format!("\"spaces\": {}", config.indent_width),
+	};
+	format!(
+		r#"// Generated by fama — https://github.com/AkaraChen/fama
+{{
+  "lineLength": {line_length},
+  "tabWidth": {tab_width},
+  "indentation": {{{indentation}}}
+}}
+"#,
+		line_length = config.line_width,
+		tab_width = config.indent_width,
+		indentation = indentation,
+	)
+}
+
+/// Formatter implementation for Swift via swift-format compiled to WASM.
+pub struct SwiftFormatter;
+
+/// Static formatter instance registered by `fama`.
+pub static FORMATTER: SwiftFormatter = SwiftFormatter;
+
+impl Formatter for SwiftFormatter {
+	fn name(&self) -> &'static str {
+		"swift"
+	}
+
+	fn extensions(&self) -> &'static [&'static str] {
+		&["swift"]
+	}
+
+	fn format(&self, content: &str, path: &Path) -> Result<String, String> {
+		format_file(content, path.to_str().unwrap_or(""))
+	}
+
+	fn exported_config(&self) -> Option<ExportedConfig> {
+		Some(ExportedConfig {
+			marker_file: "Package.swift",
+			output_file: ".swift-format",
+			render: render_swift_format,
+		})
+	}
+
+	fn precompile(&self, output_dir: &Path) -> Option<Result<PathBuf, String>> {
+		let result = Engine::new(&fama_wasm::default_engine_config())
+			.map_err(|e| format!("Failed to create wasmtime engine: {e}"))
+			.and_then(|engine| {
+				fama_wasm::precompile_to_dir(
+					&engine,
+					ARTIFACT_PREFIX,
+					artifact_hash(),
+					|| Cow::Owned(decompress_module_bytes()),
+					output_dir,
+				)
+			});
+		Some(result)
+	}
+}
+
 /// Format Swift code using swift-format compiled to WASM
 ///
 /// # Arguments
 /// * `content` - The Swift source code to format
 /// * `_path` - The file path (unused: the guest formats strings and gets no
 ///   file URL, so output never embeds the path)
-/// * `_file_type` - The detected file type (must be `FileType::Swift`)
 ///
 /// # Returns
 /// * `Ok(String)` - The formatted code
 /// * `Err(String)` - Error message if formatting failed (e.g. the source
 ///   does not parse)
-pub fn format_file(
-	content: &str,
-	_path: &str,
-	_file_type: FileType,
-) -> Result<String, String> {
+pub fn format_file(content: &str, _path: &str) -> Result<String, String> {
 	if content.is_empty() {
 		return Ok(String::new());
 	}
@@ -573,14 +557,13 @@ mod tests {
 		// swift-format keeps short declarations on one line (real swift-format
 		// semantics, not fama's opinion): width and structure decide
 		let input = "func f()->Int{return 42}";
-		let result = format_file(input, "test.swift", FileType::Swift);
+		let result = format_file(input, "test.swift");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 		assert_eq!(result.unwrap(), "func f() -> Int { return 42 }\n");
 
 		// Multi-statement bodies get real indentation, tabs per fama default
 		let input = "func f() {\nlet a = 1\nlet b = 2\n}";
-		let formatted =
-			format_file(input, "test.swift", FileType::Swift).unwrap();
+		let formatted = format_file(input, "test.swift").unwrap();
 		assert_eq!(
 			formatted, "func f() {\n\tlet a = 1\n\tlet b = 2\n}\n",
 			"tab indentation wrong"
@@ -590,17 +573,15 @@ mod tests {
 	#[test]
 	fn test_idempotent() {
 		let input = "struct S{var x:Int\nvar y:String}";
-		let first =
-			format_file(input, "test.swift", FileType::Swift).unwrap();
-		let second =
-			format_file(&first, "test.swift", FileType::Swift).unwrap();
+		let first = format_file(input, "test.swift").unwrap();
+		let second = format_file(&first, "test.swift").unwrap();
 		assert_eq!(first, second, "formatting is not idempotent");
 	}
 
 	#[test]
 	fn test_syntax_error_returns_err() {
 		let input = "func f() { let x = ";
-		let result = format_file(input, "bad.swift", FileType::Swift);
+		let result = format_file(input, "bad.swift");
 		assert!(result.is_err(), "Expected error for invalid syntax");
 		let message = result.unwrap_err();
 		assert!(
@@ -612,16 +593,16 @@ mod tests {
 
 	#[test]
 	fn test_instance_survives_errors() {
-		assert!(format_file("func f(){", "bad.swift", FileType::Swift).is_err());
-		let ok = format_file("func f(){}", "good.swift", FileType::Swift);
+		assert!(format_file("func f(){", "bad.swift").is_err());
+		let ok = format_file("func f(){}", "good.swift");
 		assert!(ok.is_ok(), "Instance did not recover: {:?}", ok);
 		assert_eq!(ok.unwrap(), "func f() {}\n");
 	}
 
 	#[test]
 	fn test_formatting_touches_no_filesystem() {
-		format_file("let x=1", "probe.swift", FileType::Swift).unwrap();
-		format_file("let y=2", "probe.swift", FileType::Swift).unwrap();
+		format_file("let x=1", "probe.swift").unwrap();
+		format_file("let y=2", "probe.swift").unwrap();
 		let guard = pool().state.lock().unwrap();
 		assert!(
 			!guard.idle.is_empty(),
@@ -648,19 +629,15 @@ mod tests {
 
 	#[test]
 	fn test_empty_input_untouched() {
-		assert_eq!(
-			format_file("", "empty.swift", FileType::Swift).unwrap(),
-			""
-		);
+		assert_eq!(format_file("", "empty.swift").unwrap(), "");
 	}
 
 	#[test]
 	fn test_reused_instance_formats_repeatedly() {
 		for i in 0..10 {
 			let input = format!("func f()->Int{{return {i}}}");
-			let formatted =
-				format_file(&input, "test.swift", FileType::Swift)
-					.unwrap_or_else(|e| panic!("call {i} failed: {e}"));
+			let formatted = format_file(&input, "test.swift")
+				.unwrap_or_else(|e| panic!("call {i} failed: {e}"));
 			assert!(
 				formatted.contains(&format!("return {i}")),
 				"call {i} wrong body: {formatted}"
@@ -674,11 +651,8 @@ mod tests {
 			.map(|i| {
 				std::thread::spawn(move || {
 					let input = format!("func g{i}()->Int{{return {i}}}");
-					let formatted =
-						format_file(&input, "parallel.swift", FileType::Swift)
-							.unwrap_or_else(|e| {
-								panic!("thread {i} failed: {e}")
-							});
+					let formatted = format_file(&input, "parallel.swift")
+						.unwrap_or_else(|e| panic!("thread {i} failed: {e}"));
 					assert_eq!(formatted, format!("func g{i}() -> Int {{ return {i} }}\n"));
 				})
 			})

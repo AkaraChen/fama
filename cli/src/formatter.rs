@@ -1,14 +1,15 @@
 // formatter.rs - Format routing logic
 
-use fama_common::{detect_file_type, FileType};
+use crate::registry::registry;
+use fama_common::Formatter;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Number of Rust files formatted per rustfmt process invocation. Larger
-/// batches amortize the process spawn further but hold more content in memory.
-const RUST_BATCH_SIZE: usize = 64;
+/// Number of files formatted per batch process invocation. Larger batches
+/// amortize process startup further but hold more content in memory.
+const BATCH_SIZE: usize = 64;
 
 /// Statistics collected during formatting
 #[derive(Default)]
@@ -68,80 +69,70 @@ fn record(
 	}
 }
 
-/// A batch formatter: takes the chunk's sources, returns one result per input
-type BatchFn = fn(&[&str]) -> Vec<Result<String, String>>;
-
-/// Batch backends: languages whose formatter crates expose
-/// `format_batch(&[&str]) -> Vec<Result<String, String>>` and are therefore
-/// formatted in chunks with one formatter invocation per chunk.
-fn batch_backend(file_type: FileType) -> Option<BatchFn> {
-	match file_type {
-		FileType::Rust => Some(rustfmt::format_batch),
-		FileType::Scala => Some(scala_fmt::format_batch),
-		FileType::R => Some(air_fmt::format_batch),
-		FileType::Elixir => Some(elixir_fmt::format_batch),
-		_ => None,
-	}
-}
-
-/// Format all files, parallelizing per file and batching the batchable
-/// languages (see [`batch_backend`]) concurrently, with large single files
-/// scheduled first (LPT) to minimize tail latency.
+/// Format all files, parallelizing per file and batching batchable formatters
+/// concurrently, with large single files scheduled first (LPT) to minimize
+/// tail latency.
 pub fn format_files(
 	files: &[PathBuf],
 	check: bool,
 	debug: bool,
 ) -> FormatStats {
-	let mut batch_groups: HashMap<FileType, Vec<&PathBuf>> = HashMap::new();
-	let mut other_files: Vec<(&PathBuf, FileType)> = Vec::new();
+	let reg = registry();
+	let mut batch_groups: HashMap<usize, (&'static dyn Formatter, Vec<&PathBuf>)> =
+		HashMap::new();
+	let mut other_files: Vec<(&PathBuf, Option<&'static dyn Formatter>)> =
+		Vec::new();
+
 	for file in files {
-		let file_type = detect_file_type(file.to_str().unwrap_or(""));
-		if batch_backend(file_type).is_some() {
-			batch_groups.entry(file_type).or_default().push(file);
-		} else {
-			other_files.push((file, file_type));
+		match reg.resolve(file) {
+			Some((id, fmt)) if fmt.supports_batch() => {
+				batch_groups
+					.entry(id)
+					.or_insert_with(|| (fmt, Vec::new()))
+					.1
+					.push(file);
+			}
+			resolved => {
+				other_files.push((file, resolved.map(|(_, fmt)| fmt)));
+			}
 		}
 	}
 
 	// Longest-processing-time-first ordering for single-file formatters so large
 	// files (e.g. megabyte C/TS bundles) start immediately instead of trailing.
-	let mut sized_others: Vec<(&PathBuf, FileType, u64)> = if other_files.len() > 1
-	{
-		let mut v: Vec<(&PathBuf, FileType, u64)> = other_files
-			.into_par_iter()
-			.map(|(file, ft)| {
-				let len = fs::metadata(file).map(|m| m.len()).unwrap_or(0);
-				(file, ft, len)
-			})
-			.collect();
-		v.sort_unstable_by(|a, b| b.2.cmp(&a.2));
-		v
-	} else {
-		other_files
-			.into_iter()
-			.map(|(file, ft)| (file, ft, 0))
-			.collect()
-	};
+	let mut sized_others: Vec<(&PathBuf, Option<&'static dyn Formatter>, u64)> =
+		if other_files.len() > 1 {
+			let mut v: Vec<(&PathBuf, Option<&'static dyn Formatter>, u64)> =
+				other_files
+					.into_par_iter()
+					.map(|(file, fmt)| {
+						let len =
+							fs::metadata(file).map(|m| m.len()).unwrap_or(0);
+						(file, fmt, len)
+					})
+					.collect();
+			v.sort_unstable_by_key(|a| std::cmp::Reverse(a.2));
+			v
+		} else {
+			other_files
+				.into_iter()
+				.map(|(file, fmt)| (file, fmt, 0))
+				.collect()
+		};
 
 	let (batched_stats, other_stats) = rayon::join(
 		|| {
-			let groups: Vec<(BatchFn, Vec<&PathBuf>)> = batch_groups
-				.into_iter()
-				.filter_map(|(ft, group)| {
-					batch_backend(ft).map(|backend| (backend, group))
-				})
-				.collect();
+			let groups: Vec<(&'static dyn Formatter, Vec<&PathBuf>)> =
+				batch_groups.into_values().collect();
 			let workers = rayon::current_num_threads().max(1);
 			groups
 				.into_par_iter()
-				.map(|(backend, group)| {
+				.map(|(fmt, group)| {
 					let chunk_size =
-						group.len().div_ceil(workers).clamp(1, RUST_BATCH_SIZE);
+						group.len().div_ceil(workers).clamp(1, BATCH_SIZE);
 					group
 						.par_chunks(chunk_size)
-						.map(|chunk| {
-							format_batch_chunk(backend, chunk, check, debug)
-						})
+						.map(|chunk| format_batch_chunk(fmt, chunk, check, debug))
 						.reduce(FormatStats::default, FormatStats::merge)
 				})
 				.reduce(FormatStats::default, FormatStats::merge)
@@ -149,8 +140,8 @@ pub fn format_files(
 		|| {
 			sized_others
 				.par_iter()
-				.fold(FormatStats::default, |mut stats, (file, file_type, _)| {
-					let result = format_file_with_type(file, *file_type, check)
+				.fold(FormatStats::default, |mut stats, (file, fmt, _)| {
+					let result = format_file_with_formatter(file, *fmt, check)
 						.map_err(|e| e.to_string());
 					record(&mut stats, file, result, debug);
 					stats
@@ -165,7 +156,7 @@ pub fn format_files(
 
 /// Format a chunk of same-language files with a single batch invocation
 fn format_batch_chunk(
-	backend: BatchFn,
+	fmt: &dyn Formatter,
 	files: &[&PathBuf],
 	check: bool,
 	debug: bool,
@@ -190,7 +181,7 @@ fn format_batch_chunk(
 
 	let refs: Vec<&str> = contents.iter().map(String::as_str).collect();
 	for ((file, original), formatted) in
-		kept.iter().zip(&contents).zip(backend(&refs))
+		kept.iter().zip(&contents).zip(fmt.format_batch(&refs))
 	{
 		let result = formatted.and_then(|formatted| {
 			let changed = formatted != *original;
@@ -206,17 +197,20 @@ fn format_batch_chunk(
 	stats
 }
 
-/// Format a single file using an already-detected `FileType`
-fn format_file_with_type(
-	file_path: &PathBuf,
-	file_type: FileType,
+/// Format a single file using an already-resolved `Formatter`
+fn format_file_with_formatter(
+	file_path: &Path,
+	formatter: Option<&'static dyn Formatter>,
 	check: bool,
 ) -> anyhow::Result<bool> {
 	let content = fs::read_to_string(file_path)?;
-	let path_str = file_path.to_str().unwrap_or("");
 
-	let formatted = format_content(&content, path_str, file_type)
-		.map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?;
+	let formatted = match formatter {
+		Some(fmt) => fmt
+			.format(&content, file_path)
+			.map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?,
+		None => anyhow::bail!("{}: Unknown file type", file_path.display()),
+	};
 
 	if formatted != content {
 		if !check {
@@ -228,83 +222,21 @@ fn format_file_with_type(
 	}
 }
 
-/// Format a single file based on its detected type
+/// Format a single file based on registry lookup
 /// Returns true if the file was changed (or would be changed in check mode)
 #[cfg(test)]
-pub fn format_file(file_path: &PathBuf, check: bool) -> anyhow::Result<bool> {
-	let path_str = file_path.to_str().unwrap_or("");
-	let file_type = detect_file_type(path_str);
-	format_file_with_type(file_path, file_type, check)
+pub fn format_file(file_path: &Path, check: bool) -> anyhow::Result<bool> {
+	let formatter = registry().resolve(file_path).map(|(_, fmt)| fmt);
+	format_file_with_formatter(file_path, formatter, check)
 }
 
-/// Format content string based on file type
-fn format_content(
-	content: &str,
-	path: &str,
-	file_type: FileType,
-) -> Result<String, String> {
-	match file_type {
-		// Web files -> biome
-		FileType::JavaScript
-		| FileType::TypeScript
-		| FileType::Jsx
-		| FileType::Tsx
-		| FileType::Json
-		| FileType::Jsonc
-		| FileType::Html
-		| FileType::Vue
-		| FileType::Svelte
-		| FileType::Astro
-		| FileType::GraphQL => biome::format_file(content, path, file_type),
-
-		// Data + Style files -> dprint
-		FileType::Yaml
-		| FileType::Markdown
-		| FileType::Css
-		| FileType::Scss
-		| FileType::Less
-		| FileType::Sass => dprint::format_file(content, path, file_type),
-
-		// C-family languages -> clang-format
-		FileType::C
-		| FileType::Cpp
-		| FileType::CSharp
-		| FileType::ObjectiveC
-		| FileType::Java
-		| FileType::Protobuf => fama_clang::format_file(content, path, file_type),
-
-		// Individual formatters
-		FileType::Toml => toml_fmt::format_toml(content, path),
-		FileType::Rust => rustfmt::format_rust(content, path),
-		FileType::Python => ruff::format_python(content, path),
-		FileType::Lua => stylua::format_lua(content, path),
-		FileType::Ruby => ruby_fmt::format_ruby(content, path),
-		FileType::Shell => goffi::format_shell(content, path),
-		FileType::Go => goffi::format_go(content, path),
-		FileType::Zig => zigffi::format_zig(content, path),
-		FileType::Hcl => goffi::format_hcl(content, path),
-		FileType::Dockerfile => dockerfile::format_dockerfile(content, path),
-		FileType::Xml => xml_fmt::format_xml(content, path),
-		FileType::Sql => fama_sqruff::format_sql(content, path),
-		FileType::Php => php_fmt::format_php(content, path),
-		// Kotlin goes through the persistent ktfmt-worker when one is
-		// available (FAMA_KTFMT_WORKER or `ktfmt-worker` on PATH); the client
-		// falls back to the process-based ktfmt path otherwise.
-		FileType::Kotlin => fama_kotlin_worker::format_kotlin(content, path),
-		FileType::CMake => cmake_fmt::format_cmake(content, path),
-		FileType::Nix => nix_fmt::format_nix(content, path),
-		FileType::Scala => scala_fmt::format_scala(content, path),
-		FileType::R => air_fmt::format_r(content, path),
-		FileType::Elixir => elixir_fmt::format_elixir(content, path),
-		FileType::Wgsl => wgsl_fmt::format_wgsl(content, path),
-
-		// Dart -> dart_style compiled to WASM, hosted in-process on wasmtime
-		FileType::Dart => fama_dart::format_file(content, path, file_type),
-
-		// Swift -> swift-format compiled to WASM, hosted in-process on wasmtime
-		FileType::Swift => fama_swift::format_file(content, path, file_type),
-
-		FileType::Unknown => Err("Unknown file type".to_string()),
+/// Format content string via registry lookup
+#[cfg(test)]
+fn format_content(content: &str, path: &str) -> Result<String, String> {
+	let path = Path::new(path);
+	match registry().resolve(path) {
+		Some((_, fmt)) => fmt.format(content, path),
+		None => Err("Unknown file type".to_string()),
 	}
 }
 
@@ -318,13 +250,10 @@ mod tests {
 	fn test_format_file_no_change() {
 		let temp_dir = TempDir::new().unwrap();
 		let file_path = temp_dir.path().join("test.json");
-		// Write already formatted JSON
 		fs::write(&file_path, "{}").unwrap();
 
 		let result = format_file(&file_path, false);
 
-		// Just check that the function runs without error
-		// The formatter may or may not modify "{}"
 		assert!(result.is_ok());
 	}
 
@@ -332,13 +261,11 @@ mod tests {
 	fn test_format_file_with_changes() {
 		let temp_dir = TempDir::new().unwrap();
 		let file_path = temp_dir.path().join("test.json");
-		// Malformed JSON that needs formatting
 		fs::write(&file_path, r#"{"key":   "value"}"#).unwrap();
 
 		let result = format_file(&file_path, false);
 
 		assert!(result.is_ok());
-		// JSON should be formatted
 		assert!(result.unwrap());
 	}
 
@@ -353,7 +280,6 @@ mod tests {
 
 		assert!(result.is_ok());
 		assert!(result.unwrap());
-		// File should NOT be modified in check mode
 		let after_content = fs::read_to_string(&file_path).unwrap();
 		assert_eq!(original_content, after_content);
 	}
@@ -385,11 +311,10 @@ mod tests {
 	#[test]
 	fn test_format_content_json() {
 		let content = r#"{"key":   "value"}"#;
-		let result = format_content(content, "test.json", FileType::Json);
+		let result = format_content(content, "test.json");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
-		// Should be properly formatted
 		assert!(formatted.contains("{"));
 		assert!(formatted.contains("}"));
 	}
@@ -397,7 +322,7 @@ mod tests {
 	#[test]
 	fn test_format_content_toml() {
 		let content = "key=\"value\"";
-		let result = format_content(content, "test.toml", FileType::Toml);
+		let result = format_content(content, "test.toml");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -408,7 +333,7 @@ mod tests {
 	#[test]
 	fn test_format_content_rust() {
 		let content = "fn main() {}";
-		let result = format_content(content, "test.rs", FileType::Rust);
+		let result = format_content(content, "test.rs");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -418,7 +343,7 @@ mod tests {
 	#[test]
 	fn test_format_content_python() {
 		let content = "x=1";
-		let result = format_content(content, "test.py", FileType::Python);
+		let result = format_content(content, "test.py");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -428,7 +353,7 @@ mod tests {
 	#[test]
 	fn test_format_content_lua() {
 		let content = "x=1";
-		let result = format_content(content, "test.lua", FileType::Lua);
+		let result = format_content(content, "test.lua");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -438,7 +363,7 @@ mod tests {
 	#[test]
 	fn test_format_content_shell() {
 		let content = "echo hello";
-		let result = format_content(content, "test.sh", FileType::Shell);
+		let result = format_content(content, "test.sh");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -449,7 +374,7 @@ mod tests {
 	#[test]
 	fn test_format_content_go() {
 		let content = "package main";
-		let result = format_content(content, "test.go", FileType::Go);
+		let result = format_content(content, "test.go");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -459,7 +384,7 @@ mod tests {
 	#[test]
 	fn test_format_content_zig() {
 		let content = "const x = 1;";
-		let result = format_content(content, "test.zig", FileType::Zig);
+		let result = format_content(content, "test.zig");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -469,7 +394,7 @@ mod tests {
 	#[test]
 	fn test_format_content_xml() {
 		let content = "<root><item/></root>";
-		let result = format_content(content, "test.xml", FileType::Xml);
+		let result = format_content(content, "test.xml");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -480,7 +405,7 @@ mod tests {
 	#[test]
 	fn test_format_content_sql() {
 		let content = "SELECT 1;";
-		let result = format_content(content, "test.sql", FileType::Sql);
+		let result = format_content(content, "test.sql");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -490,8 +415,7 @@ mod tests {
 	#[test]
 	fn test_format_content_dockerfile() {
 		let content = "FROM alpine\nRUN echo hi";
-		let result =
-			format_content(content, "Dockerfile", FileType::Dockerfile);
+		let result = format_content(content, "Dockerfile");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -501,7 +425,7 @@ mod tests {
 	#[test]
 	fn test_format_content_hcl() {
 		let content = "resource \"test\" \"name\" {}";
-		let result = format_content(content, "test.hcl", FileType::Hcl);
+		let result = format_content(content, "test.hcl");
 
 		assert!(result.is_ok());
 	}
@@ -509,7 +433,7 @@ mod tests {
 	#[test]
 	fn test_format_content_php() {
 		let content = "<?php echo 'hello'; ?>";
-		let result = format_content(content, "test.php", FileType::Php);
+		let result = format_content(content, "test.php");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -519,7 +443,7 @@ mod tests {
 	#[test]
 	fn test_format_content_ruby() {
 		let content = "x = 1";
-		let result = format_content(content, "test.rb", FileType::Ruby);
+		let result = format_content(content, "test.rb");
 
 		assert!(result.is_ok());
 		let formatted = result.unwrap();
@@ -529,7 +453,7 @@ mod tests {
 	#[test]
 	fn test_format_content_dart() {
 		let content = "void main(){print('hello');}";
-		let result = format_content(content, "test.dart", FileType::Dart);
+		let result = format_content(content, "test.dart");
 
 		assert!(result.is_ok(), "dart formatting failed: {:?}", result);
 		let formatted = result.unwrap();
@@ -539,7 +463,7 @@ mod tests {
 	#[test]
 	fn test_format_content_swift() {
 		let content = "func f()->Int{return 42}";
-		let result = format_content(content, "test.swift", FileType::Swift);
+		let result = format_content(content, "test.swift");
 
 		assert!(result.is_ok(), "swift formatting failed: {:?}", result);
 		let formatted = result.unwrap();
@@ -549,7 +473,7 @@ mod tests {
 	#[test]
 	fn test_format_content_yaml() {
 		let content = "key: value";
-		let result = format_content(content, "test.yaml", FileType::Yaml);
+		let result = format_content(content, "test.yaml");
 
 		assert!(result.is_ok());
 	}
@@ -557,7 +481,7 @@ mod tests {
 	#[test]
 	fn test_format_content_markdown() {
 		let content = "# Hello";
-		let result = format_content(content, "test.md", FileType::Markdown);
+		let result = format_content(content, "test.md");
 
 		assert!(result.is_ok());
 	}
@@ -565,7 +489,7 @@ mod tests {
 	#[test]
 	fn test_format_content_css() {
 		let content = "a{color:red}";
-		let result = format_content(content, "test.css", FileType::Css);
+		let result = format_content(content, "test.css");
 
 		assert!(result.is_ok());
 	}
@@ -573,7 +497,7 @@ mod tests {
 	#[test]
 	fn test_format_content_javascript() {
 		let content = "const x=1;";
-		let result = format_content(content, "test.js", FileType::JavaScript);
+		let result = format_content(content, "test.js");
 
 		assert!(result.is_ok());
 	}
@@ -581,7 +505,7 @@ mod tests {
 	#[test]
 	fn test_format_content_typescript() {
 		let content = "const x: number = 1;";
-		let result = format_content(content, "test.ts", FileType::TypeScript);
+		let result = format_content(content, "test.ts");
 
 		assert!(result.is_ok());
 	}
@@ -589,7 +513,7 @@ mod tests {
 	#[test]
 	fn test_format_content_jsx() {
 		let content = "const el = <div />;";
-		let result = format_content(content, "test.jsx", FileType::Jsx);
+		let result = format_content(content, "test.jsx");
 
 		assert!(result.is_ok());
 	}
@@ -597,7 +521,7 @@ mod tests {
 	#[test]
 	fn test_format_content_tsx() {
 		let content = "const el = <div />;";
-		let result = format_content(content, "test.tsx", FileType::Tsx);
+		let result = format_content(content, "test.tsx");
 
 		assert!(result.is_ok());
 	}
@@ -605,7 +529,7 @@ mod tests {
 	#[test]
 	fn test_format_content_html() {
 		let content = "<html><body>Hi</body></html>";
-		let result = format_content(content, "test.html", FileType::Html);
+		let result = format_content(content, "test.html");
 
 		assert!(result.is_ok());
 	}
@@ -613,7 +537,7 @@ mod tests {
 	#[test]
 	fn test_format_content_vue() {
 		let content = "<template><div>Hi</div></template>";
-		let result = format_content(content, "test.vue", FileType::Vue);
+		let result = format_content(content, "test.vue");
 
 		assert!(result.is_ok());
 	}
@@ -621,7 +545,7 @@ mod tests {
 	#[test]
 	fn test_format_content_svelte() {
 		let content = "<div>Hello</div>";
-		let result = format_content(content, "test.svelte", FileType::Svelte);
+		let result = format_content(content, "test.svelte");
 
 		assert!(result.is_ok());
 	}
@@ -629,7 +553,7 @@ mod tests {
 	#[test]
 	fn test_format_content_astro() {
 		let content = "---\nconst x = 1;\n---\n<div></div>";
-		let result = format_content(content, "test.astro", FileType::Astro);
+		let result = format_content(content, "test.astro");
 
 		assert!(result.is_ok());
 	}
@@ -637,7 +561,7 @@ mod tests {
 	#[test]
 	fn test_format_content_graphql() {
 		let content = "query { field }";
-		let result = format_content(content, "test.graphql", FileType::GraphQL);
+		let result = format_content(content, "test.graphql");
 
 		assert!(result.is_ok());
 	}
@@ -645,7 +569,7 @@ mod tests {
 	#[test]
 	fn test_format_content_c() {
 		let content = "int main() { return 0; }";
-		let result = format_content(content, "test.c", FileType::C);
+		let result = format_content(content, "test.c");
 
 		assert!(result.is_ok());
 	}
@@ -653,7 +577,7 @@ mod tests {
 	#[test]
 	fn test_format_content_cpp() {
 		let content = "int main() { return 0; }";
-		let result = format_content(content, "test.cpp", FileType::Cpp);
+		let result = format_content(content, "test.cpp");
 
 		assert!(result.is_ok());
 	}
@@ -661,7 +585,7 @@ mod tests {
 	#[test]
 	fn test_format_content_csharp() {
 		let content = "class Test {}";
-		let result = format_content(content, "test.cs", FileType::CSharp);
+		let result = format_content(content, "test.cs");
 
 		assert!(result.is_ok());
 	}
@@ -669,7 +593,7 @@ mod tests {
 	#[test]
 	fn test_format_content_java() {
 		let content = "public class Test {}";
-		let result = format_content(content, "test.java", FileType::Java);
+		let result = format_content(content, "test.java");
 
 		assert!(result.is_ok());
 	}
@@ -677,7 +601,7 @@ mod tests {
 	#[test]
 	fn test_format_content_objective_c() {
 		let content = "int main() { return 0; }";
-		let result = format_content(content, "test.m", FileType::ObjectiveC);
+		let result = format_content(content, "test.m");
 
 		assert!(result.is_ok());
 	}
@@ -685,7 +609,7 @@ mod tests {
 	#[test]
 	fn test_format_content_protobuf() {
 		let content = "syntax = \"proto3\";";
-		let result = format_content(content, "test.proto", FileType::Protobuf);
+		let result = format_content(content, "test.proto");
 
 		assert!(result.is_ok());
 	}
@@ -693,7 +617,7 @@ mod tests {
 	#[test]
 	fn test_format_content_unknown() {
 		let content = "anything";
-		let result = format_content(content, "test.xyz", FileType::Unknown);
+		let result = format_content(content, "test.xyz");
 
 		assert!(result.is_err());
 		assert_eq!(result.unwrap_err(), "Unknown file type");
@@ -702,7 +626,7 @@ mod tests {
 	#[test]
 	fn test_format_content_jsonc() {
 		let content = "{\"key\": \"value\" // comment\n}";
-		let result = format_content(content, "test.jsonc", FileType::Jsonc);
+		let result = format_content(content, "test.jsonc");
 
 		assert!(result.is_ok());
 	}
@@ -710,7 +634,7 @@ mod tests {
 	#[test]
 	fn test_format_content_scss() {
 		let content = "a { color: red; }";
-		let result = format_content(content, "test.scss", FileType::Scss);
+		let result = format_content(content, "test.scss");
 
 		assert!(result.is_ok());
 	}
@@ -718,7 +642,7 @@ mod tests {
 	#[test]
 	fn test_format_content_less() {
 		let content = "a { color: red; }";
-		let result = format_content(content, "test.less", FileType::Less);
+		let result = format_content(content, "test.less");
 
 		assert!(result.is_ok());
 	}
@@ -726,7 +650,7 @@ mod tests {
 	#[test]
 	fn test_format_content_sass() {
 		let content = "a\n  color: red";
-		let result = format_content(content, "test.sass", FileType::Sass);
+		let result = format_content(content, "test.sass");
 
 		assert!(result.is_ok());
 	}

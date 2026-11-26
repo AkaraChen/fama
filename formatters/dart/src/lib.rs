@@ -20,19 +20,22 @@
 mod jsval;
 mod shims;
 
+use std::borrow::Cow;
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use fama_common::{FileType, LineEnding, CONFIG};
+use fama_common::{ExportedConfig, FormatConfig, Formatter, LineEnding, CONFIG};
 use jsval::JsVal;
 use wasmtime::{
-	AsContext, ExternRef, Global, Module, Mutability, Rooted, Store, Tag, Val,
+	AsContext, Engine, ExternRef, Global, Mutability, Rooted, Store, Tag, Val,
 	ValType,
 };
 
 /// Embedded dart_style WASM binary (dart2wasm output, ~900KB)
 const DART_FMT_WASM: &[u8] = include_bytes!("../wasm/dart_fmt.wasm");
+
+const ARTIFACT_PREFIX: &str = "dart_fmt";
 
 /// Compile-time sha256 prefix of `wasm/dart_fmt.wasm`; binds precompiled
 /// artifacts to the exact module with zero runtime hashing overhead.
@@ -40,58 +43,14 @@ fn artifact_hash() -> &'static str {
 	env!("DART_FMT_WASM_HASH")
 }
 
-/// Filename of the precompiled module artifact for this fama build
-pub fn precompiled_artifact_name() -> String {
-	format!("dart_fmt-{}.wasmu", artifact_hash())
-}
-
-/// Candidate locations of a precompiled module: next to the fama binary
-/// (shipped with releases) and the per-user cache (seeded by fama itself)
-fn precompiled_artifact_candidates() -> Vec<PathBuf> {
-	let name = precompiled_artifact_name();
-	let mut paths = Vec::new();
-	if let Ok(exe) = std::env::current_exe() {
-		if let Some(dir) = exe.parent() {
-			paths.push(dir.join(&name));
-		}
-	}
-	let home =
-		std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
-	if let Some(home) = home {
-		paths.push(PathBuf::from(home).join(".cache/fama").join(&name));
-	}
-	paths
-}
-
-/// Build the engine, compile the embedded module and return the serialized
-/// precompiled artifact (used by release CI to ship per-platform `.wasmu`
-/// files next to the fama binary)
-pub fn serialize_compiled_module() -> Result<Vec<u8>, String> {
-	let cfg =
-		engine_config().map_err(|e| format!("Failed to build config: {e}"))?;
-	let engine = wasmtime::Engine::new(&cfg)
-		.map_err(|e| format!("Failed to create engine: {e}"))?;
-	let module = wasmtime::Module::new(&engine, DART_FMT_WASM)
-		.map_err(|e| format!("Failed to compile WASM module: {e:?}"))?;
-	module
-		.serialize()
-		.map_err(|e| format!("Failed to serialize module: {e:?}"))
-}
-
-fn engine_config() -> wasmtime::Result<wasmtime::Config> {
-	let mut cfg = wasmtime::Config::new();
+fn engine_config() -> wasmtime::Config {
+	let mut cfg = fama_wasm::default_engine_config();
 	// dart2wasm output: wasm GC types plus standard `try_table` exceptions
 	// (the legacy-exceptions output of older Dart SDKs is NOT compilable by
 	// wasmtime; the vendored module was built with Dart >= 3.14)
 	cfg.wasm_gc(true);
 	cfg.wasm_exceptions(true);
-	// Failures surface as formatting errors; backtrace capture would only
-	// add per-call overhead
-	cfg.wasm_backtrace_max_frames(None);
-	cfg.generate_address_map(false);
-	#[cfg(not(target_os = "windows"))]
-	cfg.native_unwind_info(false);
-	Ok(cfg)
+	cfg
 }
 
 /// Store context: state lives in the per-thread host registry instead
@@ -106,45 +65,19 @@ static CACHED_MODULE: OnceLock<CachedModule> = OnceLock::new();
 
 fn get_cached_module() -> &'static CachedModule {
 	CACHED_MODULE.get_or_init(|| {
-		let cfg = engine_config().expect("valid wasmtime config");
-		let engine = wasmtime::Engine::new(&cfg)
+		let engine = Engine::new(&engine_config())
 			.expect("Failed to create wasmtime engine");
 
 		// Prefer a precompiled artifact (shipped with releases or cached by
 		// a previous run): deserializing takes milliseconds versus ~1.5s to
 		// Cranelift-compile the ~900KB module
-		for path in precompiled_artifact_candidates() {
-			if !path.is_file() {
-				continue;
-			}
-			// SAFETY: the artifact was written by this same binary (its
-			// filename is bound to the sha256 of the embedded module bytes)
-			// in a trusted location, and deserialize validates the wasmtime
-			// version and host feature compatibility; any mismatch falls
-			// back to compiling below
-			if let Ok(module) =
-				unsafe { wasmtime::Module::deserialize_file(&engine, &path) }
-			{
-				return CachedModule { engine, module };
-			}
-		}
-
-		let module = Module::new(&engine, DART_FMT_WASM)
-			.expect("Failed to compile WASM module");
-
-		// Store the compiled module for future runs (best effort, user cache)
-		if let Ok(artifact) = module.serialize() {
-			let mut candidates = precompiled_artifact_candidates();
-			if let Some(cache_path) = candidates.pop() {
-				if let Some(dir) = cache_path.parent() {
-					let _ = std::fs::create_dir_all(dir);
-					let tmp = cache_path.with_extension("wasmu.tmp");
-					if std::fs::write(&tmp, &artifact).is_ok() {
-						let _ = std::fs::rename(&tmp, &cache_path);
-					}
-				}
-			}
-		}
+		let module = fama_wasm::load_or_compile(
+			&engine,
+			ARTIFACT_PREFIX,
+			artifact_hash(),
+			|| Cow::Borrowed(DART_FMT_WASM),
+		)
+		.expect("Failed to compile WASM module");
 
 		CachedModule { engine, module }
 	})
@@ -417,11 +350,66 @@ fn format_via_wasm(
 /// # Returns
 /// * `Ok(String)` - The formatted code
 /// * `Err(String)` - Error message if formatting failed
-pub fn format_file(
-	content: &str,
-	path: &str,
-	_file_type: FileType,
-) -> Result<String, String> {
+fn render_analysis_options(config: &FormatConfig) -> String {
+	// Dart's analysis_options.yaml formatter section supports:
+	//   page_width (Dart 3.7+) and trailing_commas: preserve (Dart 3.8+)
+	// trailing_commas only supports "preserve" (keep as-is), which doesn't
+	// map to fama's All/None — so we only export page_width.
+	format!(
+		r#"# analysis_options.yaml - generated by fama
+# https://dart.dev/tools/analysis
+
+formatter:
+  page_width: {page_width}
+"#,
+		page_width = config.line_width,
+	)
+}
+
+/// Formatter implementation for Dart via dart_style compiled to WASM.
+pub struct DartFormatter;
+
+/// Static formatter instance registered by `fama`.
+pub static FORMATTER: DartFormatter = DartFormatter;
+
+impl Formatter for DartFormatter {
+	fn name(&self) -> &'static str {
+		"dart"
+	}
+
+	fn extensions(&self) -> &'static [&'static str] {
+		&["dart"]
+	}
+
+	fn format(&self, content: &str, path: &Path) -> Result<String, String> {
+		format_file(content, path.to_str().unwrap_or(""))
+	}
+
+	fn exported_config(&self) -> Option<ExportedConfig> {
+		Some(ExportedConfig {
+			marker_file: "pubspec.yaml",
+			output_file: "analysis_options.yaml",
+			render: render_analysis_options,
+		})
+	}
+
+	fn precompile(&self, output_dir: &Path) -> Option<Result<PathBuf, String>> {
+		let result = Engine::new(&engine_config())
+			.map_err(|e| format!("Failed to create wasmtime engine: {e}"))
+			.and_then(|engine| {
+				fama_wasm::precompile_to_dir(
+					&engine,
+					ARTIFACT_PREFIX,
+					artifact_hash(),
+					|| Cow::Borrowed(DART_FMT_WASM),
+					output_dir,
+				)
+			});
+		Some(result)
+	}
+}
+
+pub fn format_file(content: &str, path: &str) -> Result<String, String> {
 	with_reused_instance(|store| {
 		format_via_wasm(store, content, path, &build_options_json())
 	})
@@ -434,7 +422,7 @@ mod tests {
 	#[test]
 	fn test_format_simple_main() {
 		let input = "void main(){print('hello');}";
-		let result = format_file(input, "test.dart", FileType::Dart);
+		let result = format_file(input, "test.dart");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 		assert_eq!(result.unwrap(), "void main() {\n  print('hello');\n}\n");
 	}
@@ -442,7 +430,7 @@ mod tests {
 	#[test]
 	fn test_golden_class() {
 		let input = "class Foo{final int x;Foo(this.x);int bar()=>x*2;}";
-		let result = format_file(input, "test.dart", FileType::Dart);
+		let result = format_file(input, "test.dart");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 		assert_eq!(
 			result.unwrap(),
@@ -455,7 +443,7 @@ mod tests {
 		// dart_style's tall style only splits collection literals when the
 		// source already splits them (trailing comma alone does not force it)
 		let input = "var list=[1,2,3];var map={'a':1,'b':2};";
-		let result = format_file(input, "test.dart", FileType::Dart);
+		let result = format_file(input, "test.dart");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 		assert_eq!(
 			result.unwrap(),
@@ -468,7 +456,7 @@ mod tests {
 		// Verified against `dart format` (Dart 3.14): list literals do not
 		// split on trailing commas, unlike map literals
 		let input = "var list=[\n1,2,3,\n];";
-		let result = format_file(input, "test.dart", FileType::Dart);
+		let result = format_file(input, "test.dart");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 		assert_eq!(result.unwrap(), "var list = [1, 2, 3];\n");
 	}
@@ -477,7 +465,7 @@ mod tests {
 	fn test_golden_generics_and_interpolation() {
 		let input =
 			"Map<String,List<int>>m={'x':[1,2],};void f(){print('${m.length}!');}";
-		let result = format_file(input, "test.dart", FileType::Dart);
+		let result = format_file(input, "test.dart");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 		assert_eq!(
 			result.unwrap(),
@@ -488,7 +476,7 @@ mod tests {
 	#[test]
 	fn test_golden_cascade() {
 		let input = "var w=Widget()..text='hi'..build();";
-		let result = format_file(input, "test.dart", FileType::Dart);
+		let result = format_file(input, "test.dart");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 		assert_eq!(
 			result.unwrap(),
@@ -501,7 +489,7 @@ mod tests {
 		// fama's default line width is 80: a short call must stay on one line
 		let input =
 			"void main(){someFunction(argumentOne,argumentTwo,argumentThree);}";
-		let result = format_file(input, "test.dart", FileType::Dart);
+		let result = format_file(input, "test.dart");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 		let formatted = result.unwrap();
 		assert!(
@@ -513,7 +501,7 @@ mod tests {
 	#[test]
 	fn test_syntax_error_returns_err() {
 		let input = "void main(){print('unclosed}";
-		let result = format_file(input, "bad.dart", FileType::Dart);
+		let result = format_file(input, "bad.dart");
 		assert!(result.is_err(), "Expected error for invalid syntax");
 		let message = result.unwrap_err();
 		assert!(
@@ -526,8 +514,8 @@ mod tests {
 	fn test_instance_survives_errors() {
 		// A syntax error must not poison the instance: the next call formats
 		// correctly (a fresh instance is created if the old one is dropped)
-		assert!(format_file("void f(){", "bad.dart", FileType::Dart).is_err());
-		let ok = format_file("void f(){}", "good.dart", FileType::Dart);
+		assert!(format_file("void f(){", "bad.dart").is_err());
+		let ok = format_file("void f(){}", "good.dart");
 		assert!(ok.is_ok(), "Instance did not recover: {:?}", ok);
 		assert_eq!(ok.unwrap(), "void f() {}\n");
 	}
@@ -539,7 +527,7 @@ mod tests {
 		let creations_before = INSTANCE_CREATIONS.with(|count| count.get());
 		for i in 0..25 {
 			let input = format!("void f(){{var x={i};print(x);}}");
-			let formatted = format_file(&input, "test.dart", FileType::Dart)
+			let formatted = format_file(&input, "test.dart")
 				.unwrap_or_else(|e| panic!("call {i} failed: {e}"));
 			assert!(
 				formatted.contains(&format!("var x = {i};")),
@@ -563,7 +551,7 @@ mod tests {
 
 		(0..32).into_par_iter().for_each(|i| {
 			let input = format!("void g(){{var y={i};print(y);}}");
-			let formatted = format_file(&input, "test.dart", FileType::Dart)
+			let formatted = format_file(&input, "test.dart")
 				.unwrap_or_else(|e| panic!("call {i} failed: {e}"));
 			assert!(
 				formatted.contains(&format!("var y = {i};")),
@@ -602,7 +590,7 @@ mod tests {
 			.collect();
 
 		// Warm up (engine compile + instantiation)
-		format_file(small, "warm.dart", FileType::Dart).unwrap();
+		format_file(small, "warm.dart").unwrap();
 		shims::profile_reset();
 
 		let runs = 1;
@@ -614,7 +602,7 @@ mod tests {
 			shims::profile_reset();
 			let start = std::time::Instant::now();
 			for _ in 0..runs {
-				format_file(source, "bench.dart", FileType::Dart)
+				format_file(source, "bench.dart")
 					.unwrap_or_else(|e| panic!("{name} bench failed: {e}"));
 			}
 			let elapsed = start.elapsed() / runs;

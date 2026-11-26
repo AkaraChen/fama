@@ -1,14 +1,14 @@
 // fama-common - Shared types and utilities for fama formatters
 //
-// Provides common file type detection, format configuration, and shared
-// enums used across all formatter crates.
+// Provides the unified Formatter trait, format configuration, and shared enums
+// used across all formatter crates.
 //
 // Configuration follows go-fmt style defaults:
 // - Tabs for indentation
 // - 80 character line width
 // - LF line endings
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Indent style for formatting
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -126,6 +126,57 @@ impl Default for FormatConfig {
 	}
 }
 
+/// Tool-specific config file emitted by `fama --export` when a project marker exists.
+#[derive(Clone, Copy)]
+pub struct ExportedConfig {
+	/// Project marker filename whose presence triggers export (e.g. `"Cargo.toml"`).
+	pub marker_file: &'static str,
+	/// Output config filename to write (e.g. `"rustfmt.toml"`).
+	pub output_file: &'static str,
+	/// Render function producing the config file contents.
+	pub render: fn(&FormatConfig) -> String,
+}
+
+/// Unified interface implemented by every language formatter in fama.
+pub trait Formatter: Sync {
+	/// Human-readable formatter name (e.g. `"biome"`, `"rust"`, `"swift"`).
+	fn name(&self) -> &'static str;
+
+	/// File extensions handled by this formatter (without leading dot, exact match as in `Path::extension`).
+	fn extensions(&self) -> &'static [&'static str];
+
+	/// Match extensionless or special filenames (e.g. `"Dockerfile"`, `"CMakeLists.txt"`, `"Gemfile"`).
+	fn matches_filename(&self, _name: &str) -> bool {
+		false
+	}
+
+	/// Format a single file's content.
+	fn format(&self, content: &str, path: &Path) -> Result<String, String>;
+
+	/// Whether this formatter benefits from formatting multiple files per invocation.
+	fn supports_batch(&self) -> bool {
+		false
+	}
+
+	/// Format a batch of files in one invocation (only called when `supports_batch()` is true).
+	fn format_batch(&self, contents: &[&str]) -> Vec<Result<String, String>> {
+		contents
+			.iter()
+			.map(|c| self.format(c, Path::new("")))
+			.collect()
+	}
+
+	/// Optional project-level config file to emit on `fama --export`.
+	fn exported_config(&self) -> Option<ExportedConfig> {
+		None
+	}
+
+	/// Optional precompilation step for WASM-backed formatters (`fama --precompile <DIR>`).
+	fn precompile(&self, _output_dir: &Path) -> Option<Result<PathBuf, String>> {
+		None
+	}
+}
+
 /// Render EditorConfig contents from the shared format configuration.
 pub fn editorconfig_contents(config: &FormatConfig) -> String {
 	let indent_style = match config.indent_style {
@@ -173,321 +224,9 @@ indent_size = {indent_size}
 	)
 }
 
-/// File type enum for language detection
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FileType {
-	JavaScript,
-	TypeScript,
-	Jsx,
-	Tsx,
-	Json,
-	Jsonc,
-	Css,
-	Scss,
-	Less,
-	Sass,
-	Html,
-	Vue,
-	Svelte,
-	Astro,
-	Yaml,
-	Toml,
-	Markdown,
-	Rust,
-	Python,
-	Lua,
-	Ruby,
-	Shell,
-	Go,
-	Zig,
-	Hcl,
-	Dockerfile,
-	GraphQL,
-	Sql,
-	Xml,
-	Php,
-	Kotlin,
-	Scala,
-	Nix,
-	CMake,
-	R,
-	Elixir,
-	Wgsl,
-	Dart,
-	Swift,
-	// C-family languages (clang-format)
-	C,
-	Cpp,
-	CSharp,
-	ObjectiveC,
-	Java,
-	Protobuf,
-	Unknown,
-}
-
-/// Detect file type from extension
-pub fn detect_file_type(path: &str) -> FileType {
-	let path = Path::new(path);
-	match path.extension().and_then(|ext| ext.to_str()) {
-		Some("js") | Some("cjs") | Some("mjs") => FileType::JavaScript,
-		Some("ts") | Some("mts") => FileType::TypeScript,
-		Some("jsx") | Some("mjsx") => FileType::Jsx,
-		Some("tsx") => FileType::Tsx,
-		Some("json") => FileType::Json,
-		Some("jsonc") => FileType::Jsonc,
-		Some("css") => FileType::Css,
-		Some("scss") => FileType::Scss,
-		Some("less") => FileType::Less,
-		Some("sass") => FileType::Sass,
-		Some("html") | Some("htm") => FileType::Html,
-		Some("vue") => FileType::Vue,
-		Some("svelte") => FileType::Svelte,
-		Some("astro") => FileType::Astro,
-		Some("yaml") | Some("yml") => FileType::Yaml,
-		Some("toml") => FileType::Toml,
-		Some("md") | Some("markdown") => FileType::Markdown,
-		Some("rs") => FileType::Rust,
-		Some("py") => FileType::Python,
-		Some("lua") => FileType::Lua,
-		Some("rb") | Some("rake") | Some("gemspec") | Some("ru") => {
-			FileType::Ruby
-		}
-		Some("sh") | Some("bash") | Some("zsh") => FileType::Shell,
-		Some("go") => FileType::Go,
-		Some("zig") => FileType::Zig,
-		Some("hcl") | Some("tf") | Some("tfvars") => FileType::Hcl,
-		Some("graphql") | Some("gql") => FileType::GraphQL,
-		Some("sql") => FileType::Sql,
-		Some("xml") => FileType::Xml,
-		Some("php") | Some("phtml") => FileType::Php,
-		Some("kt") | Some("kts") => FileType::Kotlin,
-		Some("scala") | Some("sc") => FileType::Scala,
-		Some("nix") => FileType::Nix,
-		Some("cmake") => FileType::CMake,
-		Some("R") | Some("r") => FileType::R,
-		Some("ex") | Some("exs") => FileType::Elixir,
-		Some("wgsl") => FileType::Wgsl,
-		Some("dart") => FileType::Dart,
-		Some("swift") => FileType::Swift,
-		// C-family languages
-		Some("c") | Some("h") => FileType::C,
-		Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx")
-		| Some("hh") => FileType::Cpp,
-		Some("cs") => FileType::CSharp,
-		Some("m") | Some("mm") => FileType::ObjectiveC,
-		Some("java") => FileType::Java,
-		Some("proto") => FileType::Protobuf,
-		_ => {
-			// Check for special filenames
-			if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-				// Dockerfile
-				if name == "Dockerfile" || name.starts_with("Dockerfile.") {
-					return FileType::Dockerfile;
-				}
-				// CMake
-				if name == "CMakeLists.txt" || name.ends_with(".cmake.in") {
-					return FileType::CMake;
-				}
-				// Ruby files without extensions
-				if matches!(
-					name,
-					"Rakefile"
-						| "Gemfile"
-						| "Guardfile"
-						| "Vagrantfile"
-						| "Berksfile"
-						| "Capfile"
-						| "Thorfile"
-						| "Fastfile"
-						| "Appfile"
-						| "Matchfile"
-						| "Snapfile"
-						| "Deliverfile"
-						| "Scanfile"
-						| "Gymfile"
-				) {
-					return FileType::Ruby;
-				}
-			}
-			FileType::Unknown
-		}
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
-
-	#[test]
-	fn test_detect_javascript() {
-		assert_eq!(detect_file_type("test.js"), FileType::JavaScript);
-		assert_eq!(detect_file_type("test.cjs"), FileType::JavaScript);
-		assert_eq!(detect_file_type("test.mjs"), FileType::JavaScript);
-	}
-
-	#[test]
-	fn test_detect_typescript() {
-		assert_eq!(detect_file_type("test.ts"), FileType::TypeScript);
-		assert_eq!(detect_file_type("test.mts"), FileType::TypeScript);
-	}
-
-	#[test]
-	fn test_detect_jsx() {
-		assert_eq!(detect_file_type("test.jsx"), FileType::Jsx);
-		assert_eq!(detect_file_type("test.mjsx"), FileType::Jsx);
-	}
-
-	#[test]
-	fn test_detect_tsx() {
-		assert_eq!(detect_file_type("test.tsx"), FileType::Tsx);
-	}
-
-	#[test]
-	fn test_detect_json() {
-		assert_eq!(detect_file_type("test.json"), FileType::Json);
-		assert_eq!(detect_file_type("package.json"), FileType::Json);
-		assert_eq!(detect_file_type("tsconfig.jsonc"), FileType::Jsonc);
-	}
-
-	#[test]
-	fn test_detect_wgsl() {
-		assert_eq!(detect_file_type("shader.wgsl"), FileType::Wgsl);
-	}
-
-	#[test]
-	fn test_detect_css_variants() {
-		assert_eq!(detect_file_type("test.css"), FileType::Css);
-		assert_eq!(detect_file_type("test.scss"), FileType::Scss);
-		assert_eq!(detect_file_type("test.less"), FileType::Less);
-		assert_eq!(detect_file_type("test.sass"), FileType::Sass);
-	}
-
-	#[test]
-	fn test_detect_html_variants() {
-		assert_eq!(detect_file_type("test.html"), FileType::Html);
-		assert_eq!(detect_file_type("test.htm"), FileType::Html);
-		assert_eq!(detect_file_type("test.vue"), FileType::Vue);
-		assert_eq!(detect_file_type("test.svelte"), FileType::Svelte);
-		assert_eq!(detect_file_type("test.astro"), FileType::Astro);
-	}
-
-	#[test]
-	fn test_detect_yaml() {
-		assert_eq!(detect_file_type("test.yaml"), FileType::Yaml);
-		assert_eq!(detect_file_type("test.yml"), FileType::Yaml);
-	}
-
-	#[test]
-	fn test_detect_toml() {
-		assert_eq!(detect_file_type("test.toml"), FileType::Toml);
-		assert_eq!(detect_file_type("Cargo.toml"), FileType::Toml);
-		assert_eq!(detect_file_type("path/to/config.toml"), FileType::Toml);
-	}
-
-	#[test]
-	fn test_detect_markdown() {
-		assert_eq!(detect_file_type("test.md"), FileType::Markdown);
-		assert_eq!(detect_file_type("test.markdown"), FileType::Markdown);
-	}
-
-	#[test]
-	fn test_detect_rust() {
-		assert_eq!(detect_file_type("test.rs"), FileType::Rust);
-	}
-
-	#[test]
-	fn test_detect_python() {
-		assert_eq!(detect_file_type("test.py"), FileType::Python);
-	}
-
-	#[test]
-	fn test_detect_lua() {
-		assert_eq!(detect_file_type("test.lua"), FileType::Lua);
-	}
-
-	#[test]
-	fn test_detect_shell() {
-		assert_eq!(detect_file_type("test.sh"), FileType::Shell);
-		assert_eq!(detect_file_type("test.bash"), FileType::Shell);
-		assert_eq!(detect_file_type("test.zsh"), FileType::Shell);
-	}
-
-	#[test]
-	fn test_detect_go() {
-		assert_eq!(detect_file_type("test.go"), FileType::Go);
-		assert_eq!(detect_file_type("main.go"), FileType::Go);
-		assert_eq!(detect_file_type("path/to/file.go"), FileType::Go);
-	}
-
-	#[test]
-	fn test_detect_zig() {
-		assert_eq!(detect_file_type("test.zig"), FileType::Zig);
-		assert_eq!(detect_file_type("main.zig"), FileType::Zig);
-		assert_eq!(detect_file_type("path/to/file.zig"), FileType::Zig);
-	}
-
-	#[test]
-	fn test_detect_hcl() {
-		assert_eq!(detect_file_type("test.hcl"), FileType::Hcl);
-		assert_eq!(detect_file_type("main.tf"), FileType::Hcl);
-		assert_eq!(detect_file_type("variables.tfvars"), FileType::Hcl);
-		assert_eq!(detect_file_type("path/to/config.hcl"), FileType::Hcl);
-	}
-
-	#[test]
-	fn test_detect_dockerfile() {
-		assert_eq!(detect_file_type("Dockerfile"), FileType::Dockerfile);
-		assert_eq!(detect_file_type("Dockerfile.dev"), FileType::Dockerfile);
-		assert_eq!(detect_file_type("Dockerfile.prod"), FileType::Dockerfile);
-		assert_eq!(
-			detect_file_type("path/to/Dockerfile"),
-			FileType::Dockerfile
-		);
-		assert_eq!(
-			detect_file_type("path/to/Dockerfile.test"),
-			FileType::Dockerfile
-		);
-	}
-
-	#[test]
-	fn test_detect_sql() {
-		assert_eq!(detect_file_type("test.sql"), FileType::Sql);
-		assert_eq!(detect_file_type("query.sql"), FileType::Sql);
-		assert_eq!(detect_file_type("path/to/schema.sql"), FileType::Sql);
-	}
-
-	#[test]
-	fn test_detect_php() {
-		assert_eq!(detect_file_type("test.php"), FileType::Php);
-		assert_eq!(detect_file_type("index.php"), FileType::Php);
-		assert_eq!(detect_file_type("template.phtml"), FileType::Php);
-		assert_eq!(detect_file_type("path/to/file.php"), FileType::Php);
-	}
-
-	#[test]
-	fn test_detect_kotlin() {
-		assert_eq!(detect_file_type("test.kt"), FileType::Kotlin);
-		assert_eq!(detect_file_type("build.gradle.kts"), FileType::Kotlin);
-		assert_eq!(detect_file_type("path/to/file.kt"), FileType::Kotlin);
-	}
-
-	#[test]
-	fn test_detect_dart() {
-		assert_eq!(detect_file_type("test.dart"), FileType::Dart);
-		assert_eq!(detect_file_type("path/to/main.dart"), FileType::Dart);
-	}
-
-	#[test]
-	fn test_detect_swift() {
-		assert_eq!(detect_file_type("test.swift"), FileType::Swift);
-		assert_eq!(detect_file_type("Sources/App/Main.swift"), FileType::Swift);
-	}
-
-	#[test]
-	fn test_detect_unknown() {
-		assert_eq!(detect_file_type("unknown.xyz"), FileType::Unknown);
-		assert_eq!(detect_file_type("test.unknown"), FileType::Unknown);
-	}
 
 	#[test]
 	fn test_format_config_default() {

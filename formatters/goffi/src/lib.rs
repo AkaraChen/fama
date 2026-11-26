@@ -1,8 +1,9 @@
 //! Go-based formatters via FFI (shell via mvdan/sh, Go via go/format)
 
-use fama_common::{FileType, FormatConfig, IndentStyle};
+use fama_common::{FormatConfig, Formatter, IndentStyle};
 use libc::{c_char, c_uint, size_t};
 use std::ffi::CStr;
+use std::path::Path;
 use std::slice;
 
 extern "C" {
@@ -235,16 +236,29 @@ pub fn format_hcl_batch(sources: &[&str]) -> Vec<Result<String, String>> {
 	results
 }
 
-pub fn format_file(
-	source: &str,
-	file_path: &str,
-	file_type: FileType,
-) -> Result<String, String> {
-	match file_type {
-		FileType::Shell => format_shell(source, file_path),
-		FileType::Go => format_go(source, file_path),
-		FileType::Hcl => format_hcl(source, file_path),
-		_ => Err(format!("File type {:?} not supported", file_type)),
+/// Formatter implementation for Shell, Go, and HCL/Terraform via Go FFI.
+pub struct GoFfiFormatter;
+
+/// Static formatter instance registered by `fama`.
+pub static FORMATTER: GoFfiFormatter = GoFfiFormatter;
+
+impl Formatter for GoFfiFormatter {
+	fn name(&self) -> &'static str {
+		"goffi"
+	}
+
+	fn extensions(&self) -> &'static [&'static str] {
+		&["sh", "bash", "zsh", "go", "hcl", "tf", "tfvars"]
+	}
+
+	fn format(&self, content: &str, path: &Path) -> Result<String, String> {
+		let path_str = path.to_str().unwrap_or("");
+		match path.extension().and_then(|e| e.to_str()) {
+			Some("sh" | "bash" | "zsh") => format_shell(content, path_str),
+			Some("go") => format_go(content, path_str),
+			Some("hcl" | "tf" | "tfvars") => format_hcl(content, path_str),
+			_ => Err(format!("Unsupported goffi file: {}", path.display())),
+		}
 	}
 }
 

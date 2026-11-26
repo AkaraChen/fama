@@ -1,0 +1,11 @@
+[package]
+name = "fama-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+wasmtime = "51.0.0"
+
+[lib]
+crate-type = ["rlib"]

@@ -1,8 +1,9 @@
 //! Zig formatter via FFI (using Zig's std.zig.Ast.Render)
 
-use fama_common::FileType;
+use fama_common::Formatter;
 use libc::{c_char, size_t};
 use std::ffi::{CStr, CString};
+use std::path::Path;
 
 #[repr(C)]
 struct FormatResult {
@@ -58,15 +59,23 @@ pub fn format_zig(source: &str, _file_path: &str) -> Result<String, String> {
 	formatted
 }
 
-/// Format a file based on its type
-pub fn format_file(
-	source: &str,
-	file_path: &str,
-	file_type: FileType,
-) -> Result<String, String> {
-	match file_type {
-		FileType::Zig => format_zig(source, file_path),
-		_ => Err(format!("File type {:?} not supported", file_type)),
+/// Formatter implementation for Zig via `zig fmt` FFI.
+pub struct ZigFormatter;
+
+/// Static formatter instance registered by `fama`.
+pub static FORMATTER: ZigFormatter = ZigFormatter;
+
+impl Formatter for ZigFormatter {
+	fn name(&self) -> &'static str {
+		"zig"
+	}
+
+	fn extensions(&self) -> &'static [&'static str] {
+		&["zig"]
+	}
+
+	fn format(&self, content: &str, path: &Path) -> Result<String, String> {
+		format_zig(content, path.to_str().unwrap_or(""))
 	}
 }
 

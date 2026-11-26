@@ -6,66 +6,23 @@
 //! runtime the right fit; measured 13x faster per file than the wasmi
 //! interpreter this crate used previously.
 
+use std::borrow::Cow;
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use fama_common::{FileType, IndentStyle, CONFIG};
+use fama_common::{Formatter, IndentStyle, CONFIG};
 use wasmtime::{Engine, Linker, Memory, Module, Store, TypedFunc};
 
 /// Embedded clang-format WASM binary
 const CLANG_FORMAT_WASM: &[u8] = include_bytes!("../wasm/clang-format.wasm");
 
+const ARTIFACT_PREFIX: &str = "clang-format";
+
 /// Compile-time sha256 prefix of `wasm/clang-format.wasm`; binds precompiled
 /// artifacts to the exact module with zero runtime hashing overhead.
 fn artifact_hash() -> &'static str {
 	env!("CLANG_FORMAT_WASM_HASH")
-}
-
-/// Filename of the precompiled module artifact for this fama build
-pub fn precompiled_artifact_name() -> String {
-	format!("clang-format-{}.wasmu", artifact_hash())
-}
-
-/// Candidate locations of a precompiled module: next to the fama binary
-/// (shipped with releases) and the per-user cache (seeded by fama itself)
-fn precompiled_artifact_candidates() -> Vec<PathBuf> {
-	let name = precompiled_artifact_name();
-	let mut paths = Vec::new();
-	if let Ok(exe) = std::env::current_exe() {
-		if let Some(dir) = exe.parent() {
-			paths.push(dir.join(&name));
-		}
-	}
-	let home = std::env::var_os("HOME")
-		.or_else(|| std::env::var_os("USERPROFILE"));
-	if let Some(home) = home {
-		paths.push(PathBuf::from(home).join(".cache/fama").join(&name));
-	}
-	paths
-}
-
-fn engine_config() -> wasmtime::Config {
-	let mut cfg = wasmtime::Config::new();
-	// wasmtime's default backtrace capture adds per-call overhead on
-	// this hot path and clang-format failures are surfaced as errors
-	// anyway; the diagnostics value does not justify it here
-	cfg.wasm_backtrace_max_frames(None);
-	cfg.generate_address_map(false);
-	#[cfg(not(target_os = "windows"))]
-	cfg.native_unwind_info(false);
-	cfg
-}
-
-/// Build the engine, compile the embedded module and return the serialized
-/// precompiled artifact (used by release CI to ship per-platform `.wasmu`
-/// files next to the fama binary)
-pub fn serialize_compiled_module() -> Result<Vec<u8>, String> {
-	let engine = wasmtime::Engine::new(&engine_config())
-		.expect("Failed to create wasmtime engine");
-	let module = Module::new(&engine, CLANG_FORMAT_WASM)
-		.expect("Failed to compile WASM module");
-	module.serialize().map_err(|e| format!("Failed to serialize module: {e:?}"))
 }
 
 /// Generate clang-format style configuration based on fama's FormatConfig
@@ -108,7 +65,7 @@ static CACHED_MODULE: OnceLock<CachedInstance> = OnceLock::new();
 
 fn get_cached_module() -> &'static CachedInstance {
 	CACHED_MODULE.get_or_init(|| {
-		let engine = wasmtime::Engine::new(&engine_config())
+		let engine = Engine::new(&fama_wasm::default_engine_config())
 			.expect("Failed to create wasmtime engine");
 		let mut linker: Linker<StoreCtx> = Linker::new(&engine);
 		define_imports(&mut linker)
@@ -117,42 +74,13 @@ fn get_cached_module() -> &'static CachedInstance {
 		// Prefer a precompiled artifact (shipped with releases or cached by
 		// a previous run): deserializing takes milliseconds versus ~1.5s to
 		// compile the 2.7MB module with Cranelift
-		for path in precompiled_artifact_candidates() {
-			if !path.is_file() {
-				continue;
-			}
-			// SAFETY: the artifact was written by this same binary (its
-			// filename is bound to the sha256 of the embedded module bytes)
-			// in a trusted location, and deserialize validates the wasmtime
-			// version and host feature compatibility; any mismatch falls
-			// back to compiling below
-			if let Ok(module) =
-				unsafe { Module::deserialize_file(&engine, &path) }
-			{
-				return CachedInstance {
-					engine,
-					module,
-					linker,
-				};
-			}
-		}
-
-		let module = Module::new(&engine, CLANG_FORMAT_WASM)
-			.expect("Failed to compile WASM module");
-
-		// Store the compiled module for future runs (best effort, user cache)
-		if let Ok(artifact) = module.serialize() {
-			let mut candidates = precompiled_artifact_candidates();
-			if let Some(cache_path) = candidates.pop() {
-				if let Some(dir) = cache_path.parent() {
-					let _ = std::fs::create_dir_all(dir);
-					let tmp = cache_path.with_extension("wasmu.tmp");
-					if std::fs::write(&tmp, &artifact).is_ok() {
-						let _ = std::fs::rename(&tmp, &cache_path);
-					}
-				}
-			}
-		}
+		let module = fama_wasm::load_or_compile(
+			&engine,
+			ARTIFACT_PREFIX,
+			artifact_hash(),
+			|| Cow::Borrowed(CLANG_FORMAT_WASM),
+		)
+		.expect("Failed to compile WASM module");
 
 		CachedInstance {
 			engine,
@@ -434,21 +362,54 @@ fn read_string_from_memory(
 	String::from_utf8(buffer).map_err(|e| format!("Invalid UTF-8: {}", e))
 }
 
+/// Formatter implementation for C-family languages via clang-format WASM.
+pub struct ClangFormatter;
+
+/// Static formatter instance registered by `fama`.
+pub static FORMATTER: ClangFormatter = ClangFormatter;
+
+impl Formatter for ClangFormatter {
+	fn name(&self) -> &'static str {
+		"clang"
+	}
+
+	fn extensions(&self) -> &'static [&'static str] {
+		&[
+			"c", "h", "cpp", "cc", "cxx", "hpp", "hxx", "hh", "cs", "m", "mm",
+			"java", "proto",
+		]
+	}
+
+	fn format(&self, content: &str, path: &Path) -> Result<String, String> {
+		format_file(content, path.to_str().unwrap_or(""))
+	}
+
+	fn precompile(&self, output_dir: &Path) -> Option<Result<PathBuf, String>> {
+		let result = Engine::new(&fama_wasm::default_engine_config())
+			.map_err(|e| format!("Failed to create wasmtime engine: {e}"))
+			.and_then(|engine| {
+				fama_wasm::precompile_to_dir(
+					&engine,
+					ARTIFACT_PREFIX,
+					artifact_hash(),
+					|| Cow::Borrowed(CLANG_FORMAT_WASM),
+					output_dir,
+				)
+			});
+		Some(result)
+	}
+}
+
 /// Format code using clang-format WASM
 ///
 /// # Arguments
 /// * `content` - The source code to format
 /// * `path` - The file path (used to determine language)
-/// * `file_type` - The detected file type
 ///
 /// # Returns
 /// * `Ok(String)` - The formatted code
 /// * `Err(String)` - Error message if formatting failed
-pub fn format_file(
-	content: &str,
-	path: &str,
-	_file_type: FileType,
-) -> Result<String, String> {
+pub fn format_file(content: &str, path: &str) -> Result<String, String> {
 	with_reused_instance(|inst| {
 		// Write input strings to WASM memory
 		let code_ptr = write_string_to_memory(inst, content)?;
@@ -523,7 +484,7 @@ mod tests {
 	#[test]
 	fn test_format_simple_c() {
 		let input = "int main(){return 0;}";
-		let result = format_file(input, "test.c", FileType::Unknown);
+		let result = format_file(input, "test.c");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 		let formatted = result.unwrap();
 		assert!(formatted.contains("int main()"), "Output: {}", formatted);
@@ -532,7 +493,7 @@ mod tests {
 	#[test]
 	fn test_format_cpp() {
 		let input = "class Foo{public:void bar(){}};";
-		let result = format_file(input, "test.cpp", FileType::Unknown);
+		let result = format_file(input, "test.cpp");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 	}
 
@@ -540,7 +501,7 @@ mod tests {
 	fn test_format_uses_tabs() {
 		// Test that tabs are used for indentation (per CONFIG)
 		let input = "int main() {\nint x = 1;\nreturn x;\n}";
-		let result = format_file(input, "test.c", FileType::C);
+		let result = format_file(input, "test.c");
 		assert!(result.is_ok(), "Format failed: {:?}", result);
 		let formatted = result.unwrap();
 		// Check that output uses tabs for indentation
@@ -567,7 +528,7 @@ mod tests {
 		let creations_before = INSTANCE_CREATIONS.with(|count| count.get());
 		for i in 0..25 {
 			let input = format!("int main(){{int x={i};return x;}}");
-			let formatted = format_file(&input, "test.c", FileType::C)
+			let formatted = format_file(&input, "test.c")
 				.unwrap_or_else(|e| panic!("call {i} failed: {e}"));
 			assert!(
 				formatted.contains("int main()"),
@@ -595,9 +556,8 @@ mod tests {
 
 		(0..32).into_par_iter().for_each(|i| {
 			let input = format!("int main(){{int y={i};return y;}}");
-			let formatted =
-				format_file(&input, "test.c", FileType::C)
-					.unwrap_or_else(|e| panic!("call {i} failed: {e}"));
+			let formatted = format_file(&input, "test.c")
+				.unwrap_or_else(|e| panic!("call {i} failed: {e}"));
 			assert!(
 				formatted.contains(&format!("y = {i};")),
 				"call {i} wrong body: {formatted}"

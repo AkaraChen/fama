@@ -29,8 +29,10 @@
 //!
 //! When neither resolves, or the worker fails at the protocol level, formatting
 //! falls back to the pre-existing process-based ktfmt path
-//! ([`fama_process::format_kotlin`]) so behavior never regresses for users
+//! (`process::format_kotlin`) so behavior never regresses for users
 //! without the worker.
+
+mod process;
 
 use std::cell::{Cell, RefCell};
 use std::env;
@@ -40,7 +42,27 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::OnceLock;
 
-use fama_common::{editorconfig_contents, FormatConfig};
+use fama_common::{editorconfig_contents, FormatConfig, Formatter};
+
+/// Formatter implementation for Kotlin via `ktfmt-worker` / `ktfmt`.
+pub struct KotlinFormatter;
+
+/// Static formatter instance registered by `fama`.
+pub static FORMATTER: KotlinFormatter = KotlinFormatter;
+
+impl Formatter for KotlinFormatter {
+	fn name(&self) -> &'static str {
+		"kotlin"
+	}
+
+	fn extensions(&self) -> &'static [&'static str] {
+		&["kt", "kts"]
+	}
+
+	fn format(&self, content: &str, path: &Path) -> Result<String, String> {
+		format_kotlin(content, path.to_str().unwrap_or(""))
+	}
+}
 
 /// Environment variable pointing at the ktfmt-worker executable.
 pub const WORKER_ENV: &str = "FAMA_KTFMT_WORKER";
@@ -161,7 +183,7 @@ fn drop_worker() {
 }
 
 fn fallback(source: &str, path: &str) -> Result<String, String> {
-	fama_process::format_kotlin(source, path)
+	process::format_kotlin(source, path)
 }
 
 fn spawn_worker() -> Option<KotlinWorker> {
