@@ -3,11 +3,15 @@ name: SwiftWasm build
 # Reproduces formatters/swift/wasm/swiftformat.wasm.zst from source:
 # Swift 6.3.0 (exact; the SDK's swiftmodules reject other point versions)
 # + the official SwiftWasm 6.3 wasip1 SDK + swift-format 603.0.0 unmodified.
-# Manual only (a ~10 minute toolchain download+build); the artifact is
-# vendored and bound to the fama binary by sha256.
+# Runs on manual dispatch or PRs touching wasm-src/this workflow (~10 min
+# toolchain download+build); the artifact is vendored and bound by sha256.
 
 on:
     workflow_dispatch:
+    pull_request:
+        paths:
+            - "formatters/swift/wasm-src/**"
+            - ".github/workflows/swiftwasm-build.yml"
 
 jobs:
     build:
