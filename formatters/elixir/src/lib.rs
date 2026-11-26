@@ -85,55 +85,75 @@ pub fn format_batch(contents: &[&str]) -> Vec<Result<String, String>> {
 	if contents.is_empty() {
 		return Vec::new();
 	}
+	if contents.len() == 1 {
+		return vec![format_elixir(contents[0], "input.ex")];
+	}
 
 	match format_batch_together(contents) {
 		Ok(results) => results,
-		// A syntax error anywhere aborts the batched run: retry each file on
-		// its own so healthy sources still format and errors stay isolated.
-		Err(()) => contents
-			.iter()
-			.map(|source| format_elixir(source, "input.ex"))
-			.collect(),
+		// A syntax error anywhere aborts the batched run: bisect in parallel so
+		// healthy halves stay batched and errors stay isolated.
+		Err(Some(missing)) => {
+			(0..contents.len()).map(|_| Err(missing.clone())).collect()
+		}
+		Err(None) => {
+			let mid = contents.len() / 2;
+			let (left, right) = std::thread::scope(|s| {
+				let h = s.spawn(|| format_batch(&contents[..mid]));
+				let right = format_batch(&contents[mid..]);
+				let left = h.join().expect("mix bisect thread panicked");
+				(left, right)
+			});
+			let mut combined = left;
+			combined.extend(right);
+			combined
+		}
 	}
 }
 
 /// One `mix format` run over every source written into a scratch directory.
-/// `Ok` results align with `contents`; `Err(())` means the run as a whole
-/// failed (infrastructure or any syntax error), triggering per-file fallback.
+/// `Ok` results align with `contents`; `Err(Some(msg))` means `mix` is missing;
+/// `Err(None)` means the run failed and should be bisected for isolation.
 fn format_batch_together(
 	contents: &[&str],
-) -> Result<Vec<Result<String, String>>, ()> {
-	let dir = scratch_dir().map_err(|_| ())?;
+) -> Result<Vec<Result<String, String>>, Option<String>> {
+	let dir = scratch_dir().map_err(|_| None)?;
 
 	let names: Vec<String> = (0..contents.len())
 		.map(|index| format!("{}{:04}.{}", INPUT_PREFIX, index, INPUT_EXT))
 		.collect();
 
 	for (name, source) in names.iter().zip(contents) {
-		fs::write(dir.path().join(name), source).map_err(|_| ())?;
+		fs::write(dir.path().join(name), source).map_err(|_| None)?;
 	}
 
 	fs::write(
 		dir.path().join(".formatter.exs"),
 		formatter_exs(Some("[\"fama_*.ex\"]")),
 	)
-	.map_err(|_| ())?;
+	.map_err(|_| None)?;
 
 	let output = Command::new("mix")
 		.arg("format")
 		.current_dir(dir.path())
 		.output()
-		.map_err(|_| ())?;
+		.map_err(|e| {
+			if e.kind() == std::io::ErrorKind::NotFound {
+				Some(mix_spawn_error(e))
+			} else {
+				None
+			}
+		})?;
 
 	if !output.status.success() {
-		return Err(());
+		return Err(None);
 	}
 
 	names
 		.iter()
 		.map(|name| {
 			fs::read_to_string(dir.path().join(name))
-				.map_err(|_| ())
+				.map_err(|_| None)
 				.map(Ok)
 		})
 		.collect()

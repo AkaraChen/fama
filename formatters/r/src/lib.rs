@@ -77,6 +77,9 @@ pub fn format_batch(contents: &[&str]) -> Vec<Result<String, String>> {
 	if contents.is_empty() {
 		return Vec::new();
 	}
+	if contents.len() == 1 {
+		return vec![format_single(&air_binary(), contents[0], "input.R")];
+	}
 
 	let air = air_binary();
 
@@ -116,15 +119,22 @@ pub fn format_batch(contents: &[&str]) -> Vec<Result<String, String>> {
 				})
 			})
 			.collect(),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+			let msg = command_error(&air, error);
+			(0..contents.len()).map(|_| Err(msg.clone())).collect()
+		}
 		Ok(_) | Err(_) => {
-			// Batch failed; reformat per file for error isolation.
-			contents
-				.iter()
-				.enumerate()
-				.map(|(index, content)| {
-					format_single(&air, content, &format!("{BATCH_PREFIX}{index}.R"))
-				})
-				.collect()
+			// Batch failed; bisect in parallel for error isolation.
+			let mid = contents.len() / 2;
+			let (left, right) = std::thread::scope(|s| {
+				let h = s.spawn(|| format_batch(&contents[..mid]));
+				let right = format_batch(&contents[mid..]);
+				let left = h.join().expect("air bisect thread panicked");
+				(left, right)
+			});
+			let mut combined = left;
+			combined.extend(right);
+			combined
 		}
 	}
 }

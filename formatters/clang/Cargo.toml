@@ -10,6 +10,8 @@ crate-type = [ "staticlib", "rlib" ]
 [dependencies]
 fama-common = { path = "../../common" }
 wasmtime = "51.0.0"
+
+[build-dependencies]
 sha2 = "0.10"
 
 [[bin]]

@@ -95,34 +95,51 @@ pub fn format_file(
 /// # Returns
 /// One result per input, in input order
 pub fn format_batch(contents: &[&str]) -> Vec<Result<String, String>> {
-	if contents.len() <= 1 {
-		return contents
-			.iter()
-			.map(|source| format_rust(source, "input.rs"))
-			.collect();
+	if contents.is_empty() {
+		return Vec::new();
+	}
+	if contents.len() == 1 {
+		return vec![format_rust(contents[0], "input.rs")];
 	}
 
 	match format_batch_inner(contents) {
 		Ok(results) => results,
-		// Batch-level failure (temp dir, spawn): isolate via per-file formatting
-		Err(_) => contents
-			.iter()
-			.map(|source| format_rust(source, "input.rs"))
-			.collect(),
+		// Batch failure (e.g. a syntax error in one file aborted the batch):
+		// bisect in parallel so healthy halves format in one spawn each instead
+		// of falling back to N serial spawns.
+		Err(BatchFailure::NeedsIsolate) => {
+			let mid = contents.len() / 2;
+			let (left, right) = std::thread::scope(|s| {
+				let h = s.spawn(|| format_batch(&contents[..mid]));
+				let right = format_batch(&contents[mid..]);
+				let left = h.join().expect("rustfmt bisect thread panicked");
+				(left, right)
+			});
+			let mut combined = left;
+			combined.extend(right);
+			combined
+		}
+		Err(BatchFailure::ToolMissing(err)) => {
+			(0..contents.len()).map(|_| Err(err.clone())).collect()
+		}
 	}
+}
+
+enum BatchFailure {
+	NeedsIsolate,
+	ToolMissing(String),
 }
 
 /// Write sources to temp files and format them all with one rustfmt process
 fn format_batch_inner(
 	contents: &[&str],
-) -> Result<Vec<Result<String, String>>, String> {
-	let temp_dir = tempfile::tempdir()
-		.map_err(|e| format!("Failed to create temp dir for rustfmt: {}", e))?;
+) -> Result<Vec<Result<String, String>>, BatchFailure> {
+	let temp_dir = tempfile::tempdir().map_err(|_| BatchFailure::NeedsIsolate)?;
 
 	let mut paths = Vec::with_capacity(contents.len());
 	for (index, content) in contents.iter().enumerate() {
 		let path = temp_dir.path().join(format!("input_{}.rs", index));
-		fs_write(&path, content)?;
+		fs_write(&path, content).map_err(|_| BatchFailure::NeedsIsolate)?;
 		paths.push(path);
 	}
 
@@ -135,23 +152,19 @@ fn format_batch_inner(
 		.arg(config_options())
 		.args(&paths)
 		.output()
-		.map_err(|e| format!("Failed to run rustfmt: {}", e))?;
+		.map_err(|e| {
+			if e.kind() == std::io::ErrorKind::NotFound {
+				BatchFailure::ToolMissing(format!("Failed to run rustfmt: {e}"))
+			} else {
+				BatchFailure::NeedsIsolate
+			}
+		})?;
 
 	if !output.status.success() {
-		// Some file(s) failed: re-format one by one so the error lands on the
-		// offending file instead of poisoning the whole batch
-		return Ok(contents
-			.iter()
-			.map(|source| format_rust(source, "input.rs"))
-			.collect());
+		return Err(BatchFailure::NeedsIsolate);
 	}
 
-	Ok(paths
-		.iter()
-		.map(|path| {
-			fs_read(path)
-		})
-		.collect())
+	Ok(paths.iter().map(|path| fs_read(path)).collect())
 }
 
 fn fs_write(path: &std::path::Path, content: &str) -> Result<(), String> {

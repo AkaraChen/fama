@@ -30,13 +30,29 @@ pub fn format_batch(contents: &[&str]) -> Vec<Result<String, String>> {
 	if contents.is_empty() {
 		return Vec::new();
 	}
+	if contents.len() == 1 {
+		return vec![format_via_stdin(contents[0])];
+	}
 
 	match format_batch_inner(contents) {
 		Ok(results) => results.into_iter().map(Ok).collect(),
-		// One unparseable file fails the whole batch invocation (the other
-		// files are still rewritten); fall back to per-file formatting so
-		// errors stay isolated to their file.
-		Err(_) => contents.iter().map(|c| format_via_stdin(c)).collect(),
+		// One unparseable file fails the whole batch invocation: bisect in
+		// parallel so healthy files stay batched and errors stay isolated.
+		Err(err) if err.contains("was not found in PATH") => {
+			(0..contents.len()).map(|_| Err(err.clone())).collect()
+		}
+		Err(_) => {
+			let mid = contents.len() / 2;
+			let (left, right) = std::thread::scope(|s| {
+				let h = s.spawn(|| format_batch(&contents[..mid]));
+				let right = format_batch(&contents[mid..]);
+				let left = h.join().expect("scalafmt bisect thread panicked");
+				(left, right)
+			});
+			let mut combined = left;
+			combined.extend(right);
+			combined
+		}
 	}
 }
 

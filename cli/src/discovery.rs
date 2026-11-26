@@ -1,107 +1,17 @@
 // discovery.rs - File discovery with gitignore support
 
 use fama_common::{detect_file_type, FileType};
-use ignore::WalkBuilder;
+use ignore::{WalkBuilder, WalkState};
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::Mutex;
 
 /// Exact filenames to ignore (generated/lock files that have supported extensions)
 const IGNORED_FILENAMES: &[&str] =
 	&["pnpm-lock.yaml", "package-lock.json", ".terraform.lock.hcl"];
 
-/// Glob patterns for files to ignore (minified files, etc.)
-const IGNORED_PATTERN_SPECS: &[(&str, &str)] = &[
-	("*.min.css", "minified CSS"),
-	("*.min.js", "minified JavaScript"),
-];
-
-/// Compiled ignore patterns, built once on first use
-static IGNORED_PATTERNS: OnceLock<Vec<glob::Pattern>> = OnceLock::new();
-
-fn ignored_patterns() -> &'static [glob::Pattern] {
-	IGNORED_PATTERNS.get_or_init(|| {
-		IGNORED_PATTERN_SPECS
-			.iter()
-			.filter_map(|(pattern, _)| glob::Pattern::new(pattern).ok())
-			.collect()
-	})
-}
-
-/// Check if a filename matches any ignored pattern
+/// Check if a filename matches any ignored pattern (minified files, etc.)
 fn is_ignored_by_pattern(filename: &str) -> bool {
-	ignored_patterns().iter().any(|glob| glob.matches(filename))
-}
-
-/// Check if a file extension is supported for formatting
-fn is_supported_extension(ext: &str) -> bool {
-	matches!(
-		ext,
-		"js" | "jsx"
-			| "ts"
-			| "tsx"
-			| "mjs"
-			| "mjsx"
-			| "mts"
-			| "json"
-			| "jsonc"
-			| "css"
-			| "scss"
-			| "less"
-			| "html"
-			| "vue"
-			| "svelte"
-			| "astro"
-			| "yaml"
-			| "yml"
-			| "md"
-			| "rs"
-			| "py"
-			| "lua"
-			| "rb"
-			| "rake"
-			| "gemspec"
-			| "ru"
-			| "sh"
-			| "bash"
-			| "zsh"
-			| "go"
-			| "zig"
-			| "hcl"
-			| "tf"
-			| "tfvars"
-			| "toml"
-			| "graphql"
-			| "gql"
-			| "sql"
-			| "xml"
-			| "php"
-			| "phtml"
-			| "kt"
-			| "kts"
-			| "scala"
-			| "sc"
-			| "nix"
-			| "cmake"
-			| "R"
-			| "r"
-			| "ex"
-			| "exs"
-			| "wgsl"
-			// C-family languages
-			| "c"
-			| "h"
-			| "cpp"
-			| "cc"
-			| "cxx"
-			| "hpp"
-			| "hxx"
-			| "hh"
-			| "cs"
-			| "m"
-			| "mm"
-			| "java"
-			| "proto"
-	)
+	filename.ends_with(".min.css") || filename.ends_with(".min.js")
 }
 
 /// Check if a file is supported for formatting
@@ -116,14 +26,6 @@ fn is_supported_path(path: &Path) -> bool {
 			return false;
 		}
 	}
-	// First check by extension (fast path)
-	if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-		if is_supported_extension(ext) {
-			return true;
-		}
-	}
-	// For files without supported extension, check if detect_file_type recognizes them
-	// This handles special filenames like Dockerfile, Rakefile, Gemfile, etc.
 	let path_str = path.to_str().unwrap_or("");
 	!matches!(detect_file_type(path_str), FileType::Unknown)
 }
@@ -133,28 +35,43 @@ pub fn is_supported_file(path: &Path) -> bool {
 	path.is_file() && is_supported_path(path)
 }
 
+struct FlushGuard<'a>(&'a Mutex<Vec<PathBuf>>, Vec<PathBuf>);
+
+impl Drop for FlushGuard<'_> {
+	fn drop(&mut self) {
+		if !self.1.is_empty() {
+			let mut all = self.0.lock().unwrap();
+			all.append(&mut self.1);
+		}
+	}
+}
+
 /// Walk a directory respecting .gitignore rules, filtering by glob patterns.
 /// `None` matches every supported file; `Some(patterns)` matches if ANY pattern matches.
 fn walk_with_pattern(
 	base: &Path,
 	patterns: Option<&[glob::Pattern]>,
 ) -> Result<Vec<PathBuf>, String> {
-	let mut files: Vec<PathBuf> = WalkBuilder::new(base)
-		.hidden(false)
-		.build()
-		.filter_map(|entry| entry.ok())
-		.filter(|entry| entry.file_type().is_some_and(|ft| ft.is_file()))
-		.filter(|entry| is_supported_path(entry.path()))
-		.filter(|entry| {
-			patterns
-				.map(|patterns| {
-					patterns.iter().any(|p| p.matches_path(entry.path()))
-				})
-				.unwrap_or(true)
+	let collected = Mutex::new(Vec::new());
+	WalkBuilder::new(base).hidden(false).build_parallel().run(|| {
+		let mut local = FlushGuard(&collected, Vec::new());
+		Box::new(move |entry| {
+			if let Ok(entry) = entry {
+				if entry.file_type().is_some_and(|ft| ft.is_file()) {
+					let path = entry.path();
+					if is_supported_path(path)
+						&& patterns.is_none_or(|ps| {
+							ps.iter().any(|p| p.matches_path(path))
+						}) {
+						local.1.push(path.to_path_buf());
+					}
+				}
+			}
+			WalkState::Continue
 		})
-		.map(|entry| entry.path().to_path_buf())
-		.collect();
+	});
 
+	let mut files = collected.into_inner().unwrap();
 	files.sort();
 	Ok(files)
 }
@@ -166,12 +83,17 @@ fn walk_with_pattern(
 /// walk of the current directory, so N patterns cost one traversal instead of N.
 ///
 /// # Returns
-/// A sorted list of file paths matching any pattern and supported extensions
+/// A sorted, deduplicated list of file paths matching any pattern and supported extensions
 pub fn discover_files_multi(patterns: &[&str]) -> Result<Vec<PathBuf>, String> {
 	let mut files: Vec<PathBuf> = Vec::new();
 	let mut glob_patterns: Vec<glob::Pattern> = Vec::new();
+	let mut walk_all = false;
 
 	for pattern in patterns {
+		if *pattern == "**/*" {
+			walk_all = true;
+			continue;
+		}
 		// Check if pattern is a literal file path (no glob characters)
 		if !pattern.contains(['*', '?', '[']) {
 			let path = PathBuf::from(pattern);
@@ -205,11 +127,14 @@ pub fn discover_files_multi(patterns: &[&str]) -> Result<Vec<PathBuf>, String> {
 		})?);
 	}
 
-	if !glob_patterns.is_empty() {
+	if walk_all {
+		files.extend(walk_with_pattern(Path::new("."), None)?);
+	} else if !glob_patterns.is_empty() {
 		files.extend(walk_with_pattern(Path::new("."), Some(&glob_patterns))?);
 	}
 
 	files.sort();
+	files.dedup();
 	Ok(files)
 }
 

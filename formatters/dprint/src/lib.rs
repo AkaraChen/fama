@@ -7,6 +7,7 @@
 
 use dprint_core::configuration::NewLineKind;
 use fama_common::{FileType, CONFIG};
+use std::sync::OnceLock;
 
 // Module-level constants - pre-converted config values
 const DPRINT_LINE_WIDTH: u16 = CONFIG.line_width;
@@ -36,14 +37,10 @@ const YAML_LINE_BREAK: pretty_yaml::config::LineBreak = match CONFIG.line_ending
 	fama_common::LineEnding::Crlf => pretty_yaml::config::LineBreak::Crlf,
 };
 
-/// Format Markdown source code with specified options
-pub fn format_markdown(
-	source: &str,
-	_file_path: &str,
-) -> Result<String, String> {
+fn markdown_config() -> &'static dprint_plugin_markdown::configuration::Configuration {
 	use dprint_plugin_markdown::configuration::*;
-
-	let config = Configuration {
+	static CFG: OnceLock<Configuration> = OnceLock::new();
+	CFG.get_or_init(|| Configuration {
 		line_width: DPRINT_LINE_WIDTH as u32,
 		new_line_kind: DPRINT_NEW_LINE_KIND,
 		text_wrap: TextWrap::Maintain,
@@ -54,7 +51,15 @@ pub fn format_markdown(
 		ignore_file_directive: "dprint-ignore-file".to_string(),
 		ignore_start_directive: "dprint-ignore-start".to_string(),
 		ignore_end_directive: "dprint-ignore-end".to_string(),
-	};
+	})
+}
+
+/// Format Markdown source code with specified options
+pub fn format_markdown(
+	source: &str,
+	_file_path: &str,
+) -> Result<String, String> {
+	let config = markdown_config();
 
 	// Create a closure that returns Ok(None) to not format code blocks
 	let format_code_block =
@@ -65,7 +70,7 @@ pub fn format_markdown(
 
 	match dprint_plugin_markdown::format_text(
 		source,
-		&config,
+		config,
 		format_code_block,
 	) {
 		Ok(Some(result)) => Ok(result),
@@ -77,28 +82,30 @@ pub fn format_markdown(
 	}
 }
 
-/// Format YAML source code with specified options
-pub fn format_yaml(source: &str, _file_path: &str) -> Result<String, String> {
+fn yaml_config() -> &'static pretty_yaml::config::FormatOptions {
 	use pretty_yaml::config::{FormatOptions, LanguageOptions, LayoutOptions};
-
-	let config = FormatOptions {
+	static CFG: OnceLock<FormatOptions> = OnceLock::new();
+	CFG.get_or_init(|| FormatOptions {
 		layout: LayoutOptions {
 			print_width: DPRINT_LINE_WIDTH as usize,
 			indent_width: DPRINT_INDENT_WIDTH as usize,
 			line_break: YAML_LINE_BREAK,
 		},
 		language: LanguageOptions::default(),
-	};
+	})
+}
 
-	pretty_yaml::format_text(source, &config)
+/// Format YAML source code with specified options
+pub fn format_yaml(source: &str, _file_path: &str) -> Result<String, String> {
+	pretty_yaml::format_text(source, yaml_config())
 		.map_err(|e| format!("YAML formatting error: {}", e))
 }
 
-/// Create Malva options from format config
-fn malva_options() -> malva::config::FormatOptions {
-	use malva::config::{LanguageOptions, LayoutOptions};
-
-	malva::config::FormatOptions {
+/// Cached Malva options from format config
+fn malva_options() -> &'static malva::config::FormatOptions {
+	use malva::config::{FormatOptions, LanguageOptions, LayoutOptions};
+	static CFG: OnceLock<FormatOptions> = OnceLock::new();
+	CFG.get_or_init(|| FormatOptions {
 		layout: LayoutOptions {
 			print_width: DPRINT_LINE_WIDTH as usize,
 			use_tabs: DPRINT_USE_TABS,
@@ -110,34 +117,34 @@ fn malva_options() -> malva::config::FormatOptions {
 			trailing_comma: MALVA_TRAILING_COMMA,
 			..Default::default()
 		},
-	}
+	})
 }
 
 /// Format CSS source code using Malva formatter
 pub fn format_css(source: &str, _file_path: &str) -> Result<String, String> {
 	use malva::{format_text, Syntax};
-	format_text(source, Syntax::Css, &malva_options())
+	format_text(source, Syntax::Css, malva_options())
 		.map_err(|e| format!("CSS formatting error: {}", e))
 }
 
 /// Format SCSS source code using Malva formatter
 pub fn format_scss(source: &str, _file_path: &str) -> Result<String, String> {
 	use malva::{format_text, Syntax};
-	format_text(source, Syntax::Scss, &malva_options())
+	format_text(source, Syntax::Scss, malva_options())
 		.map_err(|e| format!("SCSS formatting error: {}", e))
 }
 
 /// Format LESS source code using Malva formatter
 pub fn format_less(source: &str, _file_path: &str) -> Result<String, String> {
 	use malva::{format_text, Syntax};
-	format_text(source, Syntax::Less, &malva_options())
+	format_text(source, Syntax::Less, malva_options())
 		.map_err(|e| format!("LESS formatting error: {}", e))
 }
 
 /// Format SASS source code using Malva formatter
 pub fn format_sass(source: &str, _file_path: &str) -> Result<String, String> {
 	use malva::{format_text, Syntax};
-	format_text(source, Syntax::Sass, &malva_options())
+	format_text(source, Syntax::Sass, malva_options())
 		.map_err(|e| format!("SASS formatting error: {}", e))
 }
 

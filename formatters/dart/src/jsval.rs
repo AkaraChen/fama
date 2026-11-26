@@ -13,24 +13,39 @@
 //! and `substring` O(1)/O(k) instead of O(n) rescans of UTF-8.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use fancy_regex::Regex;
 
 /// A JS string: a sequence of UTF-16 code units.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+///
+/// Backed by `Arc<[u16]>` so cloning `JsString` / `JsVal::String` across host
+/// boundary reads is an atomic refcount bump instead of copying the buffer.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JsString {
-	pub units: Vec<u16>,
+	pub units: Arc<[u16]>,
+}
+
+impl Default for JsString {
+	fn default() -> Self {
+		JsString {
+			units: Arc::from([]),
+		}
+	}
 }
 
 impl JsString {
 	pub fn from_rust(s: &str) -> JsString {
+		let units: Vec<u16> = s.encode_utf16().collect();
 		JsString {
-			units: s.encode_utf16().collect(),
+			units: units.into(),
 		}
 	}
 
 	pub fn from_units(units: Vec<u16>) -> JsString {
-		JsString { units }
+		JsString {
+			units: units.into(),
+		}
 	}
 
 	/// UTF-16 code-unit length
@@ -59,14 +74,17 @@ impl JsString {
 		let a = (a as usize).min(self.len());
 		let b = (b as usize).min(self.len());
 		JsString {
-			units: self.units[a..b].to_vec(),
+			units: Arc::from(&self.units[a..b]),
 		}
 	}
 
 	pub fn concat(&self, other: &JsString) -> JsString {
-		let mut units = self.units.clone();
+		let mut units = Vec::with_capacity(self.len() + other.len());
+		units.extend_from_slice(&self.units);
 		units.extend_from_slice(&other.units);
-		JsString { units }
+		JsString {
+			units: units.into(),
+		}
 	}
 
 	/// JS `===` on strings: UTF-16 code-unit equality
@@ -133,7 +151,9 @@ impl JsString {
 			return self
 				.units
 				.iter()
-				.map(|&u| JsString { units: vec![u] })
+				.map(|&u| JsString {
+					units: Arc::from([u]),
+				})
 				.collect();
 		}
 		let mut parts = Vec::new();
@@ -142,7 +162,7 @@ impl JsString {
 		while i + token.units.len() <= self.units.len() {
 			if self.units[i..i + token.units.len()] == token.units[..] {
 				parts.push(JsString {
-					units: self.units[start..i].to_vec(),
+					units: Arc::from(&self.units[start..i]),
 				});
 				i += token.units.len();
 				start = i;
@@ -151,7 +171,7 @@ impl JsString {
 			}
 		}
 		parts.push(JsString {
-			units: self.units[start..].to_vec(),
+			units: Arc::from(&self.units[start..]),
 		});
 		parts
 	}
@@ -161,7 +181,9 @@ impl JsString {
 		for _ in 0..times.max(0) {
 			units.extend_from_slice(&self.units);
 		}
-		JsString { units }
+		JsString {
+			units: units.into(),
+		}
 	}
 
 	/// JS `String.prototype.replaceAll` with a plain string replacement
@@ -174,12 +196,14 @@ impl JsString {
 	) -> JsString {
 		if token.units.is_empty() {
 			// JS inserts the replacement between every unit and at both ends
-			let mut units = replacement.units.clone();
-			for &u in &self.units {
+			let mut units = replacement.units.to_vec();
+			for &u in self.units.iter() {
 				units.push(u);
 				units.extend_from_slice(&replacement.units);
 			}
-			return JsString { units };
+			return JsString {
+				units: units.into(),
+			};
 		}
 		let mut units = Vec::with_capacity(self.len());
 		let mut i = 0usize;
@@ -194,7 +218,9 @@ impl JsString {
 				i += 1;
 			}
 		}
-		JsString { units }
+		JsString {
+			units: units.into(),
+		}
 	}
 
 	/// JS `String.prototype.trim` (Unicode whitespace plus BOM)
@@ -206,7 +232,7 @@ impl JsString {
 		};
 		let end = self.units.iter().rposition(|u| !is_ws(*u)).unwrap();
 		JsString {
-			units: self.units[start..=end].to_vec(),
+			units: Arc::from(&self.units[start..=end]),
 		}
 	}
 

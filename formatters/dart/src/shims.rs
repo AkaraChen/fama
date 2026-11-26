@@ -53,12 +53,14 @@ thread_local! {
 	};
 	static HOST_RANDOM: std::cell::Cell<u32> =
 		const { std::cell::Cell::new(0x2545_F491) };
-	// Cheap profiling counters (used by the latency benchmarks)
+	// Cheap profiling counters (used only by the test latency benchmarks)
+	#[cfg(test)]
 	static HOST_STATS: std::cell::RefCell<BTreeMap<&'static str, (u64, u64)>> =
 		const { std::cell::RefCell::new(BTreeMap::new()) };
 }
 
 /// Record a helper hit: name, call count, and total nanoseconds spent
+#[cfg(test)]
 pub fn profile(name: &'static str, _work: u64) {
 	HOST_STATS.with(|s| {
 		let mut s = s.borrow_mut();
@@ -67,6 +69,10 @@ pub fn profile(name: &'static str, _work: u64) {
 		entry.1 += 0;
 	});
 }
+
+#[cfg(not(test))]
+#[inline(always)]
+pub fn profile(_name: &'static str, _work: u64) {}
 
 /// Snapshot of the recorded profile counters
 #[cfg(test)]
@@ -112,6 +118,24 @@ pub fn registered_fn(
 // Value plumbing
 // ---------------------------------------------------------------------------
 
+/// Borrow a host-backed `JsVal` behind an `externref` without cloning.
+/// Returns `Ok(None)` when the externref is an `i31` (JS number) with no
+/// host payload.
+fn js_ref<'a>(
+	ctx: &'a impl AsContext<Data = StoreCtx>,
+	r: &Option<Rooted<ExternRef>>,
+) -> wasmtime::Result<Option<&'a JsVal>> {
+	let r = r.as_ref().ok_or_else(|| {
+		wasmtime::Error::msg("dart_fmt: unexpected null externref")
+	})?;
+	let Some(data) = r.data(ctx.as_context())? else {
+		return Ok(None);
+	};
+	data.downcast_ref::<JsVal>()
+		.map(Some)
+		.ok_or_else(|| wasmtime::Error::msg("dart_fmt: externref payload mismatch"))
+}
+
 /// Read the `JsVal` behind an `externref` parameter, by value.
 ///
 /// dart2wasm passes JS-ready small values (numbers, booleans) as `i31`
@@ -122,6 +146,7 @@ fn js(
 	ctx: &mut impl AsContextMut<Data = StoreCtx>,
 	r: &Option<Rooted<ExternRef>>,
 ) -> wasmtime::Result<JsVal> {
+	#[cfg(test)]
 	let __t = std::time::Instant::now();
 	let __out = (|| {
 		let r = r.as_ref().ok_or_else(|| {
@@ -152,6 +177,7 @@ fn js(
 			})?;
 		Ok(JsVal::Number(value))
 	})();
+	#[cfg(test)]
 	HOST_STATS.with(|s| {
 		let mut s = s.borrow_mut();
 		let e = s.entry("js.payload").or_insert((0, 0));
@@ -1520,12 +1546,13 @@ fn define_js_string(
 				// by treating the null string as empty here
 				return Ok(0);
 			}
-			match js(&mut c, &s)? {
-				JsVal::String(s) => Ok(s.len() as i32),
-				other => Err(wasmtime::Error::msg(format!(
-					"dart_fmt: js-string length on non-string {other:?}"
-				))),
+			if let Some(JsVal::String(s)) = js_ref(&c, &s)? {
+				return Ok(s.len() as i32);
 			}
+			let other = js(&mut c, &s)?;
+			Err(wasmtime::Error::msg(format!(
+				"dart_fmt: js-string length on non-string {other:?}"
+			)))
 		},
 	)?;
 
@@ -1535,24 +1562,23 @@ fn define_js_string(
 		"charCodeAt",
 		|mut c: Caller<StoreCtx>, s: Option<Rooted<ExternRef>>, index: i32| {
 			profile("js.charCodeAt", 0);
-			match js(&mut c, &s)? {
-				JsVal::String(s) => {
-					let index = index as u32 as usize;
-					if index >= s.len() {
-						// The spec traps out-of-bounds; dart_style's own
-						// bounds checks keep this unreachable in practice
-						Err(wasmtime::Error::msg(format!(
-							"dart_fmt: js-string charCodeAt out of bounds ({index} >= {})",
-							s.len()
-						)))
-					} else {
-						Ok(s.char_at(index).unwrap() as i32)
-					}
-				}
-				other => Err(wasmtime::Error::msg(format!(
-					"dart_fmt: js-string charCodeAt on non-string {other:?}"
-				))),
+			if let Some(JsVal::String(s)) = js_ref(&c, &s)? {
+				let index = index as u32 as usize;
+				return if index >= s.len() {
+					// The spec traps out-of-bounds; dart_style's own
+					// bounds checks keep this unreachable in practice
+					Err(wasmtime::Error::msg(format!(
+						"dart_fmt: js-string charCodeAt out of bounds ({index} >= {})",
+						s.len()
+					)))
+				} else {
+					Ok(s.char_at(index).unwrap() as i32)
+				};
 			}
+			let other = js(&mut c, &s)?;
+			Err(wasmtime::Error::msg(format!(
+				"dart_fmt: js-string charCodeAt on non-string {other:?}"
+			)))
 		},
 	)?;
 
@@ -1601,15 +1627,22 @@ fn define_js_string(
 			match (&a, &b) {
 				(None, None) => Ok(1),
 				(None, Some(_)) | (Some(_), None) => Ok(0),
-				_ => match (js(&mut c, &a)?, js(&mut c, &b)?) {
-					(JsVal::String(a), JsVal::String(b)) => {
-						Ok(a.equals(&b) as i32)
+				_ => match (js_ref(&c, &a)?, js_ref(&c, &b)?) {
+					(Some(JsVal::String(a)), Some(JsVal::String(b))) => {
+						Ok(a.equals(b) as i32)
 					}
-					(JsVal::String(_), JsVal::Null)
-					| (JsVal::Null, JsVal::String(_)) => Ok(0),
-					(other, _) => Err(wasmtime::Error::msg(format!(
-						"dart_fmt: js-string equals on non-string {other:?}"
-					))),
+					(Some(JsVal::String(_)), Some(JsVal::Null))
+					| (Some(JsVal::Null), Some(JsVal::String(_))) => Ok(0),
+					_ => match (js(&mut c, &a)?, js(&mut c, &b)?) {
+						(JsVal::String(a), JsVal::String(b)) => {
+							Ok(a.equals(&b) as i32)
+						}
+						(JsVal::String(_), JsVal::Null)
+						| (JsVal::Null, JsVal::String(_)) => Ok(0),
+						(other, _) => Err(wasmtime::Error::msg(format!(
+							"dart_fmt: js-string equals on non-string {other:?}"
+						))),
+					},
 				},
 			}
 		},
@@ -1623,6 +1656,11 @@ fn define_js_string(
 		 a: Option<Rooted<ExternRef>>,
 		 b: Option<Rooted<ExternRef>>| {
 			profile("js.compare", 0);
+			if let (Some(JsVal::String(a)), Some(JsVal::String(b))) =
+				(js_ref(&c, &a)?, js_ref(&c, &b)?)
+			{
+				return Ok(a.compare(b));
+			}
 			match (js(&mut c, &a)?, js(&mut c, &b)?) {
 				(JsVal::String(a), JsVal::String(b)) => Ok(a.compare(&b)),
 				(other, _) => Err(wasmtime::Error::msg(format!(
@@ -1637,11 +1675,11 @@ fn define_js_string(
 		linker,
 		"wasm:js-string",
 		"test",
-		|mut c: Caller<StoreCtx>, s: Option<Rooted<ExternRef>>| {
+		|c: Caller<StoreCtx>, s: Option<Rooted<ExternRef>>| {
 			profile("js.test", 0);
-			let is_string = match s.as_ref() {
+			let is_string = match s {
 				None => false,
-				Some(r) => matches!(js(&mut c, &Some(*r))?, JsVal::String(_)),
+				Some(_) => matches!(js_ref(&c, &s)?, Some(JsVal::String(_))),
 			};
 			Ok(is_string as i32)
 		},
@@ -1677,6 +1715,7 @@ fn define_js_string(
 		"fromCharCodeArray",
 		from_array_ty,
 		|mut caller, params, results| {
+			#[cfg(test)]
 			let start = std::time::Instant::now();
 			let r = (|| {
 				let wasmtime::Val::AnyRef(array) = &params[0] else {
@@ -1704,6 +1743,7 @@ fn define_js_string(
 				results[0] = Val::ExternRef(Some(value));
 				Ok(())
 			})();
+			#[cfg(test)]
 			HOST_STATS.with(|s| {
 				let mut s = s.borrow_mut();
 				let e = s.entry("js.fromCharCodeArray").or_insert((0, 0));
@@ -1745,7 +1785,7 @@ fn define_js_string(
 				}
 			};
 			let s = match js(&mut caller, s)? {
-				JsVal::String(s) => s.clone(),
+				JsVal::String(s) => s,
 				other => {
 					return Err(wasmtime::Error::msg(format!(
 						"dart_fmt: js-string intoCharCodeArray on non-string {other:?}"

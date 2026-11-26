@@ -34,18 +34,10 @@ use wasmtime::{
 /// Embedded dart_style WASM binary (dart2wasm output, ~900KB)
 const DART_FMT_WASM: &[u8] = include_bytes!("../wasm/dart_fmt.wasm");
 
-/// sha256 prefix of the embedded wasm bytes; binds precompiled artifacts to
-/// the exact module they were compiled from
-fn artifact_hash() -> String {
-	use sha2::{Digest, Sha256};
-	let mut hasher = Sha256::new();
-	hasher.update(DART_FMT_WASM);
-	let digest = hasher.finalize();
-	digest
-		.iter()
-		.map(|b| format!("{b:02x}"))
-		.collect::<String>()[..16]
-		.to_string()
+/// Compile-time sha256 prefix of `wasm/dart_fmt.wasm`; binds precompiled
+/// artifacts to the exact module with zero runtime hashing overhead.
+fn artifact_hash() -> &'static str {
+	env!("DART_FMT_WASM_HASH")
 }
 
 /// Filename of the precompiled module artifact for this fama build
@@ -96,6 +88,9 @@ fn engine_config() -> wasmtime::Result<wasmtime::Config> {
 	// Failures surface as formatting errors; backtrace capture would only
 	// add per-call overhead
 	cfg.wasm_backtrace_max_frames(None);
+	cfg.generate_address_map(false);
+	#[cfg(not(target_os = "windows"))]
+	cfg.native_unwind_info(false);
 	Ok(cfg)
 }
 

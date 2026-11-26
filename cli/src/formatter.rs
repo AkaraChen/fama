@@ -85,53 +85,81 @@ fn batch_backend(file_type: FileType) -> Option<BatchFn> {
 }
 
 /// Format all files, parallelizing per file and batching the batchable
-/// languages (see [`batch_backend`]).
-///
-/// Batched languages are handled in chunks: each chunk is read up front,
-/// formatted with a single formatter invocation, and written back per file.
-/// Every other file type goes through the regular per-file path.
+/// languages (see [`batch_backend`]) concurrently, with large single files
+/// scheduled first (LPT) to minimize tail latency.
 pub fn format_files(
 	files: &[PathBuf],
 	check: bool,
 	debug: bool,
 ) -> FormatStats {
 	let mut batch_groups: HashMap<FileType, Vec<&PathBuf>> = HashMap::new();
-	let mut other_files: Vec<&PathBuf> = Vec::new();
+	let mut other_files: Vec<(&PathBuf, FileType)> = Vec::new();
 	for file in files {
 		let file_type = detect_file_type(file.to_str().unwrap_or(""));
-		match batch_backend(file_type) {
-			Some(_) => batch_groups
-				.entry(file_type)
-				.or_default()
-				.push(file),
-			None => other_files.push(file),
+		if batch_backend(file_type).is_some() {
+			batch_groups.entry(file_type).or_default().push(file);
+		} else {
+			other_files.push((file, file_type));
 		}
 	}
 
-	// Batched languages: one formatter invocation per chunk, chunks in parallel
-	let mut batched_stats = FormatStats::default();
-	for (file_type, group) in batch_groups {
-		let backend = match batch_backend(file_type) {
-			Some(backend) => backend,
-			None => continue,
-		};
-		let stats: FormatStats = group
-			.par_chunks(RUST_BATCH_SIZE)
-			.map(|chunk| format_batch_chunk(backend, chunk, check, debug))
-			.reduce(FormatStats::default, FormatStats::merge);
-		batched_stats = batched_stats.merge(stats);
-	}
+	// Longest-processing-time-first ordering for single-file formatters so large
+	// files (e.g. megabyte C/TS bundles) start immediately instead of trailing.
+	let mut sized_others: Vec<(&PathBuf, FileType, u64)> = if other_files.len() > 1
+	{
+		let mut v: Vec<(&PathBuf, FileType, u64)> = other_files
+			.into_par_iter()
+			.map(|(file, ft)| {
+				let len = fs::metadata(file).map(|m| m.len()).unwrap_or(0);
+				(file, ft, len)
+			})
+			.collect();
+		v.sort_unstable_by(|a, b| b.2.cmp(&a.2));
+		v
+	} else {
+		other_files
+			.into_iter()
+			.map(|(file, ft)| (file, ft, 0))
+			.collect()
+	};
 
-	// Everything else: one file at a time, in parallel
-	let other_stats: FormatStats = other_files
-		.par_iter()
-		.fold(FormatStats::default, |mut stats, file| {
-			let result = format_file(file, check).map_err(|e| e.to_string());
-			record(&mut stats, file, result, debug);
-			stats
-		})
-		.reduce(FormatStats::default, FormatStats::merge);
+	let (batched_stats, other_stats) = rayon::join(
+		|| {
+			let groups: Vec<(BatchFn, Vec<&PathBuf>)> = batch_groups
+				.into_iter()
+				.filter_map(|(ft, group)| {
+					batch_backend(ft).map(|backend| (backend, group))
+				})
+				.collect();
+			let workers = rayon::current_num_threads().max(1);
+			groups
+				.into_par_iter()
+				.map(|(backend, group)| {
+					let chunk_size =
+						group.len().div_ceil(workers).clamp(1, RUST_BATCH_SIZE);
+					group
+						.par_chunks(chunk_size)
+						.map(|chunk| {
+							format_batch_chunk(backend, chunk, check, debug)
+						})
+						.reduce(FormatStats::default, FormatStats::merge)
+				})
+				.reduce(FormatStats::default, FormatStats::merge)
+		},
+		|| {
+			sized_others
+				.par_iter()
+				.fold(FormatStats::default, |mut stats, (file, file_type, _)| {
+					let result = format_file_with_type(file, *file_type, check)
+						.map_err(|e| e.to_string());
+					record(&mut stats, file, result, debug);
+					stats
+				})
+				.reduce(FormatStats::default, FormatStats::merge)
+		},
+	);
 
+	let _ = &mut sized_others;
 	batched_stats.merge(other_stats)
 }
 
@@ -178,12 +206,14 @@ fn format_batch_chunk(
 	stats
 }
 
-/// Format a single file based on its detected type
-/// Returns true if the file was changed (or would be changed in check mode)
-pub fn format_file(file_path: &PathBuf, check: bool) -> anyhow::Result<bool> {
+/// Format a single file using an already-detected `FileType`
+fn format_file_with_type(
+	file_path: &PathBuf,
+	file_type: FileType,
+	check: bool,
+) -> anyhow::Result<bool> {
 	let content = fs::read_to_string(file_path)?;
 	let path_str = file_path.to_str().unwrap_or("");
-	let file_type = detect_file_type(path_str);
 
 	let formatted = format_content(&content, path_str, file_type)
 		.map_err(|e| anyhow::anyhow!("{}: {}", file_path.display(), e))?;
@@ -196,6 +226,15 @@ pub fn format_file(file_path: &PathBuf, check: bool) -> anyhow::Result<bool> {
 	} else {
 		Ok(false)
 	}
+}
+
+/// Format a single file based on its detected type
+/// Returns true if the file was changed (or would be changed in check mode)
+#[cfg(test)]
+pub fn format_file(file_path: &PathBuf, check: bool) -> anyhow::Result<bool> {
+	let path_str = file_path.to_str().unwrap_or("");
+	let file_type = detect_file_type(path_str);
+	format_file_with_type(file_path, file_type, check)
 }
 
 /// Format content string based on file type

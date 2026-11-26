@@ -2,7 +2,7 @@
 
 use fama_common::{FileType, FormatConfig, IndentStyle};
 use libc::{c_char, c_uint, size_t};
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::slice;
 
 extern "C" {
@@ -42,10 +42,12 @@ fn get_indent() -> c_uint {
 }
 
 pub fn format_shell(source: &str, _file_path: &str) -> Result<String, String> {
-	let c_source =
-		CString::new(source).map_err(|e| format!("Invalid source: {}", e))?;
 	let c_result = unsafe {
-		FormatShell(c_source.as_ptr(), source.len() as size_t, get_indent())
+		FormatShell(
+			source.as_ptr() as *const c_char,
+			source.len() as size_t,
+			get_indent(),
+		)
 	};
 
 	if c_result.is_null() {
@@ -66,19 +68,8 @@ pub fn format_shell_batch(sources: &[&str]) -> Vec<Result<String, String>> {
 		return Vec::new();
 	}
 
-	let c_sources: Vec<CString> =
-		match sources.iter().map(|s| CString::new(*s)).collect() {
-			Ok(v) => v,
-			Err(_) => {
-				return sources
-					.iter()
-					.map(|_| Err("Invalid source".to_string()))
-					.collect()
-			}
-		};
-
 	let c_ptrs: Vec<*const c_char> =
-		c_sources.iter().map(|s| s.as_ptr()).collect();
+		sources.iter().map(|s| s.as_ptr() as *const c_char).collect();
 	let lengths: Vec<size_t> =
 		sources.iter().map(|s| s.len() as size_t).collect();
 
@@ -119,10 +110,9 @@ pub fn format_shell_batch(sources: &[&str]) -> Vec<Result<String, String>> {
 }
 
 pub fn format_go(source: &str, _file_path: &str) -> Result<String, String> {
-	let c_source =
-		CString::new(source).map_err(|e| format!("Invalid source: {}", e))?;
-	let c_result =
-		unsafe { FormatGo(c_source.as_ptr(), source.len() as size_t) };
+	let c_result = unsafe {
+		FormatGo(source.as_ptr() as *const c_char, source.len() as size_t)
+	};
 
 	if c_result.is_null() {
 		return Err("Formatter returned null".to_string());
@@ -142,19 +132,8 @@ pub fn format_go_batch(sources: &[&str]) -> Vec<Result<String, String>> {
 		return Vec::new();
 	}
 
-	let c_sources: Vec<CString> =
-		match sources.iter().map(|s| CString::new(*s)).collect() {
-			Ok(v) => v,
-			Err(_) => {
-				return sources
-					.iter()
-					.map(|_| Err("Invalid source".to_string()))
-					.collect()
-			}
-		};
-
 	let c_ptrs: Vec<*const c_char> =
-		c_sources.iter().map(|s| s.as_ptr()).collect();
+		sources.iter().map(|s| s.as_ptr() as *const c_char).collect();
 	let lengths: Vec<size_t> =
 		sources.iter().map(|s| s.len() as size_t).collect();
 
@@ -194,10 +173,9 @@ pub fn format_go_batch(sources: &[&str]) -> Vec<Result<String, String>> {
 }
 
 pub fn format_hcl(source: &str, _file_path: &str) -> Result<String, String> {
-	let c_source =
-		CString::new(source).map_err(|e| format!("Invalid source: {}", e))?;
-	let c_result =
-		unsafe { FormatHcl(c_source.as_ptr(), source.len() as size_t) };
+	let c_result = unsafe {
+		FormatHcl(source.as_ptr() as *const c_char, source.len() as size_t)
+	};
 
 	if c_result.is_null() {
 		return Err("Formatter returned null".to_string());
@@ -217,19 +195,8 @@ pub fn format_hcl_batch(sources: &[&str]) -> Vec<Result<String, String>> {
 		return Vec::new();
 	}
 
-	let c_sources: Vec<CString> =
-		match sources.iter().map(|s| CString::new(*s)).collect() {
-			Ok(v) => v,
-			Err(_) => {
-				return sources
-					.iter()
-					.map(|_| Err("Invalid source".to_string()))
-					.collect()
-			}
-		};
-
 	let c_ptrs: Vec<*const c_char> =
-		c_sources.iter().map(|s| s.as_ptr()).collect();
+		sources.iter().map(|s| s.as_ptr() as *const c_char).collect();
 	let lengths: Vec<size_t> =
 		sources.iter().map(|s| s.len() as size_t).collect();
 

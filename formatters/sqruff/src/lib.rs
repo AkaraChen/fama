@@ -7,6 +7,10 @@ use fama_common::{IndentStyle, CONFIG};
 use sqruff_lib::core::config::{FluffConfig, Value};
 use sqruff_lib::core::linter::core::Linter;
 
+thread_local! {
+	static LINTER: Linter = Linter::new(create_config(), None, None, false);
+}
+
 /// Format SQL source code using sqruff
 ///
 /// # Arguments
@@ -17,10 +21,10 @@ use sqruff_lib::core::linter::core::Linter;
 /// * `Ok(String)` - Formatted SQL code
 /// * `Err(String)` - Error message if formatting fails
 pub fn format_sql(source: &str, _file_path: &str) -> Result<String, String> {
-	let config = create_config();
-	let linter = Linter::new(config, None, None, false);
-	let linted_file = linter.lint_string(source, None, true);
-	Ok(linted_file.fix_string())
+	Ok(LINTER.with(|linter| {
+		let linted_file = linter.lint_string(source, None, true);
+		linted_file.fix_string()
+	}))
 }
 
 /// Create sqruff FluffConfig from fama FormatConfig

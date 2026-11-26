@@ -165,9 +165,14 @@ fn format_js_family(
 		return Err(format!("Parse errors in {file_type_name} file"));
 	}
 
-	// Sort imports before formatting (no tree copy unless imports change)
+	// Sort imports before formatting (no tree copy unless imports change; skip
+	// analyzer pass entirely when source contains no import/from keywords).
 	let root = parsed.tree();
-	let sorted = sort_imports(&root, source_type, file_path);
+	let sorted = if source.contains("import") || source.contains("from") {
+		sort_imports(&root, source_type, file_path)
+	} else {
+		None
+	};
 	let syntax = match &sorted {
 		Some(sorted_root) => sorted_root.syntax(),
 		None => root.syntax(),
@@ -178,7 +183,7 @@ fn format_js_family(
 
 	formatted
 		.print()
-		.map(|p| p.as_code().to_string())
+		.map(|p| p.into_code())
 		.map_err(|e| format!("Print error: {e:?}"))
 }
 
@@ -252,7 +257,7 @@ fn format_json_internal(
 
 	formatted
 		.print()
-		.map(|p| p.as_code().to_string())
+		.map(|p| p.into_code())
 		.map_err(|e| format!("Print error: {e:?}"))
 }
 
@@ -276,7 +281,7 @@ pub fn format_html(source: &str, _file_path: &str) -> Result<String, String> {
 
 	formatted
 		.print()
-		.map(|p| p.as_code().to_string())
+		.map(|p| p.into_code())
 		.map_err(|e| format!("Print error: {e:?}"))
 }
 
@@ -348,7 +353,7 @@ pub fn format_graphql(
 
 	formatted
 		.print()
-		.map(|p| p.as_code().to_string())
+		.map(|p| p.into_code())
 		.map_err(|e| format!("Print error: {e:?}"))
 }
 

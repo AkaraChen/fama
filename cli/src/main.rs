@@ -68,6 +68,9 @@ fn main() -> anyhow::Result<()> {
 /// files or fail discovery with an error).
 fn warn_empty_patterns(files: &[std::path::PathBuf], patterns: &[String]) {
 	for pattern in patterns {
+		if pattern == "**/*" && !files.is_empty() {
+			continue;
+		}
 		let is_globish = pattern.contains(['*', '?', '[']);
 		let missing_literal = !is_globish
 			&& !Path::new(pattern).is_file()
@@ -88,10 +91,12 @@ fn run(options: Cli) -> anyhow::Result<()> {
 	let debug = options.debug;
 	let check = options.check;
 	let quiet = options.quiet;
-	let mut all_files: Vec<std::path::PathBuf> = Vec::new();
 
 	// Get files from git if --staged, --changed, or --commit is specified
-	if options.staged || options.changed || options.commit {
+	let files: Vec<std::path::PathBuf> = if options.staged
+		|| options.changed
+		|| options.commit
+	{
 		let git_files = git::get_git_files(options.staged)?;
 		if git_files.is_empty() {
 			if !quiet {
@@ -99,7 +104,11 @@ fn run(options: Cli) -> anyhow::Result<()> {
 			}
 			return Ok(());
 		}
-		all_files.extend(git_files);
+		let mut seen = std::collections::HashSet::with_capacity(git_files.len());
+		git_files
+			.into_iter()
+			.filter(|p| seen.insert(p.clone()))
+			.collect()
 	} else {
 		let pattern_refs: Vec<&str> =
 			patterns.iter().map(String::as_str).collect();
@@ -108,15 +117,8 @@ fn run(options: Cli) -> anyhow::Result<()> {
 		if !quiet {
 			warn_empty_patterns(&files, &patterns);
 		}
-		all_files.extend(files);
-	}
-
-	// Remove duplicates while preserving order
-	let mut seen = std::collections::HashSet::new();
-	let files: Vec<_> = all_files
-		.into_iter()
-		.filter(|p| seen.insert(p.clone()))
-		.collect();
+		files
+	};
 
 	// Parallel formatting; Rust files batched, everything else per file
 	let mut stats = formatter::format_files(&files, check, debug);
