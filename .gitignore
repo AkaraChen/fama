@@ -10,3 +10,7 @@ formatters/goffi/go/libgoffi.dylib
 formatters/goffi/go/libgoffi.so
 formatters/goffi/libshformatter.dylib
 .claude/ralph-loop.local.md
+
+# Local swift wasm rebuild output (vendored copy lives in formatters/swift/wasm/)
+formatters/swift/swiftformat.wasm
+formatters/swift/wasm-src/swiftformat.wasm

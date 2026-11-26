@@ -2124,6 +2124,7 @@ dependencies = [
  "fama-r",
  "fama-scala",
  "fama-sqruff",
+ "fama-swift",
  "fama-wgsl",
  "fama-zigffi",
  "glob",
@@ -2241,6 +2242,16 @@ dependencies = [
  "sqruff-lib",
  "sqruff-lib-core",
  "sqruff-lib-dialects",
+]
+
+[[package]]
+name = "fama-swift"
+version = "0.1.0"
+dependencies = [
+ "fama-common",
+ "ruzstd",
+ "sha2",
+ "wasmtime",
 ]
 
 [[package]]
@@ -4392,6 +4403,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
+name = "ruzstd"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fad02996bfc73da3e301efe90b1837be9ed8f4a462b6ed410aa35d00381de89f"
+dependencies = [
+ "twox-hash",
+]
+
+[[package]]
 name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5258,6 +5278,16 @@ name = "triomphe"
 version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d15f4f5898bcfc5d8a8e45ed30b2f108d710c1a2e5489dbf80e078f707181bc"
+
+[[package]]
+name = "twox-hash"
+version = "1.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
+dependencies = [
+ "cfg-if",
+ "static_assertions",
+]
 
 [[package]]
 name = "ty_static"

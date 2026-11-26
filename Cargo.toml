@@ -25,6 +25,7 @@ members = [
 	"formatters/elixir",
 	"formatters/wgsl",
 	"formatters/dart",
+	"formatters/swift",
 ]
 resolver = "2"
 

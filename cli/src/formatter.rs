@@ -262,6 +262,9 @@ fn format_content(
 		// Dart -> dart_style compiled to WASM, hosted in-process on wasmtime
 		FileType::Dart => fama_dart::format_file(content, path, file_type),
 
+		// Swift -> swift-format compiled to WASM, hosted in-process on wasmtime
+		FileType::Swift => fama_swift::format_file(content, path, file_type),
+
 		FileType::Unknown => Err("Unknown file type".to_string()),
 	}
 }
@@ -492,6 +495,16 @@ mod tests {
 		assert!(result.is_ok(), "dart formatting failed: {:?}", result);
 		let formatted = result.unwrap();
 		assert!(formatted.contains("print('hello')"), "Output: {formatted}");
+	}
+
+	#[test]
+	fn test_format_content_swift() {
+		let content = "func f()->Int{return 42}";
+		let result = format_content(content, "test.swift", FileType::Swift);
+
+		assert!(result.is_ok(), "swift formatting failed: {:?}", result);
+		let formatted = result.unwrap();
+		assert!(formatted.contains("return 42"), "Output: {formatted}");
 	}
 
 	#[test]

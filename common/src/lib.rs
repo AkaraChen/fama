@@ -214,6 +214,7 @@ pub enum FileType {
 	Elixir,
 	Wgsl,
 	Dart,
+	Swift,
 	// C-family languages (clang-format)
 	C,
 	Cpp,
@@ -267,6 +268,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 		Some("ex") | Some("exs") => FileType::Elixir,
 		Some("wgsl") => FileType::Wgsl,
 		Some("dart") => FileType::Dart,
+		Some("swift") => FileType::Swift,
 		// C-family languages
 		Some("c") | Some("h") => FileType::C,
 		Some("cpp") | Some("cc") | Some("cxx") | Some("hpp") | Some("hxx")
@@ -473,6 +475,12 @@ mod tests {
 	fn test_detect_dart() {
 		assert_eq!(detect_file_type("test.dart"), FileType::Dart);
 		assert_eq!(detect_file_type("path/to/main.dart"), FileType::Dart);
+	}
+
+	#[test]
+	fn test_detect_swift() {
+		assert_eq!(detect_file_type("test.swift"), FileType::Swift);
+		assert_eq!(detect_file_type("Sources/App/Main.swift"), FileType::Swift);
 	}
 
 	#[test]

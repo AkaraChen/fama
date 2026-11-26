@@ -82,12 +82,18 @@ jobs:
               run: |
                   cargo run --release --target ${{ matrix.target }} --bin dart-precompile -- target/${{ matrix.target }}/release
 
+            - name: Precompile swiftformat module
+              if: matrix.cross != true
+              shell: bash
+              run: |
+                  cargo run --release --target ${{ matrix.target }} --bin swift-precompile -- target/${{ matrix.target }}/release
+
             - name: Package (Unix)
               if: runner.os != 'Windows'
               shell: bash
               run: |
                   cd target/${{ matrix.target }}/release
-                  tar czvf ../../../fama-${{ github.ref_name }}-${{ matrix.target }}.tar.gz fama clang-format-*.wasmu dart_fmt-*.wasmu
+                  tar czvf ../../../fama-${{ github.ref_name }}-${{ matrix.target }}.tar.gz fama clang-format-*.wasmu dart_fmt-*.wasmu swiftformat-*.wasmu
                   cd ../../..
 
             - name: Package (Windows)
@@ -95,7 +101,7 @@ jobs:
               shell: pwsh
               run: |
                   cd target/${{ matrix.target }}/release
-                  Compress-Archive -Path fama.exe,clang-format-*.wasmu,dart_fmt-*.wasmu -DestinationPath ../../../fama-${{ github.ref_name }}-${{ matrix.target }}.zip
+                  Compress-Archive -Path fama.exe,clang-format-*.wasmu,dart_fmt-*.wasmu,swiftformat-*.wasmu -DestinationPath ../../../fama-${{ github.ref_name }}-${{ matrix.target }}.zip
                   cd ../../..
 
             - name: Upload artifact

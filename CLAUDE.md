@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Fama is a unified cross-language code formatter written in Rust that aggregates multiple specialized formatters into a single CLI tool. It formats 30+ languages (JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Dart, Scala, Nix, CMake, R, Elixir, WGSL, C, C++, C#, Objective-C, Java, Protobuf) through a unified interface while respecting a centralized configuration.
+Fama is a unified cross-language code formatter written in Rust that aggregates multiple specialized formatters into a single CLI tool. It formats 30+ languages (JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Dart, Scala, Nix, CMake, R, Elixir, Swift, WGSL, C, C++, C#, Objective-C, Java, Protobuf) through a unified interface while respecting a centralized configuration.
 
 ## Build Commands
 
@@ -21,14 +21,15 @@ make clean      # Remove build artifacts
 
 ```bash
 fama [PATTERN]   # Format files matching glob pattern (default: **/*)
-fama --export    # Generate .editorconfig and rustfmt.toml files
+fama --export    # Generate .editorconfig plus tool configs (rustfmt.toml,
+                 # analysis_options.yaml, .swift-format) when their markers exist
 ```
 
 ## Architecture
 
 ### Workspace Structure
 
-The project is a Cargo workspace with 25 crates:
+The project is a Cargo workspace with 26 crates:
 
 - `cli/` - Main CLI application with file discovery and routing
 - `common/` - Shared types: `FileType` enum, `FormatConfig`, indentation/quote styles
@@ -56,6 +57,7 @@ The project is a Cargo workspace with 25 crates:
   - `elixir/` - Elixir (via `mix format`, batched)
   - `wgsl/` - WGSL shaders (via the wgsl-formatter crate from wgsl-analyzer, git-pinned)
   - `dart/` - Dart via dart_style compiled to WASM (dart2wasm output hosted in-process on wasmtime)
+  - `swift/` - Swift via swift-format compiled to WASM (SwiftWasm wasip1 build of swift-format 603.0.0 plus a C-ABI shim, hosted in-process on wasmtime with a hand-rolled WASI p1 host; see formatters/swift/README.md)
 
 ### Data Flow
 
@@ -118,5 +120,6 @@ cargo test -p fama-common <test_name> # Run single test in specific crate
 - **Biome**: Git-pinned for HTML support (specific commit)
 - **Ruff**: Git-pinned formatters from Astral's ruff repo
 - **dprint + Malva**: Published crates for data/style formats
+- **swift-format**: Apple's formatter compiled to wasm32-unknown-wasip1 (SwiftWasm 6.3 SDK) and hosted on wasmtime, like clang-format and dart_style
 - **mvdan/sh**: Go library for shell formatting via FFI
 - **stylua**: Lua formatter
