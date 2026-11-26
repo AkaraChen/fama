@@ -16,7 +16,7 @@ exist only to satisfy wasi-libc startup.
 The `wasm-src/` package links a minimal `ICUStub` (`Sources/ICUStub/icudt_stub.c`)
 before the SwiftWasm SDK archives to replace the ~32 MiB `icudt76l` locale/charset
 data archive that Foundation otherwise pulls in, builds with `-Osize` and
-`--gc-sections`, and post-processes with `wasm-opt -Oz --no-zero-filled-memory`
+`--gc-sections`, and post-processes with `wasm-opt -Oz --all-features`
 plus `strip.py`.
 
 Cranelift-compiling the module takes a few seconds, so releases ship per-platform
@@ -39,7 +39,7 @@ The module is checked in at `wasm/swiftformat.wasm.zst`. To rebuild it
 
 ```bash
 (cd wasm-src && bash build-ci.sh)                        # -> ../swiftformat.wasm
-wasm-opt -Oz --no-zero-filled-memory \
+wasm-opt -Oz --all-features \
   -o ../swiftformat.opt.wasm ../swiftformat.wasm
 mv ../swiftformat.opt.wasm ../swiftformat.wasm
 python3 wasm-src/strip.py ../swiftformat.wasm            # drop debug/name sections

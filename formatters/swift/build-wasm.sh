@@ -19,7 +19,7 @@
 #   swift sdk install /tmp/sdk/swift-wasm-6.3-RELEASE-wasm32-unknown-wasip1.artifactbundle
 #   git clone --depth 1 --branch 603.0.0 https://github.com/swiftlang/swift-format formatters/swift/swift-format
 #   (cd formatters/swift/wasm-src && bash build-ci.sh)      # -> formatters/swift/swiftformat.wasm
-#   wasm-opt -Oz --no-zero-filled-memory -o formatters/swift/swiftformat.opt.wasm formatters/swift/swiftformat.wasm
+#   wasm-opt -Oz --all-features -o formatters/swift/swiftformat.opt.wasm formatters/swift/swiftformat.wasm
 #   mv formatters/swift/swiftformat.opt.wasm formatters/swift/swiftformat.wasm
 #   python3 formatters/swift/wasm-src/strip.py formatters/swift/swiftformat.wasm
 #   zstd -19 -T0 -o formatters/swift/wasm/swiftformat.wasm.zst formatters/swift/swiftformat.wasm

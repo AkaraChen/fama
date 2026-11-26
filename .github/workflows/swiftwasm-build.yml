@@ -62,7 +62,7 @@ jobs:
 
             - name: Optimize wasm with Binaryen wasm-opt
               run: |
-                  wasm-opt -Oz --no-zero-filled-memory \
+                  wasm-opt -Oz --all-features \
                     -o formatters/swift/swiftformat.opt.wasm \
                     formatters/swift/swiftformat.wasm
                   mv formatters/swift/swiftformat.opt.wasm formatters/swift/swiftformat.wasm
