@@ -434,48 +434,109 @@ fn verilog_confidence(content: &str) -> u8 {
 	const COQ_MARKERS: &[&str] = &[
 		"Theorem ",
 		"Lemma ",
+		"Proposition ",
+		"Corollary ",
 		"Proof.",
 		"Qed.",
+		"Defined.",
+		"Admitted.",
 		"Require Import",
+		"Require Export",
 		"Inductive ",
+		"CoInductive ",
 		"Definition ",
 		"Fixpoint ",
+		"Axiom ",
+		"Section ",
+		"Notation ",
+		"Ltac ",
 	];
-	if COQ_MARKERS.iter().any(|m| content.contains(m)) {
+	if COQ_MARKERS.iter().any(|m| content.contains(m))
+		|| content.lines().any(|l| {
+			let t = l.trim_start();
+			t.starts_with("From ")
+				|| t.starts_with("Require ")
+				|| t.starts_with("Variable ")
+				|| t.starts_with("Variables ")
+				|| t.starts_with("Record ")
+				|| t.starts_with("Module ")
+		}) {
 		return 0;
 	}
 
-	// V language uses `module <name>` too, so check V markers before `module `.
-	let has_verilog_end = content.contains("endmodule");
+	// V language uses `module <name>` too, so reject V markers unless Verilog
+	// block terminators are present.
+	let has_verilog_end = content.contains("endmodule")
+		|| content.contains("endfunction")
+		|| content.contains("endinterface")
+		|| content.contains("endpackage");
 	if !has_verilog_end
-		&& (content.contains("fn main(")
-			|| content.contains("pub fn ")
-			|| (content.lines().any(|l| l.trim_start().starts_with("import "))
-				&& !content.contains("import pkg")))
-	{
+		&& content.lines().any(|l| {
+			let t = l.trim_start();
+			t.starts_with("fn ")
+				|| t.starts_with("pub fn ")
+				|| t.starts_with("pub struct ")
+				|| t.starts_with("pub enum ")
+				|| t.starts_with("pub const ")
+				|| t.starts_with("pub type ")
+				|| t.starts_with("pub interface ")
+				|| (t.starts_with("import ")
+					&& !t.contains("::")
+					&& !t.trim_end().ends_with(';'))
+		}) {
 		return 0;
 	}
 
 	const VERILOG_MARKERS: &[&str] = &[
-		"module ",
 		"endmodule",
-		"wire ",
-		"reg ",
-		"logic ",
-		"always",
-		"assign ",
+		"endfunction",
+		"endtask",
+		"endinterface",
+		"endpackage",
 		"`timescale",
 		"`include",
-		"input ",
-		"output ",
-		"parameter ",
-		"localparam ",
+		"`define",
+		"`ifdef",
+		"`ifndef",
+		"always @",
+		"always@",
+		"always_ff",
+		"always_comb",
+		"always_latch",
 	];
 	if VERILOG_MARKERS.iter().any(|m| content.contains(m)) {
 		return 90;
 	}
 
-	50
+	const VERILOG_LINE_PREFIXES: &[&str] = &[
+		"wire ",
+		"reg ",
+		"logic ",
+		"assign ",
+		"input ",
+		"output ",
+		"inout ",
+		"parameter ",
+		"localparam ",
+		"initial ",
+	];
+	for line in content.lines() {
+		let t = line.trim_start();
+		if t.starts_with("//") || t.starts_with("/*") {
+			continue;
+		}
+		if VERILOG_LINE_PREFIXES.iter().any(|p| t.starts_with(p)) {
+			return 90;
+		}
+		if let Some(rest) = t.strip_prefix("module ") {
+			let code = rest.split("//").next().unwrap_or("").trim();
+			if code.contains('(') || code.contains(';') || code.contains('#') {
+				return 90;
+			}
+		}
+	}
+
+	0
 }
 
 fn objc_confidence(content: &str) -> u8 {

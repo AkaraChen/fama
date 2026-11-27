@@ -234,7 +234,7 @@ mod tests {
 	#[test]
 	fn test_registry_has_no_collisions_and_all_formatters() {
 		let reg = registry();
-		assert_eq!(reg.all().len(), 41);
+		assert_eq!(reg.all().len(), 48);
 	}
 
 	#[test]
@@ -321,6 +321,13 @@ mod tests {
 		assert_eq!(resolve_name("contract.cairo"), Some("cairo"));
 		assert_eq!(resolve_name("coin.move"), Some("move"));
 		assert_eq!(resolve_name("env.nu"), Some("nushell"));
+		assert_eq!(resolve_name("config.fish"), Some("fish"));
+		assert_eq!(resolve_name("app.cr"), Some("crystal"));
+		assert_eq!(resolve_name("Main.qml"), Some("qml"));
+		assert_eq!(resolve_name("kernel.mojo"), Some("mojo"));
+		assert_eq!(resolve_name("kernel.🔥"), Some("mojo"));
+		assert_eq!(resolve_name("main.bicep"), Some("bicep"));
+		assert_eq!(resolve_name("prod.bicepparam"), Some("bicep"));
 		assert_eq!(resolve_name("config.ncl"), Some("nickel"));
 		assert_eq!(resolve_name("part.scad"), Some("openscad"));
 		assert_eq!(resolve_name("cfg.json5"), Some("json5"));
@@ -357,7 +364,6 @@ mod tests {
 			"top.sv",
 			"top.svh",
 			"defs.vh",
-			"top.v",
 		] {
 			assert_eq!(resolve_name(path), Some("clang"), "{path}");
 		}
@@ -405,6 +411,15 @@ mod tests {
 			assert_eq!(resolve_name(name), Some("just"), "{name}");
 		}
 
+		for name in [
+			"meson.build",
+			"subproject/meson.build",
+			"meson.options",
+			"meson_options.txt",
+		] {
+			assert_eq!(resolve_name(name), Some("meson"), "{name}");
+		}
+
 		for path in [
 			"test.rb",
 			"tasks.rake",
@@ -421,6 +436,59 @@ mod tests {
 
 		assert_eq!(resolve_name("unknown.xyz"), None);
 		assert_eq!(resolve_name("README"), None);
+	}
+
+	#[test]
+	fn test_resolve_v_extension_disambiguates_v_verilog_and_coq() {
+		let reg = registry();
+		let path = Path::new("sample.v");
+
+		assert!(reg.is_supported(path));
+		assert!(matches!(reg.resolve_path(path), ResolveOutcome::NeedsContent));
+		assert!(reg.resolve(path).is_none());
+
+		let resolve = |content: &str| {
+			reg.resolve_with_content(path, content)
+				.map(|(_, fmt)| fmt.name())
+		};
+
+		// V sources
+		for v_src in [
+			"module main\n\nfn main() {\n\tprintln('hi')\n}\n",
+			"fn add(a int, b int) int {\n\treturn a + b\n}\n",
+			"module helpers\n\n// always check input\nfn parse(input string) string {\n\treturn input\n}\n",
+			"pub struct User {\n\tid int\n}\n",
+			"import os\n\nx := os.args.len\nprintln(x)\n",
+		] {
+			assert_eq!(resolve(v_src), Some("v"), "V source:\n{v_src}");
+		}
+
+		// Verilog / SystemVerilog sources
+		for verilog_src in [
+			"module top(input wire a, output wire b);\n\tassign b = a;\nendmodule\n",
+			"`timescale 1ns/1ps\nmodule big_alu #(\n\tparameter WIDTH = 32\n) (\n\tinput wire clk\n);\n",
+			"import my_pkg::*;\nmodule top(input logic a);\n\tassign b = a;\nendmodule\n",
+		] {
+			assert_eq!(
+				resolve(verilog_src),
+				Some("clang"),
+				"Verilog source:\n{verilog_src}"
+			);
+		}
+
+		// Coq / Rocq sources -> declined (None)
+		for coq_src in [
+			"Theorem foo : 1 = 1. Proof. reflexivity. Qed.\n",
+			"Require Import Coq.Arith.Arith.\nDefinition add1 (n : nat) := n + 1.\n",
+			"Section Helpers.\nVariable x : nat.\nEnd Helpers.\n",
+			"From Stdlib Require Import List.\nInductive tree := Leaf | Node.\n",
+		] {
+			assert_eq!(resolve(coq_src), None, "Coq source:\n{coq_src}");
+		}
+
+		// Inconclusive / empty -> fail closed (None)
+		assert_eq!(resolve(""), None);
+		assert_eq!(resolve("// just a comment\n"), None);
 	}
 
 	struct MockFmt {
