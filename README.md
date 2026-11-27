@@ -44,7 +44,7 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Convention over configuration.** There is one style. It works. Use it.
 
-**Universal.** One tool formats 60+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, JSON5, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, Jinja2, Twig, Nunjucks, Mustache, Handlebars, Vento, YAML, TOML, KDL, Markdown, Jupyter (`.ipynb`), LaTeX, BibTeX, Typst, Rust, Python, Lua, Ruby, PHP, Shell, Fish, Nushell, Go, Zig, HCL, Starlark/Bazel, CUE, Jsonnet, Rego, Dockerfile, SQL, XML, Kotlin, Scala, Nix, Nickel, OpenSCAD, CMake, Meson, Just, R, Elixir, Crystal, QML, Mojo, Bicep, V, WGSL, Dart, Swift, C, C++, C#, VB.NET, Objective-C, Java, Protobuf, CUDA, HLSL, Metal, GLSL, SystemVerilog/Verilog, GDScript, Solidity, Gleam, Prisma, Cairo, and Move. Same command everywhere.
+**Universal.** One tool formats 60+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, JSON5, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, Jinja2, Twig, Nunjucks, Mustache, Handlebars, Vento, YAML, TOML, KDL, Markdown, MDX (`.mdx`), Jupyter (`.ipynb`), LaTeX, BibTeX, Typst, Rust, Python, Lua, Ruby, PHP, Shell, Fish, Nushell, Go, Zig, HCL, Starlark/Bazel, CUE, Jsonnet, Rego, Dockerfile, SQL, XML, Kotlin, Scala, Nix, Nickel, OpenSCAD, CMake, Meson, Just, R, Elixir, Crystal, QML, Mojo, Bicep, V, WGSL, Dart, Swift, C, C++, C#, VB.NET, Objective-C, Java, Protobuf, CUDA, HLSL, Metal, GLSL, SystemVerilog/Verilog, GDScript, Solidity, Gleam, Prisma, Cairo, and Move. Same command everywhere.
 
 **Fast.** Formatting should never be the thing you're waiting for.
 
@@ -112,6 +112,7 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 | **GraphQL**     | Biome        | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
 | **CSS**         | dprint/Malva | ✅           | ✅    | ✅             | N/A        | N/A             | Includes SCSS, LESS, Sass         |
 | **Markdown**    | dprint       | ✅*          | N/A   | N/A            | N/A        | N/A             | *line_width, line_ending only     |
+| **MDX**         | markdown-rs + Biome + dprint | ✅ | ✅ | ✅             | ✅         | ✅              | Native `.mdx` (Markdown, JSX/ESM, YAML/TOML frontmatter) |
 | **YAML**        | dprint       | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
 | **Dockerfile**  | dprint       | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
 | **TOML**        | Taplo        | ✅           | N/A   | N/A            | N/A        | N/A             | Uses CONFIG.indent_width          |

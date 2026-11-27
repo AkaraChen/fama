@@ -135,13 +135,8 @@ fn sort_imports(
 	sorted_root
 }
 
-fn format_js_family(
-	source: &str,
-	file_path: &str,
-	source_type: JsFileSource,
-	file_type_name: &str,
-) -> Result<String, String> {
-	let options = JsFormatOptions::new(source_type)
+pub(crate) fn js_format_options(source_type: JsFileSource) -> JsFormatOptions {
+	JsFormatOptions::new(source_type)
 		.with_indent_style(BIOME_INDENT_STYLE)
 		.with_indent_width(IndentWidth::try_from(BIOME_INDENT_WIDTH).unwrap())
 		.with_line_width(LineWidth::try_from(BIOME_LINE_WIDTH).unwrap())
@@ -149,7 +144,16 @@ fn format_js_family(
 		.with_quote_style(BIOME_QUOTE_STYLE)
 		.with_trailing_commas(BIOME_TRAILING_COMMAS)
 		.with_semicolons(BIOME_SEMICOLONS)
-		.with_bracket_spacing(BracketSpacing::from(BIOME_BRACKET_SPACING));
+		.with_bracket_spacing(BracketSpacing::from(BIOME_BRACKET_SPACING))
+}
+
+fn format_js_family(
+	source: &str,
+	file_path: &str,
+	source_type: JsFileSource,
+	file_type_name: &str,
+) -> Result<String, String> {
+	let options = js_format_options(source_type);
 
 	let parsed = parse(source, source_type, JsParserOptions::default());
 

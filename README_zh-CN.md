@@ -44,7 +44,7 @@ Fama 帮你做决定，所以你不必做。它选择合理的默认值并普遍
 
 **约定优于配置。** 只有一种风格。它有效。使用它。
 
-**通用。** 一个工具格式化 60+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、JSON5、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、Jinja2、Twig、Nunjucks、Mustache、Handlebars、Vento、YAML、TOML、KDL、Markdown、Jupyter (`.ipynb`)、LaTeX、BibTeX、Typst、Rust、Python、Lua、Ruby、PHP、Shell、Fish、Nushell、Go、Zig、HCL、Starlark/Bazel、CUE、Jsonnet、Rego、Dockerfile、SQL、XML、Kotlin、Dart、Scala、Nix、Nickel、OpenSCAD、CMake、Meson、Just、R、Elixir、Crystal、QML、Mojo、Bicep、V、WGSL、Swift、C、C++、C#、VB.NET、Objective-C、Java、Protobuf、CUDA、HLSL、Metal、GLSL、SystemVerilog/Verilog、GDScript、Solidity、Gleam、Prisma、Cairo 和 Move。到处都是相同的命令。
+**通用。** 一个工具格式化 60+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、JSON5、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、Jinja2、Twig、Nunjucks、Mustache、Handlebars、Vento、YAML、TOML、KDL、Markdown、MDX (`.mdx`)、Jupyter (`.ipynb`)、LaTeX、BibTeX、Typst、Rust、Python、Lua、Ruby、PHP、Shell、Fish、Nushell、Go、Zig、HCL、Starlark/Bazel、CUE、Jsonnet、Rego、Dockerfile、SQL、XML、Kotlin、Dart、Scala、Nix、Nickel、OpenSCAD、CMake、Meson、Just、R、Elixir、Crystal、QML、Mojo、Bicep、V、WGSL、Swift、C、C++、C#、VB.NET、Objective-C、Java、Protobuf、CUDA、HLSL、Metal、GLSL、SystemVerilog/Verilog、GDScript、Solidity、Gleam、Prisma、Cairo 和 Move。到处都是相同的命令。
 
 **快速。** 格式化永远不应该是你等待的东西。
 
@@ -112,6 +112,7 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 | **GraphQL**     | Biome        | ✅       | N/A  | N/A      | N/A  | N/A      |                                   |
 | **CSS**         | dprint/Malva | ✅       | ✅   | ✅       | N/A  | N/A      | 包括 SCSS, LESS, Sass            |
 | **Markdown**    | dprint       | ✅*      | N/A  | N/A      | N/A  | N/A      | *仅 line_width, line_ending      |
+| **MDX**         | markdown-rs + Biome + dprint | ✅ | ✅ | ✅ | ✅ | ✅ | 原生 `.mdx`（Markdown、JSX/ESM、YAML/TOML frontmatter） |
 | **YAML**        | dprint       | ✅       | N/A  | N/A      | N/A  | N/A      |                                   |
 | **Dockerfile**  | dprint       | ✅       | N/A  | N/A      | N/A  | N/A      |                                   |
 | **TOML**        | Taplo        | ✅       | N/A  | N/A      | N/A  | N/A      | 使用 CONFIG.indent_width          |

@@ -7,6 +7,7 @@ pub mod dprint;
 pub mod json5;
 pub mod jupyter;
 pub mod markup;
+pub mod mdx;
 
 use fama_common::Formatter;
 
@@ -17,4 +18,5 @@ pub const FORMATTERS: &[&dyn Formatter] = &[
 	&json5::Json5Formatter,
 	&jupyter::JupyterFormatter,
 	&markup::MarkupFormatter,
+	&mdx::MdxFormatter,
 ];

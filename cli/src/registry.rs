@@ -256,7 +256,7 @@ mod tests {
 	#[test]
 	fn test_registry_has_no_collisions_and_all_formatters() {
 		let reg = registry();
-		assert_eq!(reg.all().len(), 48);
+		assert_eq!(reg.all().len(), 49);
 	}
 
 	#[test]
@@ -300,6 +300,8 @@ mod tests {
 		] {
 			assert_eq!(resolve_name(path), Some("dprint"), "{path}");
 		}
+
+		assert_eq!(resolve_name("test.mdx"), Some("mdx"));
 	}
 
 	#[test]

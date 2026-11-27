@@ -556,6 +556,21 @@ mod tests {
 	}
 
 	#[test]
+	fn test_format_content_mdx() {
+		let content = "+++\ntitle=\"Hello\"\n+++\n\nimport Foo from './foo'\n\n#   Hello <Badge   variant='ok'>new</Badge>\n\n<Callout   type=\"info\">\n\n-   item {1+2}\n\n</Callout>\n";
+		let formatted = format_content(content, "doc.mdx").unwrap();
+		assert!(formatted.contains("title = \"Hello\""), "{formatted}");
+		assert!(formatted.contains("import Foo from \"./foo\";"), "{formatted}");
+		assert!(
+			formatted.contains("# Hello <Badge variant=\"ok\">new</Badge>"),
+			"{formatted}"
+		);
+		assert!(formatted.contains("- item {1 + 2}"), "{formatted}");
+		let second = format_content(&formatted, "doc.mdx").unwrap();
+		assert_eq!(formatted, second);
+	}
+
+	#[test]
 	fn test_format_content_css() {
 		let content = "a{color:red}";
 		let result = format_content(content, "test.css");
