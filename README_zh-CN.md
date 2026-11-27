@@ -44,11 +44,11 @@ Fama 帮你做决定，所以你不必做。它选择合理的默认值并普遍
 
 **约定优于配置。** 只有一种风格。它有效。使用它。
 
-**通用。** 一个工具格式化 50+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、JSON5、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、Jinja2、Twig、Nunjucks、Mustache、Handlebars、Vento、YAML、TOML、KDL、Markdown、Jupyter (`.ipynb`)、LaTeX、BibTeX、Typst、Rust、Python、Lua、Ruby、PHP、Shell、Nushell、Go、Zig、HCL、Starlark/Bazel、CUE、Jsonnet、Rego、Dockerfile、SQL、XML、Kotlin、Dart、Scala、Nix、Nickel、OpenSCAD、CMake、Just、R、Elixir、WGSL、Swift、C、C++、C#、VB.NET、Objective-C、Java、Protobuf、CUDA、HLSL、Metal、GLSL、SystemVerilog/Verilog、GDScript、Solidity、Gleam、Prisma、Cairo 和 Move。到处都是相同的命令。
+**通用。** 一个工具格式化 60+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、JSON5、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、Jinja2、Twig、Nunjucks、Mustache、Handlebars、Vento、YAML、TOML、KDL、Markdown、Jupyter (`.ipynb`)、LaTeX、BibTeX、Typst、Rust、Python、Lua、Ruby、PHP、Shell、Fish、Nushell、Go、Zig、HCL、Starlark/Bazel、CUE、Jsonnet、Rego、Dockerfile、SQL、XML、Kotlin、Dart、Scala、Nix、Nickel、OpenSCAD、CMake、Meson、Just、R、Elixir、Crystal、QML、Mojo、Bicep、V、WGSL、Swift、C、C++、C#、VB.NET、Objective-C、Java、Protobuf、CUDA、HLSL、Metal、GLSL、SystemVerilog/Verilog、GDScript、Solidity、Gleam、Prisma、Cairo 和 Move。到处都是相同的命令。
 
 **快速。** 格式化永远不应该是你等待的东西。
 
-**小巧。** 单个静态二进制承载内置 formatter——运行时不需要安装任何工具链。process mode 的语言也可以依赖宿主机已安装的 formatter CLI，例如 Kotlin 使用 `ktfmt-worker`/`ktfmt`、Scala 使用 `scalafmt`、R 使用 `air`、Elixir 使用 `mix`、Solidity 使用 `forge`、Gleam 使用 `gleam`、Prisma 使用 `prisma-fmt`、Just 使用 `just`、Cairo 使用 `cairo-format`、Move 使用 `movefmt`、Nushell 使用 `nufmt`——内置的 `ktfmt-worker` native image 可带来最快的 Kotlin 体验。放在你的 PATH 里就能工作。随时可以通过再次运行安装脚本更新。
+**小巧。** 单个静态二进制承载内置 formatter——运行时不需要安装任何工具链。process mode 的语言也可以依赖宿主机已安装的 formatter CLI，例如 Kotlin 使用 `ktfmt-worker`/`ktfmt`、Scala 使用 `scalafmt`、R 使用 `air`、Elixir 使用 `mix`、Solidity 使用 `forge`、Gleam 使用 `gleam`、Prisma 使用 `prisma-fmt`、Just 使用 `just`、Cairo 使用 `cairo-format`、Move 使用 `movefmt`、Nushell 使用 `nufmt`、Fish 使用 `fish_indent`、Meson 使用 `meson`、Crystal 使用 `crystal`、QML 使用 `qmlformat`、Mojo 使用 `mojo`、Bicep 使用 `bicep`、V 使用 `v`——内置的 `ktfmt-worker` native image 可带来最快的 Kotlin 体验。放在你的 PATH 里就能工作。随时可以通过再次运行安装脚本更新。
 
 **安静。** 它格式化改变的内容并告诉你它做了什么。仅此而已。
 
@@ -160,6 +160,13 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 | **Cairo**       | cairo-format | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `cairo-format` 或 `FAMA_CAIRO_FORMAT_PATH` |
 | **Move**        | movefmt      | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `movefmt` 或 `FAMA_MOVEFMT_PATH` |
 | **Nushell**     | nufmt        | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `nufmt` 或 `FAMA_NUFMT_PATH` |
+| **Fish**        | fish_indent  | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `fish_indent` 或 `FAMA_FISH_INDENT_PATH` |
+| **Meson**       | meson format | ❌       | N/A  | N/A      | N/A  | N/A      | process mode（`meson.build`、`meson.options`、`meson_options.txt`）；需要宿主机 `meson` >= 1.5 或 `FAMA_MESON_PATH` |
+| **Crystal**     | crystal tool format | ❌ | N/A | N/A     | N/A  | N/A      | process mode；需要宿主机 `crystal` 或 `FAMA_CRYSTAL_PATH` |
+| **QML**         | qmlformat    | ✅*      | N/A  | N/A      | N/A  | N/A      | *`indent_style`, `indent_width`, `line_ending`；process mode；需要宿主机 `qmlformat` 或 `FAMA_QMLFORMAT_PATH` |
+| **Mojo**        | mojo format  | ✅*      | N/A  | N/A      | N/A  | N/A      | *`line_width`（`.mojo`, `.🔥`）；process mode；需要宿主机 `mojo` 或 `FAMA_MOJO_PATH` |
+| **Bicep**       | bicep format | ✅*      | N/A  | N/A      | N/A  | N/A      | *`indent_style`, `indent_width`, `line_ending`（`.bicep`, `.bicepparam`）；process mode；需要宿主机 `bicep` 或 `FAMA_BICEP_PATH` |
+| **V**           | v fmt        | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；`.v` 支持与 Verilog/Coq 内容消歧；需要宿主机 `v` 或 `FAMA_V_PATH` |
 | **WGSL**        | wgsl-formatter | ✅     | N/A  | N/A      | N/A  | N/A      | wgsl-analyzer 原生 crate          |
 | **Swift**       | swift-format | ✅*    | N/A  | N/A      | N/A  | N/A      | *缩进、行宽经生成的配置 JSON 传入，行尾由宿主处理；通过 WASM（SwiftWasm + wasmtime） |
 
@@ -178,7 +185,7 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 - **Swift**: 使用 Apple 官方 swift-format（603.0.0，零补丁），缩进与行宽经生成的配置 JSON 传入；swift-format 无行尾开关，`line_ending` 由宿主侧处理；以 WASM 模块在进程内运行
 - **Zig**: 使用 Zig 内置格式化工具的默认风格
 - **Ruby**: 使用嵌入的 `rubyfmt` 固定风格
-- **Solidity / Gleam / Prisma / Just / Cairo / Move / Nushell**: process mode 格式化器，调用各生态官方 CLI 的默认风格
+- **Solidity / Gleam / Prisma / Just / Cairo / Move / Nushell / Fish / Meson / Crystal / QML / Mojo / Bicep / V**: process mode 格式化器，调用各生态官方 CLI（无风格开关的工具使用官方默认风格，`qmlformat`、`mojo format` 与 `bicep format` 会传递支持的 fama 配置项）
 
 ### 配置导出
 

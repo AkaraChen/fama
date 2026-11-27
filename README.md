@@ -44,11 +44,11 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Convention over configuration.** There is one style. It works. Use it.
 
-**Universal.** One tool formats 50+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, JSON5, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, Jinja2, Twig, Nunjucks, Mustache, Handlebars, Vento, YAML, TOML, KDL, Markdown, Jupyter (`.ipynb`), LaTeX, BibTeX, Typst, Rust, Python, Lua, Ruby, PHP, Shell, Nushell, Go, Zig, HCL, Starlark/Bazel, CUE, Jsonnet, Rego, Dockerfile, SQL, XML, Kotlin, Scala, Nix, Nickel, OpenSCAD, CMake, Just, R, Elixir, WGSL, Dart, Swift, C, C++, C#, VB.NET, Objective-C, Java, Protobuf, CUDA, HLSL, Metal, GLSL, SystemVerilog/Verilog, GDScript, Solidity, Gleam, Prisma, Cairo, and Move. Same command everywhere.
+**Universal.** One tool formats 60+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, JSON5, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, Jinja2, Twig, Nunjucks, Mustache, Handlebars, Vento, YAML, TOML, KDL, Markdown, Jupyter (`.ipynb`), LaTeX, BibTeX, Typst, Rust, Python, Lua, Ruby, PHP, Shell, Fish, Nushell, Go, Zig, HCL, Starlark/Bazel, CUE, Jsonnet, Rego, Dockerfile, SQL, XML, Kotlin, Scala, Nix, Nickel, OpenSCAD, CMake, Meson, Just, R, Elixir, Crystal, QML, Mojo, Bicep, V, WGSL, Dart, Swift, C, C++, C#, VB.NET, Objective-C, Java, Protobuf, CUDA, HLSL, Metal, GLSL, SystemVerilog/Verilog, GDScript, Solidity, Gleam, Prisma, Cairo, and Move. Same command everywhere.
 
 **Fast.** Formatting should never be the thing you're waiting for.
 
-**Small.** A single static binary for built-in formatters — no toolchains to install at runtime. Process-mode languages can also rely on host-installed formatter CLIs, such as `ktfmt-worker`/`ktfmt` for Kotlin, `scalafmt` for Scala, `air` for R, `mix` for Elixir, `forge` for Solidity, `gleam` for Gleam, `prisma-fmt` for Prisma, `just` for Just, `cairo-format` for Cairo, `movefmt` for Move, and `nufmt` for Nushell — or the bundled `ktfmt-worker` native image for the fastest Kotlin runs. Drop it in your PATH and it just works. Update anytime by running the install script again.
+**Small.** A single static binary for built-in formatters — no toolchains to install at runtime. Process-mode languages can also rely on host-installed formatter CLIs, such as `ktfmt-worker`/`ktfmt` for Kotlin, `scalafmt` for Scala, `air` for R, `mix` for Elixir, `forge` for Solidity, `gleam` for Gleam, `prisma-fmt` for Prisma, `just` for Just, `cairo-format` for Cairo, `movefmt` for Move, `nufmt` for Nushell, `fish_indent` for Fish, `meson` for Meson, `crystal` for Crystal, `qmlformat` for QML, `mojo` for Mojo, `bicep` for Bicep, and `v` for V — or the bundled `ktfmt-worker` native image for the fastest Kotlin runs. Drop it in your PATH and it just works. Update anytime by running the install script again.
 
 **Quiet.** It formats what changed and tells you what it did. Nothing more.
 
@@ -160,6 +160,13 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 | **Cairo**       | cairo-format | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `cairo-format` or `FAMA_CAIRO_FORMAT_PATH` |
 | **Move**        | movefmt      | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `movefmt` or `FAMA_MOVEFMT_PATH` |
 | **Nushell**     | nufmt        | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `nufmt` or `FAMA_NUFMT_PATH` |
+| **Fish**        | fish_indent  | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `fish_indent` or `FAMA_FISH_INDENT_PATH` |
+| **Meson**       | meson format | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode (`meson.build`, `meson.options`, `meson_options.txt`); host `meson` >= 1.5 or `FAMA_MESON_PATH` |
+| **Crystal**     | crystal tool format | ❌    | N/A   | N/A            | N/A        | N/A             | Process mode; host `crystal` or `FAMA_CRYSTAL_PATH` |
+| **QML**         | qmlformat    | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_style, indent_width, line_ending; process mode; host `qmlformat` or `FAMA_QMLFORMAT_PATH` |
+| **Mojo**        | mojo format  | ✅*          | N/A   | N/A            | N/A        | N/A             | *line_width (`.mojo`, `.🔥`); process mode; host `mojo` or `FAMA_MOJO_PATH` |
+| **Bicep**       | bicep format | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_style, indent_width, line_ending (`.bicep`, `.bicepparam`); process mode; host `bicep` or `FAMA_BICEP_PATH` |
+| **V**           | v fmt        | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; `.v` uses content disambiguation vs Verilog/Coq; host `v` or `FAMA_V_PATH` |
 | **WGSL**        | wgsl-formatter | ✅         | N/A   | N/A            | N/A        | N/A             | Native crate from wgsl-analyzer   |
 | **Swift**       | swift-format | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent style/width, line_width via generated config JSON, line_ending host-side; via WASM (SwiftWasm + wasmtime) |
 
@@ -179,7 +186,7 @@ Some formatters use hardcoded styles that cannot be configured:
 - **Swift**: Uses Apple's swift-format (603.0.0, unpatched) with fama's `indent_style`/`indent_width`/`line_width` via a generated config JSON; `line_ending` is applied host-side because swift-format has no line-ending knob; runs in-process as a WASM module
 - **Zig**: Uses Zig's built-in formatter with default style
 - **Ruby**: Uses embedded `rubyfmt` with fixed style
-- **Solidity / Gleam / Prisma / Just / Cairo / Move / Nushell**: Process-mode formatters delegating to their official ecosystem CLIs with canonical defaults
+- **Solidity / Gleam / Prisma / Just / Cairo / Move / Nushell / Fish / Meson / Crystal / QML / Mojo / Bicep / V**: Process-mode formatters delegating to their official ecosystem CLIs (with canonical defaults where the CLI does not expose style knobs, and fama config flags forwarded for `qmlformat`, `mojo format`, and `bicep format`)
 
 ### Configuration Export
 

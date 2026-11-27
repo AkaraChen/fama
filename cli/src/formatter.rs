@@ -728,7 +728,6 @@ mod tests {
 
 		let verilog_path = temp_dir.path().join("top.v");
 		let coq_path = temp_dir.path().join("proof.v");
-		let vlang_path = temp_dir.path().join("main.v");
 		let ambig_v_path = temp_dir.path().join("ambig.v");
 		let modeline_v_path = temp_dir.path().join("modeline.v");
 		let objc_path = temp_dir.path().join("App.m");
@@ -737,7 +736,6 @@ mod tests {
 		let modeline_m_path = temp_dir.path().join("modeline.m");
 
 		let coq_src = "Require Import Arith.\nTheorem t : 1=1. Proof. reflexivity. Qed.\n";
-		let vlang_src = "module main\nfn main(){\nprintln('hi')\n}\n";
 		let ambig_v_src = "// inconclusive\nx=1;\n";
 		let matlab_src = "% MATLAB\nfunction y=f(x)\ny=x+1;\nend\n";
 		let ambig_m_src = "int main(){return 0;}\n";
@@ -748,7 +746,6 @@ mod tests {
 		)
 		.unwrap();
 		fs::write(&coq_path, coq_src).unwrap();
-		fs::write(&vlang_path, vlang_src).unwrap();
 		fs::write(&ambig_v_path, ambig_v_src).unwrap();
 		fs::write(&modeline_v_path, "// vim: ft=verilog\nmodule m;assign a=b;endmodule\n")
 			.unwrap();
@@ -765,7 +762,6 @@ mod tests {
 		let files = vec![
 			verilog_path.clone(),
 			coq_path.clone(),
-			vlang_path.clone(),
 			ambig_v_path.clone(),
 			modeline_v_path.clone(),
 			objc_path.clone(),
@@ -794,7 +790,6 @@ mod tests {
 
 		// Declined / inconclusive files were skipped untouched
 		assert_eq!(fs::read_to_string(&coq_path).unwrap(), coq_src);
-		assert_eq!(fs::read_to_string(&vlang_path).unwrap(), vlang_src);
 		assert_eq!(fs::read_to_string(&ambig_v_path).unwrap(), ambig_v_src);
 		assert_eq!(fs::read_to_string(&matlab_path).unwrap(), matlab_src);
 		assert_eq!(fs::read_to_string(&ambig_m_path).unwrap(), ambig_m_src);
