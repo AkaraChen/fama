@@ -18,49 +18,16 @@ impl Formatter for LatexFormatter {
 		&["tex", "bib", "sty", "cls"]
 	}
 
-	fn needs_content_check(&self, ext: &str) -> bool {
-		ext == "cls"
-	}
-
-	fn match_confidence(&self, path: &Path, content: &str) -> u8 {
-		if path.extension().and_then(|e| e.to_str()) == Some("cls") {
-			cls_confidence(content)
-		} else {
-			50
+	fn linguist_languages(&self, ext: &str) -> &'static [&'static str] {
+		match ext {
+			"cls" => &["TeX"],
+			_ => &[],
 		}
 	}
 
 	fn format(&self, content: &str, path: &Path) -> Result<String, String> {
 		format_latex(content, path)
 	}
-}
-
-fn cls_confidence(content: &str) -> u8 {
-	const TEX_CLS_MARKERS: &[&str] = &[
-		"\\NeedsTeXFormat",
-		"\\ProvidesClass",
-		"\\LoadClass",
-		"\\DeclareOption",
-		"\\documentclass",
-		"\\usepackage",
-		"\\RequirePackage",
-	];
-	if TEX_CLS_MARKERS.iter().any(|m| content.contains(m)) {
-		return 90;
-	}
-
-	const NON_TEX_CLS_MARKERS: &[&str] = &[
-		"public class ",
-		"global class ",
-		"private class ",
-		"@isTest",
-		"VERSION 1.0 CLASS",
-	];
-	if NON_TEX_CLS_MARKERS.iter().any(|m| content.contains(m)) {
-		return 0;
-	}
-
-	50
 }
 
 pub fn format_latex(source: &str, path: &Path) -> Result<String, String> {
@@ -92,23 +59,10 @@ mod tests {
 	}
 
 	#[test]
-	fn test_cls_disambiguation() {
+	fn test_cls_linguist_languages() {
 		assert!(LatexFormatter.needs_content_check("cls"));
 		assert!(!LatexFormatter.needs_content_check("tex"));
-
-		assert_eq!(
-			LatexFormatter.match_confidence(
-				Path::new("article.cls"),
-				"\\NeedsTeXFormat{LaTeX2e}\n\\ProvidesClass{myclass}"
-			),
-			90
-		);
-		assert_eq!(
-			LatexFormatter.match_confidence(
-				Path::new("AccountHandler.cls"),
-				"public class AccountHandler {\n}"
-			),
-			0
-		);
+		assert_eq!(LatexFormatter.linguist_languages("cls"), &["TeX"]);
+		assert!(LatexFormatter.linguist_languages("tex").is_empty());
 	}
 }

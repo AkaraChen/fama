@@ -31,8 +31,8 @@ fama --export    # Generate .editorconfig plus tool configs (rustfmt.toml,
 
 The project is a Cargo workspace with 14 crates:
 
-- `cli/` - Main CLI application with file discovery, formatter `Registry` (with content-based extension disambiguation), routing, and `--export` / `--precompile`
-- `common/` - Shared types: `Formatter` trait (including `needs_content_check` & `match_confidence`), `format_embedded` host callback, `ExportedConfig`, `FormatConfig`, indentation/quote styles, and `.editorconfig` renderer
+- `cli/` - Main CLI application with file discovery, formatter `Registry` (with fail-closed Linguist content-based extension disambiguation), routing, and `--export` / `--precompile`
+- `common/` - Shared types: `Formatter` trait (including `linguist_languages` & `needs_content_check`), `format_embedded` host callback, `ExportedConfig`, `FormatConfig`, indentation/quote styles, and `.editorconfig` renderer
 - `formatters/` - Language-specific formatter implementations:
   - `builtin/` (`fama-builtin`) - Native pure-Rust formatters (1 module each): TOML (Taplo), Python (Ruff), Lua (StyLua), Dockerfile, XML (`quick-xml`), SQL (`sqruff`), PHP (Mago), CMake (`cmakefmt-rust`), Nix (Alejandra), WGSL (`wgsl-formatter`), Typst (`typstyle-core`), KDL (`kdl`), GDScript (`gdck-format`), LaTeX/BibTeX (`tex-fmt`)
   - `web/` (`fama-web`) - Web, style, markup, data, and document-container formatters: Biome (JS/TS/JSX/TSX/JSON/JSONC/HTML/Vue/Svelte/Astro/GraphQL), dprint/Malva (Markdown/YAML/CSS/SCSS/Less/Sass), `dprint-plugin-json` (JSON5), `dprint-plugin-jupyter` (`.ipynb` via `format_embedded`), and `markup_fmt` (Jinja2/Twig/Nunjucks/Mustache/Handlebars/Vento)
@@ -50,7 +50,7 @@ The project is a Cargo workspace with 14 crates:
 ### Data Flow
 
 1. **Discovery** (`cli/src/discovery.rs`): Walk filesystem, filter via `cli/src/registry.rs`, respect `.gitignore`
-2. **Resolution** (`cli/src/registry.rs`): Map extension or special filename → `&'static dyn Formatter` (with 4KB prefix content disambiguation when `ResolveOutcome::NeedsContent`)
+2. **Resolution** (`cli/src/registry.rs`): Map extension or special filename → `&'static dyn Formatter`. Unambiguous extensions take the zero-overhead `ResolveOutcome::Unique` fast path without touching `linguist`. Shared or content-guarded extensions (`ResolveOutcome::NeedsContent`, e.g. `.v`, `.m`, `.cls`) read a 4KB prefix and run pure-Rust `linguist::detect_language_by_modeline` → `linguist::disambiguate`, matching against each candidate's `Formatter::linguist_languages(ext)` with a fail-closed policy (no match or unclaimed language → skip file).
 3. **Routing** (`cli/src/formatter.rs`): Run batchable formatters (`supports_batch()`) in chunks concurrently with LPT-ordered single-file formatters
 4. **Formatting**: Each `Formatter::format` / `Formatter::format_batch` receives content `&str` and returns formatted `String`
 5. **Write-back**: If changed, write to disk; track stats (formatted, unchanged, errors)
@@ -64,6 +64,8 @@ pub trait Formatter: Sync {
 	fn name(&self) -> &'static str;
 	fn extensions(&self) -> &'static [&'static str];
 	fn matches_filename(&self, _name: &str) -> bool { false }
+	fn linguist_languages(&self, _ext: &str) -> &'static [&'static str] { &[] }
+	fn needs_content_check(&self, ext: &str) -> bool { !self.linguist_languages(ext).is_empty() }
 	fn format(&self, content: &str, path: &Path) -> Result<String, String>;
 	fn supports_batch(&self) -> bool { false }
 	fn format_batch(&self, contents: &[&str]) -> Vec<Result<String, String>>;
@@ -120,3 +122,4 @@ Choose the crate matching the formatter's dependency model:
 - **swift-format**: Apple's formatter compiled to wasm32-unknown-wasip1 (SwiftWasm 6.3 SDK) and hosted on wasmtime, like clang-format and dart_style
 - **mvdan/sh**: Go library for shell formatting via FFI
 - **stylua**: Lua formatter
+- **linguist**: Pure-Rust GitHub Linguist heuristics/modelines (only in `cli/`; lazily initialized on `ResolveOutcome::NeedsContent` for ambiguous extensions)

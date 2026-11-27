@@ -139,7 +139,7 @@ pub fn format_files(
 								&mut other_files,
 							);
 						}
-						// If all candidates declined (score == 0), skip gracefully.
+						// If no candidate matched (fail-closed), skip gracefully.
 					}
 					Err(e) => {
 						record(
@@ -669,10 +669,135 @@ mod tests {
 
 	#[test]
 	fn test_format_content_objective_c() {
-		let content = "int main() { return 0; }";
+		let content =
+			"#import <Foundation/Foundation.h>\n@interface Foo : NSObject\n@end\n";
 		let result = format_content(content, "test.m");
 
-		assert!(result.is_ok());
+		assert!(result.is_ok(), "Objective-C failed: {:?}", result);
+	}
+
+	#[test]
+	fn test_format_content_verilog_and_fail_closed_disambiguation() {
+		let verilog =
+			"module top(input wire a,output wire b);assign b=a;endmodule\n";
+		let formatted = format_content(verilog, "top.v").unwrap();
+		assert!(formatted.contains("assign b = a;"), "{formatted}");
+
+		// Coq/Rocq, V, and inconclusive .v fail closed
+		assert!(format_content(
+			"Require Import Arith.\nProof. reflexivity. Qed.\n",
+			"proof.v"
+		)
+		.is_err());
+		assert!(format_content(
+			"module main\nfn main() {\n\tprintln('hi')\n}\n",
+			"main.v"
+		)
+		.is_err());
+		assert!(format_content("// inconclusive\n", "ambig.v").is_err());
+
+		// Modeline overrides
+		assert!(format_content(
+			"// vim: ft=verilog\nmodule m;endmodule\n",
+			"hint.v"
+		)
+		.is_ok());
+		assert!(format_content(
+			"// vim: ft=coq\nmodule top(input wire a);endmodule\n",
+			"override.v"
+		)
+		.is_err());
+
+		// MATLAB and inconclusive .m fail closed; modeline overrides
+		assert!(format_content(
+			"% MATLAB\nfunction y = f(x)\n  y = x + 1;\nend\n",
+			"calc.m"
+		)
+		.is_err());
+		assert!(format_content("int main() { return 0; }\n", "plain.m").is_err());
+		assert!(format_content(
+			"// vim: ft=objc\nint main(){return 0;}\n",
+			"hint.m"
+		)
+		.is_ok());
+	}
+
+	#[test]
+	fn test_format_files_skips_unmatched_ambiguous_files_without_error() {
+		let temp_dir = TempDir::new().unwrap();
+
+		let verilog_path = temp_dir.path().join("top.v");
+		let coq_path = temp_dir.path().join("proof.v");
+		let vlang_path = temp_dir.path().join("main.v");
+		let ambig_v_path = temp_dir.path().join("ambig.v");
+		let modeline_v_path = temp_dir.path().join("modeline.v");
+		let objc_path = temp_dir.path().join("App.m");
+		let matlab_path = temp_dir.path().join("calc.m");
+		let ambig_m_path = temp_dir.path().join("plain.m");
+		let modeline_m_path = temp_dir.path().join("modeline.m");
+
+		let coq_src = "Require Import Arith.\nTheorem t : 1=1. Proof. reflexivity. Qed.\n";
+		let vlang_src = "module main\nfn main(){\nprintln('hi')\n}\n";
+		let ambig_v_src = "// inconclusive\nx=1;\n";
+		let matlab_src = "% MATLAB\nfunction y=f(x)\ny=x+1;\nend\n";
+		let ambig_m_src = "int main(){return 0;}\n";
+
+		fs::write(
+			&verilog_path,
+			"module top(input wire a,output wire b);assign b=a;endmodule\n",
+		)
+		.unwrap();
+		fs::write(&coq_path, coq_src).unwrap();
+		fs::write(&vlang_path, vlang_src).unwrap();
+		fs::write(&ambig_v_path, ambig_v_src).unwrap();
+		fs::write(&modeline_v_path, "// vim: ft=verilog\nmodule m;assign a=b;endmodule\n")
+			.unwrap();
+		fs::write(
+			&objc_path,
+			"#import <Foundation/Foundation.h>\n@interface App:NSObject\n@end\n",
+		)
+		.unwrap();
+		fs::write(&matlab_path, matlab_src).unwrap();
+		fs::write(&ambig_m_path, ambig_m_src).unwrap();
+		fs::write(&modeline_m_path, "// vim: ft=objc\nint main(){return 0;}\n")
+			.unwrap();
+
+		let files = vec![
+			verilog_path.clone(),
+			coq_path.clone(),
+			vlang_path.clone(),
+			ambig_v_path.clone(),
+			modeline_v_path.clone(),
+			objc_path.clone(),
+			matlab_path.clone(),
+			ambig_m_path.clone(),
+			modeline_m_path.clone(),
+		];
+
+		let stats = format_files(&files, false, false);
+		assert!(stats.errors.is_empty(), "unexpected errors: {:?}", stats.errors);
+		assert_eq!(stats.formatted + stats.unchanged, 4);
+
+		// Accepted files were formatted
+		assert!(fs::read_to_string(&verilog_path)
+			.unwrap()
+			.contains("assign b = a;"));
+		assert!(fs::read_to_string(&modeline_v_path)
+			.unwrap()
+			.contains("assign a = b;"));
+		assert!(fs::read_to_string(&objc_path)
+			.unwrap()
+			.contains("@interface App : NSObject"));
+		assert!(fs::read_to_string(&modeline_m_path)
+			.unwrap()
+			.contains("return 0;"));
+
+		// Declined / inconclusive files were skipped untouched
+		assert_eq!(fs::read_to_string(&coq_path).unwrap(), coq_src);
+		assert_eq!(fs::read_to_string(&vlang_path).unwrap(), vlang_src);
+		assert_eq!(fs::read_to_string(&ambig_v_path).unwrap(), ambig_v_src);
+		assert_eq!(fs::read_to_string(&matlab_path).unwrap(), matlab_src);
+		assert_eq!(fs::read_to_string(&ambig_m_path).unwrap(), ambig_m_src);
 	}
 
 	#[test]

@@ -390,15 +390,11 @@ impl Formatter for ClangFormatter {
 		]
 	}
 
-	fn needs_content_check(&self, ext: &str) -> bool {
-		matches!(ext, "v" | "m")
-	}
-
-	fn match_confidence(&self, path: &Path, content: &str) -> u8 {
-		match path.extension().and_then(|e| e.to_str()) {
-			Some("v") => verilog_confidence(content),
-			Some("m") => objc_confidence(content),
-			_ => 50,
+	fn linguist_languages(&self, ext: &str) -> &'static [&'static str] {
+		match ext {
+			"v" => &["Verilog", "SystemVerilog"],
+			"m" => &["Objective-C"],
+			_ => &[],
 		}
 	}
 
@@ -428,87 +424,6 @@ impl Formatter for ClangFormatter {
 			});
 		Some(result)
 	}
-}
-
-fn verilog_confidence(content: &str) -> u8 {
-	const COQ_MARKERS: &[&str] = &[
-		"Theorem ",
-		"Lemma ",
-		"Proof.",
-		"Qed.",
-		"Require Import",
-		"Inductive ",
-		"Definition ",
-		"Fixpoint ",
-	];
-	if COQ_MARKERS.iter().any(|m| content.contains(m)) {
-		return 0;
-	}
-
-	// V language uses `module <name>` too, so check V markers before `module `.
-	let has_verilog_end = content.contains("endmodule");
-	if !has_verilog_end
-		&& (content.contains("fn main(")
-			|| content.contains("pub fn ")
-			|| (content.lines().any(|l| l.trim_start().starts_with("import "))
-				&& !content.contains("import pkg")))
-	{
-		return 0;
-	}
-
-	const VERILOG_MARKERS: &[&str] = &[
-		"module ",
-		"endmodule",
-		"wire ",
-		"reg ",
-		"logic ",
-		"always",
-		"assign ",
-		"`timescale",
-		"`include",
-		"input ",
-		"output ",
-		"parameter ",
-		"localparam ",
-	];
-	if VERILOG_MARKERS.iter().any(|m| content.contains(m)) {
-		return 90;
-	}
-
-	50
-}
-
-fn objc_confidence(content: &str) -> u8 {
-	const OBJC_MARKERS: &[&str] = &[
-		"@interface",
-		"@implementation",
-		"@protocol",
-		"#import",
-		"@property",
-		"@end",
-		"NSString",
-		"NSObject",
-		"#include",
-	];
-	if OBJC_MARKERS.iter().any(|m| content.contains(m)) {
-		return 90;
-	}
-
-	let has_matlab_comment =
-		content.lines().any(|l| l.trim_start().starts_with('%'));
-	let has_matlab_end = content.lines().any(|l| l.trim() == "end");
-	let has_c_syntax = content.contains('{')
-		|| content.contains('}')
-		|| content.contains('@')
-		|| content.contains("#include");
-	if !has_c_syntax
-		&& (has_matlab_comment
-			|| (content.contains("function ") && has_matlab_end))
-	{
-		return 0;
-	}
-
-	50
 }
 
 /// Format code using clang-format WASM
@@ -723,44 +638,17 @@ mod tests {
 	}
 
 	#[test]
-	fn test_disambiguation_confidence_for_v_and_m() {
+	fn test_linguist_languages_for_v_and_m() {
 		assert!(ClangFormatter.needs_content_check("v"));
 		assert!(ClangFormatter.needs_content_check("m"));
 		assert!(!ClangFormatter.needs_content_check("cpp"));
+		assert!(!ClangFormatter.needs_content_check("sv"));
 
-		assert!(
-			ClangFormatter.match_confidence(
-				Path::new("top.v"),
-				"module top(input wire a); endmodule"
-			) > 0
-		);
 		assert_eq!(
-			ClangFormatter.match_confidence(
-				Path::new("proof.v"),
-				"Theorem foo : 1 = 1. Proof. reflexivity. Qed."
-			),
-			0
+			ClangFormatter.linguist_languages("v"),
+			&["Verilog", "SystemVerilog"]
 		);
-		assert_eq!(
-			ClangFormatter.match_confidence(
-				Path::new("main.v"),
-				"module main\nfn main() {\n\tprintln('hi')\n}"
-			),
-			0
-		);
-
-		assert!(
-			ClangFormatter.match_confidence(
-				Path::new("App.m"),
-				"#import <Foundation/Foundation.h>\n@interface App : NSObject\n@end"
-			) > 0
-		);
-		assert_eq!(
-			ClangFormatter.match_confidence(
-				Path::new("calc.m"),
-				"% MATLAB script\nfunction y = calc(x)\n  y = x + 1;\nend"
-			),
-			0
-		);
+		assert_eq!(ClangFormatter.linguist_languages("m"), &["Objective-C"]);
+		assert!(ClangFormatter.linguist_languages("cpp").is_empty());
 	}
 }

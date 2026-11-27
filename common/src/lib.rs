@@ -170,21 +170,24 @@ pub trait Formatter: Sync {
 		false
 	}
 
-	/// Confidence score (`0..=100`) that this formatter handles `path` with the
-	/// given content (or prefix). Only consulted when multiple formatters claim
-	/// the same extension, or when a formatter explicitly opts into content
-	/// guards via `needs_content_check`.
-	/// Return `0` to decline; higher scores win (ties broken by registration order).
-	fn match_confidence(&self, _path: &Path, _content: &str) -> u8 {
-		50
+	/// Exact GitHub Linguist language names (from Linguist's `languages.yml`,
+	/// e.g. `"Verilog"`, `"SystemVerilog"`, `"Objective-C"`, `"TeX"`) that this
+	/// formatter handles for `ext` during content-based disambiguation.
+	///
+	/// Consulted by `Registry` when an extension is shared by multiple
+	/// formatters or when `needs_content_check(ext)` is `true`. Returning an
+	/// empty slice declines the extension during disambiguation (fail-closed).
+	fn linguist_languages(&self, _ext: &str) -> &'static [&'static str] {
+		&[]
 	}
 
 	/// Return `true` if this formatter may decline certain files matching its
 	/// extensions based on content (e.g. `.v` Verilog vs Coq/V, `.m` ObjC vs MATLAB,
-	/// `.cls` LaTeX vs Apex). When `true`, `Registry` consults `match_confidence`
-	/// even if only one formatter currently claims the extension.
-	fn needs_content_check(&self, _ext: &str) -> bool {
-		false
+	/// `.cls` LaTeX vs Apex/VBA). When `true`, `Registry` consults Linguist
+	/// content disambiguation against `linguist_languages(ext)` even if only
+	/// one formatter currently claims the extension.
+	fn needs_content_check(&self, ext: &str) -> bool {
+		!self.linguist_languages(ext).is_empty()
 	}
 
 	/// Format a single file's content.

@@ -128,32 +128,23 @@ impl Registry {
 				return match slot {
 					ExtSlot::Unique(idx) => {
 						let fmt = self.formatters[*idx];
-						if !fmt.needs_content_check(ext)
-							|| fmt.match_confidence(path, content) > 0
-						{
+						if !fmt.needs_content_check(ext) {
 							Some((*idx, fmt))
 						} else {
-							None
+							self.disambiguate_candidates(
+								path,
+								ext,
+								content,
+								std::slice::from_ref(idx),
+							)
 						}
 					}
-					ExtSlot::Ambiguous(indices) => {
-						let mut best: Option<(
-							u8,
-							usize,
-							&'static dyn Formatter,
-						)> = None;
-						for &idx in indices {
-							let fmt = self.formatters[idx];
-							let score = fmt.match_confidence(path, content);
-							if score > 0
-								&& best.is_none_or(|(best_score, _, _)| {
-									score > best_score
-								}) {
-								best = Some((score, idx, fmt));
-							}
-						}
-						best.map(|(_, idx, fmt)| (idx, fmt))
-					}
+					ExtSlot::Ambiguous(indices) => self.disambiguate_candidates(
+						path,
+						ext,
+						content,
+						indices,
+					),
 				};
 			}
 		}
@@ -165,6 +156,37 @@ impl Registry {
 			}
 		}
 		None
+	}
+
+	/// Disambiguate among `candidates` for extension `ext` via Linguist
+	/// (modeline first, then content heuristics). Fails closed (`None`) when
+	/// Linguist detects no language or detects a language not claimed by a
+	/// candidate formatter.
+	fn disambiguate_candidates(
+		&self,
+		path: &Path,
+		ext: &str,
+		content: &str,
+		candidates: &[usize],
+	) -> Option<(usize, &'static dyn Formatter)> {
+		let detected = match linguist::detect_language_by_modeline(content) {
+			Ok(langs) if !langs.is_empty() => langs,
+			_ => match linguist::disambiguate(path, content) {
+				Ok(langs) => langs,
+				Err(_) => return None,
+			},
+		};
+		if detected.is_empty() {
+			return None;
+		}
+		candidates.iter().find_map(|&idx| {
+			let fmt = self.formatters[idx];
+			let langs = fmt.linguist_languages(ext);
+			detected
+				.iter()
+				.all(|lang| langs.contains(&lang.name))
+				.then_some((idx, fmt))
+		})
 	}
 
 	/// Resolve the formatter `(index, formatter)` responsible for `path` without content.
@@ -426,9 +448,7 @@ mod tests {
 	struct MockFmt {
 		name: &'static str,
 		exts: &'static [&'static str],
-		needs_check: bool,
-		marker: &'static str,
-		score: u8,
+		langs: &'static [&'static str],
 	}
 
 	impl Formatter for MockFmt {
@@ -438,15 +458,8 @@ mod tests {
 		fn extensions(&self) -> &'static [&'static str] {
 			self.exts
 		}
-		fn needs_content_check(&self, _ext: &str) -> bool {
-			self.needs_check
-		}
-		fn match_confidence(&self, _path: &Path, content: &str) -> u8 {
-			if self.marker.is_empty() || content.contains(self.marker) {
-				self.score
-			} else {
-				0
-			}
+		fn linguist_languages(&self, _ext: &str) -> &'static [&'static str] {
+			self.langs
 		}
 		fn format(&self, content: &str, _path: &Path) -> Result<String, String> {
 			Ok(content.to_string())
@@ -454,49 +467,247 @@ mod tests {
 	}
 
 	#[test]
-	fn test_disambiguation_highest_score_and_decline() {
-		static FMT_A: MockFmt = MockFmt {
-			name: "alpha",
-			exts: &["amb"],
-			needs_check: false,
-			marker: "ALPHA",
-			score: 70,
-		};
-		static FMT_B: MockFmt = MockFmt {
-			name: "beta",
-			exts: &["amb"],
-			needs_check: false,
-			marker: "BETA",
-			score: 90,
+	fn test_resolve_path_unique_vs_needs_content() {
+		let reg = registry();
+		for path in [
+			"test.c",
+			"test.cpp",
+			"top.sv",
+			"paper.tex",
+			"main.rs",
+			"app.ts",
+		] {
+			assert!(
+				matches!(reg.resolve_path(Path::new(path)), ResolveOutcome::Unique(_, _)),
+				"expected Unique for {path}"
+			);
+		}
+		for path in ["top.v", "App.m", "article.cls"] {
+			assert!(
+				matches!(reg.resolve_path(Path::new(path)), ResolveOutcome::NeedsContent),
+				"expected NeedsContent for {path}"
+			);
+		}
+		assert!(matches!(
+			reg.resolve_path(Path::new("unknown.xyz")),
+			ResolveOutcome::None
+		));
+	}
+
+	#[test]
+	fn test_linguist_disambiguation_v_files() {
+		let reg = registry();
+		let resolve = |path: &str, content: &str| {
+			reg.resolve_with_content(Path::new(path), content)
+				.map(|(_, fmt)| fmt.name())
 		};
 
-		let reg = Registry::from_formatters(vec![&FMT_A, &FMT_B]);
-		assert!(reg.is_supported(Path::new("file.amb")));
+		// Authentic Verilog accepted
+		assert_eq!(
+			resolve(
+				"top.v",
+				"module top(input wire a, output wire b);\nassign b = a;\nendmodule\n"
+			),
+			Some("clang")
+		);
+		assert_eq!(
+			resolve("tb.v", "`timescale 1ns/1ps\nmodule tb;\nendmodule\n"),
+			Some("clang")
+		);
+
+		// Coq / Rocq Prover declined
+		assert_eq!(
+			resolve(
+				"proof.v",
+				"Require Import Arith.\nTheorem foo : 1 = 1.\nProof. reflexivity. Qed.\n"
+			),
+			None
+		);
+
+		// V language declined (no V formatter registered yet)
+		assert_eq!(
+			resolve(
+				"main.v",
+				"module main\nfn main() {\n\tprintln('hi')\n}\n"
+			),
+			None
+		);
+
+		// Inconclusive .v fails closed
+		assert_eq!(resolve("ambig.v", "// just a comment\nx = 1;\n"), None);
+		assert_eq!(resolve("empty.v", ""), None);
+
+		// Modeline overrides respected (both accept and decline)
+		assert_eq!(
+			resolve("hint.v", "// vim: ft=verilog\n// inconclusive body\n"),
+			Some("clang")
+		);
+		assert_eq!(
+			resolve("hint.v", "// -*- mode: verilog -*-\n// inconclusive body\n"),
+			Some("clang")
+		);
+		assert_eq!(
+			resolve(
+				"override_coq.v",
+				"// vim: ft=coq\nmodule top(input wire a);\nendmodule\n"
+			),
+			None
+		);
+		assert_eq!(
+			resolve(
+				"override_v.v",
+				"// vim: ft=vlang\nmodule top(input wire a);\nendmodule\n"
+			),
+			None
+		);
+	}
+
+	#[test]
+	fn test_linguist_disambiguation_m_files() {
+		let reg = registry();
+		let resolve = |path: &str, content: &str| {
+			reg.resolve_with_content(Path::new(path), content)
+				.map(|(_, fmt)| fmt.name())
+		};
+
+		// Authentic Objective-C accepted
+		assert_eq!(
+			resolve(
+				"App.m",
+				"#import <Foundation/Foundation.h>\n@interface App : NSObject\n@end\n"
+			),
+			Some("clang")
+		);
+
+		// MATLAB declined
+		assert_eq!(
+			resolve(
+				"calc.m",
+				"% MATLAB script\nfunction y = calc(x)\n  y = x + 1;\nend\n"
+			),
+			None
+		);
+
+		// Inconclusive .m fails closed (plain C without Objective-C syntax)
+		assert_eq!(resolve("plain.m", "int main() { return 0; }\n"), None);
+		assert_eq!(resolve("empty.m", ""), None);
+
+		// Modeline overrides respected (both accept and decline)
+		assert_eq!(
+			resolve("hint.m", "// vim: ft=objc\nint main() { return 0; }\n"),
+			Some("clang")
+		);
+		assert_eq!(
+			resolve(
+				"hint.m",
+				"// -*- mode: objc -*-\nint main() { return 0; }\n"
+			),
+			Some("clang")
+		);
+		assert_eq!(
+			resolve(
+				"override_matlab.m",
+				"// vim: ft=matlab\n@interface App : NSObject\n@end\n"
+			),
+			None
+		);
+	}
+
+	#[test]
+	fn test_linguist_disambiguation_cls_files() {
+		let reg = registry();
+		let resolve = |path: &str, content: &str| {
+			reg.resolve_with_content(Path::new(path), content)
+				.map(|(_, fmt)| fmt.name())
+		};
+
+		assert_eq!(
+			resolve(
+				"article.cls",
+				"\\NeedsTeXFormat{LaTeX2e}\n\\ProvidesClass{myclass}\n"
+			),
+			Some("latex")
+		);
+		assert_eq!(
+			resolve(
+				"AccountHandler.cls",
+				"public class AccountHandler {\n}\n"
+			),
+			None
+		);
+		assert_eq!(
+			resolve("Form1.cls", "VERSION 1.0 CLASS\nBEGIN\nEND\n"),
+			None
+		);
+		assert_eq!(
+			resolve("hint.cls", "% vim: ft=latex\n\\documentclass{article}\n"),
+			Some("latex")
+		);
+	}
+
+	#[test]
+	fn test_shared_extension_routes_via_linguist_languages() {
+		static VERILOG_FMT: MockFmt = MockFmt {
+			name: "verilog",
+			exts: &["v"],
+			langs: &["Verilog", "SystemVerilog"],
+		};
+		static V_FMT: MockFmt = MockFmt {
+			name: "vfmt",
+			exts: &["v"],
+			langs: &["V"],
+		};
+
+		let reg = Registry::from_formatters(vec![&VERILOG_FMT, &V_FMT]);
+		assert!(reg.is_supported(Path::new("file.v")));
 		assert!(matches!(
-			reg.resolve_path(Path::new("file.amb")),
+			reg.resolve_path(Path::new("file.v")),
 			ResolveOutcome::NeedsContent
 		));
-		assert!(reg.resolve(Path::new("file.amb")).is_none());
+		assert!(reg.resolve(Path::new("file.v")).is_none());
 
-		let (_, picked_a) = reg
-			.resolve_with_content(Path::new("file.amb"), "ALPHA code")
+		let (_, picked_verilog) = reg
+			.resolve_with_content(
+				Path::new("top.v"),
+				"module top(input wire a);\nendmodule\n",
+			)
 			.unwrap();
-		assert_eq!(picked_a.name(), "alpha");
+		assert_eq!(picked_verilog.name(), "verilog");
 
-		let (_, picked_b) = reg
-			.resolve_with_content(Path::new("file.amb"), "BETA code")
+		let (_, picked_v) = reg
+			.resolve_with_content(
+				Path::new("main.v"),
+				"module main\nfn main() {\n\tprintln('hi')\n}\n",
+			)
 			.unwrap();
-		assert_eq!(picked_b.name(), "beta");
+		assert_eq!(picked_v.name(), "vfmt");
 
-		// Both match -> higher score wins
-		let (_, picked_both) = reg
-			.resolve_with_content(Path::new("file.amb"), "ALPHA and BETA")
+		// Modeline routes to the declared language
+		let (_, picked_v_modeline) = reg
+			.resolve_with_content(
+				Path::new("hint.v"),
+				"// vim: ft=vlang\n// inconclusive\n",
+			)
 			.unwrap();
-		assert_eq!(picked_both.name(), "beta");
+		assert_eq!(picked_v_modeline.name(), "vfmt");
 
-		// Both decline -> None
+		let (_, picked_verilog_modeline) = reg
+			.resolve_with_content(
+				Path::new("hint.v"),
+				"// vim: ft=verilog\n// inconclusive\n",
+			)
+			.unwrap();
+		assert_eq!(picked_verilog_modeline.name(), "verilog");
+
+		// Unclaimed language (Rocq Prover) and inconclusive content fail closed
 		assert!(reg
-			.resolve_with_content(Path::new("file.amb"), "unrelated")
+			.resolve_with_content(
+				Path::new("proof.v"),
+				"Require Import Arith.\nProof. Qed.\n",
+			)
+			.is_none());
+		assert!(reg
+			.resolve_with_content(Path::new("ambig.v"), "// nothing decisive\n")
 			.is_none());
 	}
 
@@ -504,22 +715,22 @@ mod tests {
 	fn test_disambiguation_tie_breaks_by_registration_order() {
 		static FIRST: MockFmt = MockFmt {
 			name: "first",
-			exts: &["tie"],
-			needs_check: false,
-			marker: "",
-			score: 50,
+			exts: &["v"],
+			langs: &["Verilog"],
 		};
 		static SECOND: MockFmt = MockFmt {
 			name: "second",
-			exts: &["tie"],
-			needs_check: false,
-			marker: "",
-			score: 50,
+			exts: &["v"],
+			langs: &["Verilog"],
 		};
 
 		let reg = Registry::from_formatters(vec![&FIRST, &SECOND]);
-		let (_, picked) =
-			reg.resolve_with_content(Path::new("a.tie"), "").unwrap();
+		let (_, picked) = reg
+			.resolve_with_content(
+				Path::new("top.v"),
+				"module top(input wire a);\nendmodule\n",
+			)
+			.unwrap();
 		assert_eq!(picked.name(), "first");
 	}
 
@@ -527,26 +738,27 @@ mod tests {
 	fn test_single_formatter_content_guard_can_decline() {
 		static GUARDED: MockFmt = MockFmt {
 			name: "guarded",
-			exts: &["grd"],
-			needs_check: true,
-			marker: "ACCEPT",
-			score: 80,
+			exts: &["v"],
+			langs: &["Verilog"],
 		};
 
 		let reg = Registry::from_formatters(vec![&GUARDED]);
 		assert!(matches!(
-			reg.resolve_path(Path::new("x.grd")),
+			reg.resolve_path(Path::new("top.v")),
 			ResolveOutcome::NeedsContent
 		));
 		assert_eq!(
-			reg.resolve_with_content(Path::new("x.grd"), "ACCEPT")
-				.unwrap()
-				.1
-				.name(),
+			reg.resolve_with_content(
+				Path::new("top.v"),
+				"module top(input wire a);\nendmodule\n"
+			)
+			.unwrap()
+			.1
+			.name(),
 			"guarded"
 		);
 		assert!(reg
-			.resolve_with_content(Path::new("x.grd"), "decline me")
+			.resolve_with_content(Path::new("x.v"), "decline me")
 			.is_none());
 	}
 
@@ -556,9 +768,7 @@ mod tests {
 		static DUP: MockFmt = MockFmt {
 			name: "dup",
 			exts: &["dup", "dup"],
-			needs_check: false,
-			marker: "",
-			score: 50,
+			langs: &[],
 		};
 		let _ = Registry::from_formatters(vec![&DUP]);
 	}
