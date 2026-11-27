@@ -6,9 +6,16 @@ import "C"
 import (
 	"bytes"
 	"go/format"
+	"path/filepath"
+	"strings"
 	"unsafe"
 
+	cueformat "cuelang.org/go/cue/format"
+	"github.com/bazelbuild/buildtools/build"
+	jsonnetfmt "github.com/google/go-jsonnet/formatter"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/open-policy-agent/opa/v1/ast"
+	opaformat "github.com/open-policy-agent/opa/v1/format"
 	"mvdan.cc/sh/v3/syntax"
 )
 
@@ -161,6 +168,110 @@ func FormatHclBatch(sources **C.char, lengths *C.size_t, count C.size_t) **C.cha
 	}
 
 	return (**C.char)(cResults)
+}
+
+func setErrOut(errOut **C.char, err error) {
+	if errOut != nil && err != nil {
+		*errOut = C.CString(err.Error())
+	}
+}
+
+//export FormatStarlark
+func FormatStarlark(source *C.char, sourceLen C.size_t, filename *C.char, filenameLen C.size_t, errOut **C.char) *C.char {
+	goSource := C.GoBytes(unsafe.Pointer(source), C.int(sourceLen))
+	goFilename := string(C.GoBytes(unsafe.Pointer(filename), C.int(filenameLen)))
+
+	base := filepath.Base(goFilename)
+	var (
+		file *build.File
+		err  error
+	)
+	switch {
+	case base == "BUILD" || base == "BUILD.bazel" || strings.HasPrefix(base, "BUILD."):
+		file, err = build.ParseBuild(goFilename, goSource)
+	case base == "WORKSPACE" || base == "WORKSPACE.bazel" || strings.HasPrefix(base, "WORKSPACE."):
+		file, err = build.ParseWorkspace(goFilename, goSource)
+	case base == "MODULE.bazel":
+		file, err = build.ParseModule(goFilename, goSource)
+	case strings.HasSuffix(base, ".bzl"):
+		file, err = build.ParseBzl(goFilename, goSource)
+	default:
+		file, err = build.ParseDefault(goFilename, goSource)
+	}
+	if err != nil {
+		setErrOut(errOut, err)
+		return nil
+	}
+
+	return C.CString(string(build.Format(file)))
+}
+
+//export FormatCue
+func FormatCue(source *C.char, sourceLen C.size_t, useTabs C.uint, indentWidth C.uint, errOut **C.char) *C.char {
+	goSource := C.GoBytes(unsafe.Pointer(source), C.int(sourceLen))
+
+	var opt cueformat.Option
+	if useTabs != 0 {
+		opt = cueformat.TabIndent(true)
+	} else {
+		width := int(indentWidth)
+		if width <= 0 {
+			width = 4
+		}
+		opt = cueformat.UseSpaces(width)
+	}
+
+	formatted, err := cueformat.Source(goSource, opt)
+	if err != nil {
+		setErrOut(errOut, err)
+		return nil
+	}
+
+	return C.CString(string(formatted))
+}
+
+//export FormatJsonnet
+func FormatJsonnet(source *C.char, sourceLen C.size_t, filename *C.char, filenameLen C.size_t, indentWidth C.uint, errOut **C.char) *C.char {
+	goSource := string(C.GoBytes(unsafe.Pointer(source), C.int(sourceLen)))
+	goFilename := string(C.GoBytes(unsafe.Pointer(filename), C.int(filenameLen)))
+
+	opts := jsonnetfmt.DefaultOptions()
+	if indentWidth > 0 {
+		opts.Indent = int(indentWidth)
+	}
+
+	formatted, err := jsonnetfmt.Format(goFilename, goSource, opts)
+	if err != nil {
+		setErrOut(errOut, err)
+		return nil
+	}
+
+	return C.CString(formatted)
+}
+
+//export FormatRego
+func FormatRego(source *C.char, sourceLen C.size_t, filename *C.char, filenameLen C.size_t, errOut **C.char) *C.char {
+	goSource := C.GoBytes(unsafe.Pointer(source), C.int(sourceLen))
+	goFilename := string(C.GoBytes(unsafe.Pointer(filename), C.int(filenameLen)))
+
+	formatted, err := opaformat.SourceWithOpts(goFilename, goSource, opaformat.Opts{
+		RegoVersion:   ast.RegoV1,
+		ParserOptions: &ast.ParserOptions{RegoVersion: ast.RegoV1},
+	})
+	if err != nil {
+		// Fall back to Rego v0 syntax for legacy policies.
+		formattedV0, errV0 := opaformat.SourceWithOpts(goFilename, goSource, opaformat.Opts{
+			RegoVersion:   ast.RegoV0,
+			ParserOptions: &ast.ParserOptions{RegoVersion: ast.RegoV0},
+		})
+		if errV0 != nil {
+			setErrOut(errOut, err)
+			return nil
+		}
+		formatted = formattedV0
+	}
+
+	return C.CString(string(formatted))
 }
 
 func main() {}

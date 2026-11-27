@@ -9,6 +9,26 @@
 // - LF line endings
 
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+/// Callback used by multi-language formatters (e.g. Jupyter, dprint plugins)
+/// to delegate embedded code blocks back to the host formatter registry.
+pub type HostFormatFn = fn(&str, &Path) -> Option<Result<String, String>>;
+
+static HOST_FORMATTER: OnceLock<HostFormatFn> = OnceLock::new();
+
+/// Register the global host formatting callback (typically `Registry`-backed).
+pub fn register_host_formatter(f: HostFormatFn) {
+	let _ = HOST_FORMATTER.set(f);
+}
+
+/// Format an embedded snippet via the registered host formatter, if available.
+pub fn format_embedded(
+	content: &str,
+	path: &Path,
+) -> Option<Result<String, String>> {
+	HOST_FORMATTER.get().and_then(|f| f(content, path))
+}
 
 /// Indent style for formatting
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -147,6 +167,23 @@ pub trait Formatter: Sync {
 
 	/// Match extensionless or special filenames (e.g. `"Dockerfile"`, `"CMakeLists.txt"`, `"Gemfile"`).
 	fn matches_filename(&self, _name: &str) -> bool {
+		false
+	}
+
+	/// Confidence score (`0..=100`) that this formatter handles `path` with the
+	/// given content (or prefix). Only consulted when multiple formatters claim
+	/// the same extension, or when a formatter explicitly opts into content
+	/// guards via `needs_content_check`.
+	/// Return `0` to decline; higher scores win (ties broken by registration order).
+	fn match_confidence(&self, _path: &Path, _content: &str) -> u8 {
+		50
+	}
+
+	/// Return `true` if this formatter may decline certain files matching its
+	/// extensions based on content (e.g. `.v` Verilog vs Coq/V, `.m` ObjC vs MATLAB,
+	/// `.cls` LaTeX vs Apex). When `true`, `Registry` consults `match_confidence`
+	/// even if only one formatter currently claims the extension.
+	fn needs_content_check(&self, _ext: &str) -> bool {
 		false
 	}
 

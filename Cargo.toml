@@ -4,13 +4,16 @@ members = [
 	"common",
 	"formatters/wasm-runtime",
 	"formatters/builtin",
+	"formatters/web",
+	"formatters/process",
 	"formatters/clang",
 	"formatters/dart",
 	"formatters/swift",
 	"formatters/goffi",
-	"formatters/zigffi",
 	"formatters/ruby",
 	"formatters/kotlin-worker",
+	"formatters/topiary",
+	"formatters/dprint-wasm",
 ]
 resolver = "2"
 

@@ -1,6 +1,6 @@
 //! Dart formatter for fama, powered by real dart_style compiled to WASM.
 //!
-//! The module embedded at `wasm/dart_fmt.wasm` is dart_style (via the
+//! The module embedded at `wasm/dart_fmt.wasm.zst` is dart_style (via the
 //! wasm-fmt/dart_fmt binding) compiled with dart2wasm. It runs in-process on
 //! wasmtime (Cranelift JIT) - no sidecar process, no temp files - exactly
 //! like the clang-format crate.
@@ -32,15 +32,22 @@ use wasmtime::{
 	ValType,
 };
 
-/// Embedded dart_style WASM binary (dart2wasm output, ~900KB)
-const DART_FMT_WASM: &[u8] = include_bytes!("../wasm/dart_fmt.wasm");
+/// Zstd-compressed embedded dart_style WASM binary (dart2wasm output, ~256KB zst)
+const DART_FMT_WASM_ZST: &[u8] = include_bytes!("../wasm/dart_fmt.wasm.zst");
 
 const ARTIFACT_PREFIX: &str = "dart_fmt";
 
-/// Compile-time sha256 prefix of `wasm/dart_fmt.wasm`; binds precompiled
-/// artifacts to the exact module with zero runtime hashing overhead.
+/// Compile-time sha256 prefix of `wasm/dart_fmt.wasm.zst`; binds precompiled
+/// artifacts to the exact module with zero runtime decompression or hashing.
 fn artifact_hash() -> &'static str {
 	env!("DART_FMT_WASM_HASH")
+}
+
+fn decompress_wasm() -> Cow<'static, [u8]> {
+	Cow::Owned(
+		fama_wasm::decompress_zstd(DART_FMT_WASM_ZST)
+			.expect("failed to decompress dart_fmt module"),
+	)
 }
 
 fn engine_config() -> wasmtime::Config {
@@ -75,7 +82,7 @@ fn get_cached_module() -> &'static CachedModule {
 			&engine,
 			ARTIFACT_PREFIX,
 			artifact_hash(),
-			|| Cow::Borrowed(DART_FMT_WASM),
+			decompress_wasm,
 		)
 		.expect("Failed to compile WASM module");
 
@@ -401,7 +408,7 @@ impl Formatter for DartFormatter {
 					&engine,
 					ARTIFACT_PREFIX,
 					artifact_hash(),
-					|| Cow::Borrowed(DART_FMT_WASM),
+					decompress_wasm,
 					output_dir,
 				)
 			});

@@ -1,10 +1,23 @@
-//! Shared wasmtime engine configuration, artifact caching, and precompilation
-//! helpers for WASM-backed formatters (`fama-clang`, `fama-dart`, `fama-swift`).
+//! Shared wasmtime engine configuration, zstd module decompression, artifact
+//! caching, and precompilation helpers for WASM-backed formatters (`fama-clang`,
+//! `fama-dart`, `fama-swift`, `fama-dprint-wasm`).
 
 use std::borrow::Cow;
+use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 
 use wasmtime::{Config, Engine, Module};
+
+/// Decompress a zstd-compressed embedded WASM module on demand.
+pub fn decompress_zstd(compressed: &[u8]) -> Result<Vec<u8>, String> {
+	let mut decoder = ruzstd::StreamingDecoder::new(Cursor::new(compressed))
+		.map_err(|e| format!("Invalid zstd stream: {e}"))?;
+	let mut out = Vec::with_capacity(compressed.len().saturating_mul(4));
+	decoder
+		.read_to_end(&mut out)
+		.map_err(|e| format!("Failed to decompress zstd module: {e}"))?;
+	Ok(out)
+}
 
 /// Default wasmtime configuration tuned for formatters.
 ///
@@ -139,5 +152,11 @@ mod tests {
 	fn test_default_engine_config_builds() {
 		let engine = Engine::new(&default_engine_config());
 		assert!(engine.is_ok());
+	}
+
+	#[test]
+	fn test_decompress_zstd_rejects_invalid_stream() {
+		let err = decompress_zstd(b"not zstd").unwrap_err();
+		assert!(err.contains("Invalid zstd stream"), "{err}");
 	}
 }

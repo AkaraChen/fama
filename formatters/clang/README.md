@@ -4,7 +4,7 @@ clang-format WASM-based formatter for C/C++/Java/C#/Objective-C/Protobuf.
 
 ## Building the WASM Binary
 
-The WASM binary is checked into the repository at `wasm/clang-format.wasm`. If you need to rebuild it:
+The WASM binary is checked into the repository at `wasm/clang-format.wasm.zst` (compressed with `zstd -19`). If you need to rebuild it:
 
 ### Prerequisites
 
@@ -43,7 +43,7 @@ The build will:
 
 1. Download and compile LLVM/Clang (requires ~8GB RAM)
 2. Build `clang-format-standalone.wasm`
-3. Copy the result to `wasm/clang-format.wasm`
+3. Compress and write the result to `wasm/clang-format.wasm.zst`
 
 ### Troubleshooting
 

@@ -44,11 +44,11 @@ Fama 帮你做决定，所以你不必做。它选择合理的默认值并普遍
 
 **约定优于配置。** 只有一种风格。它有效。使用它。
 
-**通用。** 一个工具格式化 30+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、YAML、TOML、Markdown、Rust、Python、Lua、Ruby、PHP、Shell、Go、Zig、HCL、Dockerfile、SQL、XML、Kotlin、Dart、Scala、Nix、CMake、R、Elixir、WGSL、Swift、C、C++、C#、Objective-C、Java 和 Protobuf。到处都是相同的命令。
+**通用。** 一个工具格式化 50+ 种语言：JavaScript、TypeScript、JSX、TSX、JSON、JSONC、JSON5、CSS、SCSS、Less、Sass、HTML、Vue、Svelte、Astro、GraphQL、Jinja2、Twig、Nunjucks、Mustache、Handlebars、Vento、YAML、TOML、KDL、Markdown、Jupyter (`.ipynb`)、LaTeX、BibTeX、Typst、Rust、Python、Lua、Ruby、PHP、Shell、Nushell、Go、Zig、HCL、Starlark/Bazel、CUE、Jsonnet、Rego、Dockerfile、SQL、XML、Kotlin、Dart、Scala、Nix、Nickel、OpenSCAD、CMake、Just、R、Elixir、WGSL、Swift、C、C++、C#、VB.NET、Objective-C、Java、Protobuf、CUDA、HLSL、Metal、GLSL、SystemVerilog/Verilog、GDScript、Solidity、Gleam、Prisma、Cairo 和 Move。到处都是相同的命令。
 
 **快速。** 格式化永远不应该是你等待的东西。
 
-**小巧。** 单个静态二进制承载内置 formatter——运行时不需要安装任何工具链。process mode 的语言也可以依赖宿主机已安装的 formatter CLI，例如 Kotlin 使用 `ktfmt-worker`/`ktfmt`、Scala 使用 `scalafmt`、R 使用 `air`、Elixir 使用 `mix`——内置的 `ktfmt-worker` native image 可带来最快的 Kotlin 体验。放在你的 PATH 里就能工作。随时可以通过再次运行安装脚本更新。
+**小巧。** 单个静态二进制承载内置 formatter——运行时不需要安装任何工具链。process mode 的语言也可以依赖宿主机已安装的 formatter CLI，例如 Kotlin 使用 `ktfmt-worker`/`ktfmt`、Scala 使用 `scalafmt`、R 使用 `air`、Elixir 使用 `mix`、Solidity 使用 `forge`、Gleam 使用 `gleam`、Prisma 使用 `prisma-fmt`、Just 使用 `just`、Cairo 使用 `cairo-format`、Move 使用 `movefmt`、Nushell 使用 `nufmt`——内置的 `ktfmt-worker` native image 可带来最快的 Kotlin 体验。放在你的 PATH 里就能工作。随时可以通过再次运行安装脚本更新。
 
 **安静。** 它格式化改变的内容并告诉你它做了什么。仅此而已。
 
@@ -106,6 +106,8 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 | **TypeScript**  | Biome        | ✅       | ✅   | ✅       | ✅   | ✅       | 包括 TSX                          |
 | **JSON**        | Biome        | ✅       | ❌   | ✅       | N/A  | N/A      | 尾随逗号 = All/None              |
 | **JSONC**       | Biome        | ✅       | ❌   | ❌       | N/A  | N/A      | 允许注释                          |
+| **JSON5**       | dprint-json  | ✅       | N/A  | ✅       | N/A  | N/A      | 原生 crate（`dprint-plugin-json`） |
+| **Jupyter**     | dprint-jupyter | ✅*    | N/A  | N/A      | N/A  | N/A      | `.ipynb` 代码块自动路由回 Fama 各语言格式化器 |
 | **HTML**        | Biome        | ✅       | N/A  | N/A      | N/A  | N/A      | 包括 Vue/Svelte/Astro            |
 | **GraphQL**     | Biome        | ✅       | N/A  | N/A      | N/A  | N/A      |                                   |
 | **CSS**         | dprint/Malva | ✅       | ✅   | ✅       | N/A  | N/A      | 包括 SCSS, LESS, Sass            |
@@ -121,7 +123,7 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 | **Shell**       | goffi        | ✅*      | N/A  | N/A      | N/A  | N/A      | *仅 indent_style, indent_width   |
 | **Go**          | goffi        | ❌       | ❌   | ❌       | ❌   | ❌       | 使用 gofmt 默认值（tabs）        |
 | **HCL**         | goffi        | ❌       | ❌   | ❌       | ❌   | ❌       | 使用 hclwrite 默认值（2 空格）   |
-| **Zig**         | zigffi       | ❌       | ❌   | ❌       | ❌   | ❌       | 使用 Zig 默认值                  |
+| **Zig**         | dprint-zig   | ❌       | ❌   | ❌       | ❌   | ❌       | 通过 dprint WASM（`dprint-plugin-zig`，`.zig` / `.zon`） |
 | **SQL**         | sqruff       | ✅       | N/A  | N/A      | N/A  | N/A      | 关键字大写                        |
 | **XML**         | quick-xml    | ✅       | N/A  | N/A      | N/A  | N/A      |                                   |
 | **Kotlin**      | ktfmt（worker） | ✅*  | N/A  | N/A      | N/A  | N/A      | *在支持的范围内读取生成的 `.editorconfig`；推荐常驻 `ktfmt-worker`，或 PATH 中的 `ktfmt` CLI |
@@ -132,10 +134,32 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 | **Elixir**      | mix format   | ✅*     | N/A  | N/A      | N/A  | N/A      | *line_length 经由生成的 `.formatter.exs`；需要 PATH 中的 Elixir |
 | **Dart**        | dart_style   | ✅*     | N/A  | N/A      | N/A  | N/A      | *仅 line_width, line_ending；通过 WASM（dart2wasm + wasmtime） |
 | **C/C++**       | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
-| **C#**          | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
+| **C#**          | CSharpier    | ✅*      | N/A  | N/A      | N/A  | N/A      | 通过 dprint WASM（`dprint-plugin-csharpier`） |
+| **VB.NET**      | Roslyn       | ✅*      | N/A  | N/A      | N/A  | N/A      | 通过 dprint WASM（`dprint-plugin-roslyn`） |
 | **Objective-C** | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **Java**        | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
 | **Protobuf**    | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM                         |
+| **CUDA**        | clang-format | ✅       | N/A  | N/A      | N/A  | N/A      | 通过 WASM（`.cu`, `.cuh`）        |
+| **HLSL / GLSL / Metal** | clang-format | ✅ | N/A  | N/A      | N/A  | N/A      | 通过 WASM（`.hlsl`, `.glsl`, `.vert`, `.frag`, `.comp`, `.metal` 等） |
+| **SystemVerilog / Verilog** | clang-format | ✅ | N/A | N/A  | N/A  | N/A      | 通过 WASM；`.v` 支持内容消歧       |
+| **Starlark / Bazel** | goffi   | ❌       | ❌   | ❌       | ❌   | ❌       | 使用 `buildifier` 默认值（`BUILD`, `WORKSPACE`, `MODULE.bazel`, `.bzl`, `.star`） |
+| **CUE**         | goffi        | ✅*      | N/A  | N/A      | N/A  | N/A      | *仅 `indent_style`, `indent_width`（`cue/format`） |
+| **Jsonnet**     | goffi        | ✅*      | N/A  | N/A      | N/A  | N/A      | *仅 `indent_width`（`go-jsonnet`） |
+| **Rego**        | goffi        | ❌       | ❌   | ❌       | ❌   | ❌       | 使用 `opa fmt` 默认值（支持 v1 与 v0） |
+| **Nickel**      | topiary      | ✅*      | N/A  | N/A      | N/A  | N/A      | *仅 `indent_style`, `indent_width`（Topiary） |
+| **OpenSCAD**    | topiary      | ✅*      | N/A  | N/A      | N/A  | N/A      | *仅 `indent_style`, `indent_width`（Topiary） |
+| **Typst**       | typstyle     | ✅*      | N/A  | N/A      | N/A  | N/A      | *`indent_width`, `line_width`, `line_ending` |
+| **模板语言**    | markup_fmt   | ✅       | N/A  | N/A      | N/A  | N/A      | Jinja2, Twig, Nunjucks, Mustache, Handlebars, Vento |
+| **KDL**         | kdl          | ✅*      | N/A  | N/A      | N/A  | N/A      | *`indent_style`, `indent_width`   |
+| **GDScript**    | gdck-format  | ✅*      | N/A  | N/A      | N/A  | N/A      | *`indent_style`, `indent_width`, `line_width` |
+| **LaTeX / BibTeX** | tex-fmt   | ✅*      | N/A  | N/A      | N/A  | N/A      | *`indent_style`, `indent_width`, `line_width`；`.cls` 支持内容消歧 |
+| **Solidity**    | forge fmt    | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `forge` 或 `FAMA_FORGE_PATH` |
+| **Gleam**       | gleam format | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `gleam` 或 `FAMA_GLEAM_PATH` |
+| **Prisma**      | prisma-fmt   | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `prisma-fmt` 或 `FAMA_PRISMA_FMT_PATH` |
+| **Just**        | just --fmt   | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `just` 或 `FAMA_JUST_PATH` |
+| **Cairo**       | cairo-format | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `cairo-format` 或 `FAMA_CAIRO_FORMAT_PATH` |
+| **Move**        | movefmt      | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `movefmt` 或 `FAMA_MOVEFMT_PATH` |
+| **Nushell**     | nufmt        | ❌       | N/A  | N/A      | N/A  | N/A      | process mode；需要宿主机 `nufmt` 或 `FAMA_NUFMT_PATH` |
 | **WGSL**        | wgsl-formatter | ✅     | N/A  | N/A      | N/A  | N/A      | wgsl-analyzer 原生 crate          |
 | **Swift**       | swift-format | ✅*    | N/A  | N/A      | N/A  | N/A      | *缩进、行宽经生成的配置 JSON 传入，行尾由宿主处理；通过 WASM（SwiftWasm + wasmtime） |
 
@@ -145,6 +169,8 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 
 - **Go**: 使用 `gofmt` 默认值（tab 用于缩进）
 - **HCL**: 使用 `hclwrite` 默认值（2 空格）
+- **Starlark / Bazel**: 使用 `buildifier` 固定规范风格
+- **Rego**: 使用 `opa fmt` 固定规范风格
 - **Nix**: 使用 alejandra 固定的主观风格
 - **CMake**: 使用 cmakefmt 默认风格（命令小写、规范关键字大写）
 - **Scala**: scalafmt 无 tab 模式——Scala 固定用 4 空格缩进（即使 fama 默认是 tab）；maxColumn 与缩进宽度跟随 fama 配置
@@ -152,6 +178,7 @@ Fama 使用适用于所有格式化工具的统一配置。以下是支持的完
 - **Swift**: 使用 Apple 官方 swift-format（603.0.0，零补丁），缩进与行宽经生成的配置 JSON 传入；swift-format 无行尾开关，`line_ending` 由宿主侧处理；以 WASM 模块在进程内运行
 - **Zig**: 使用 Zig 内置格式化工具的默认风格
 - **Ruby**: 使用嵌入的 `rubyfmt` 固定风格
+- **Solidity / Gleam / Prisma / Just / Cairo / Move / Nushell**: process mode 格式化器，调用各生态官方 CLI 的默认风格
 
 ### 配置导出
 

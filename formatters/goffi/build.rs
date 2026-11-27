@@ -10,6 +10,8 @@ fn main() {
 
 	println!("cargo:rerun-if-changed={}", go_dir.display());
 	println!("cargo:rerun-if-changed={}/formatter.go", go_dir.display());
+	println!("cargo:rerun-if-changed={}/go.mod", go_dir.display());
+	println!("cargo:rerun-if-changed={}/go.sum", go_dir.display());
 
 	// Determine target architecture for cross-compilation
 	let target = env::var("TARGET").unwrap();
@@ -36,8 +38,23 @@ fn main() {
 	let lib_name = format!("libgoffi-{}.a", target);
 	let lib_src = go_dir.join(&lib_name);
 
-	// Always rebuild when target changes or library doesn't exist
-	if !lib_src.exists() {
+	let needs_rebuild = if !lib_src.exists() {
+		true
+	} else if let Ok(lib_mtime) =
+		fs::metadata(&lib_src).and_then(|m| m.modified())
+	{
+		["formatter.go", "go.mod", "go.sum"].iter().any(|file| {
+			fs::metadata(go_dir.join(file))
+				.and_then(|m| m.modified())
+				.map(|m| m > lib_mtime)
+				.unwrap_or(false)
+		})
+	} else {
+		true
+	};
+
+	// Always rebuild when target changes, library doesn't exist, or Go sources changed
+	if needs_rebuild {
 		println!(
 			"cargo:warning=Building Go static library for target {} (GOOS={}, GOARCH={})...",
 			target, goos, goarch

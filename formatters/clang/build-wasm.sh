@@ -36,7 +36,7 @@ emcmake cmake -G Ninja .. \
 ninja clang-format-standalone
 
 mkdir -p "$OUTPUT_DIR"
-cp "$BUILD_DIR/clang-format-standalone.wasm" "$OUTPUT_DIR/clang-format.wasm"
+zstd -19 -f "$BUILD_DIR/clang-format-standalone.wasm" -o "$OUTPUT_DIR/clang-format.wasm.zst"
 
-echo "Done! WASM binary copied to $OUTPUT_DIR/clang-format.wasm"
-ls -lh "$OUTPUT_DIR/clang-format.wasm"
+echo "Done! Compressed WASM binary written to $OUTPUT_DIR/clang-format.wasm.zst"
+ls -lh "$OUTPUT_DIR/clang-format.wasm.zst"

@@ -41,8 +41,9 @@ impl Formatter for BiomeFormatter {
 
 	fn extensions(&self) -> &'static [&'static str] {
 		&[
-			"js", "cjs", "mjs", "ts", "mts", "jsx", "mjsx", "tsx", "json",
-			"jsonc", "html", "htm", "vue", "svelte", "astro", "graphql", "gql",
+			"js", "cjs", "mjs", "ts", "mts", "cts", "jsx", "mjsx", "cjsx",
+			"tsx", "mtsx", "ctsx", "json", "jsonc", "html", "htm", "vue",
+			"svelte", "astro", "graphql", "gql",
 		]
 	}
 
@@ -327,9 +328,9 @@ pub fn format_file(source: &str, path: &Path) -> Result<String, String> {
 	let file_path = path.to_str().unwrap_or("");
 	match path.extension().and_then(|e| e.to_str()) {
 		Some("js" | "cjs" | "mjs") => format_javascript(source, file_path),
-		Some("ts" | "mts") => format_typescript(source, file_path),
-		Some("jsx" | "mjsx") => format_jsx(source, file_path),
-		Some("tsx") => format_tsx(source, file_path),
+		Some("ts" | "mts" | "cts") => format_typescript(source, file_path),
+		Some("jsx" | "mjsx" | "cjsx") => format_jsx(source, file_path),
+		Some("tsx" | "mtsx" | "ctsx") => format_tsx(source, file_path),
 		Some("json") => match format_json(source, file_path) {
 			Ok(result) => Ok(result),
 			Err(_) => format_jsonc(source, file_path),
@@ -468,6 +469,24 @@ import path from "node:path";
 			"Named specifiers should be sorted (a, B, m, z). Got: {}",
 			result
 		);
+	}
+
+	#[test]
+	fn test_format_typescript_and_jsx_variants() {
+		for (path, src) in [
+			("mod.cts", "const x:number=1;"),
+			("mod.mts", "const x:number=1;"),
+			("comp.cjsx", "const el=<div />;"),
+			("comp.mtsx", "const el:unknown=<div />;"),
+			("comp.ctsx", "const el:unknown=<div />;"),
+		] {
+			let formatted =
+				format_file(src, Path::new(path)).expect(path);
+			assert!(
+				formatted.contains("const "),
+				"unexpected output for {path}: {formatted}"
+			);
+		}
 	}
 
 	#[test]

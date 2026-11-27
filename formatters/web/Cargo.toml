@@ -1,0 +1,48 @@
+[package]
+name = "fama-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "fama_web"
+crate-type = ["rlib"]
+
+[dependencies]
+fama-common = { path = "../../common" }
+
+# Biome (lock all biome crates to git commit for HTML support compatibility)
+biome_js_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_js_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_js_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_json_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_json_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_json_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_html_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_html_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_html_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_rowan = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_console = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_diagnostics = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_text_size = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_unicode_table = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_analyze = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_js_analyze = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_module_graph = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_project_layout = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_graphql_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_graphql_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+biome_graphql_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
+
+# Markdown, YAML, CSS/SCSS/LESS/Sass, JSON5, Jupyter, Web Templates
+dprint-plugin-markdown = "0.20"
+dprint-core = "0.67"
+dprint-core-json = { package = "dprint-core", version = "0.75" }
+dprint-plugin-json = "0.26"
+dprint-plugin-jupyter = "0.6"
+pretty_yaml = "0.6"
+anyhow = "1.0"
+malva = "0.10"
+markup_fmt = "0.28.0"

@@ -14,15 +14,23 @@ use std::sync::OnceLock;
 use fama_common::{Formatter, IndentStyle, CONFIG};
 use wasmtime::{Engine, Linker, Memory, Module, Store, TypedFunc};
 
-/// Embedded clang-format WASM binary
-const CLANG_FORMAT_WASM: &[u8] = include_bytes!("../wasm/clang-format.wasm");
+/// Zstd-compressed embedded clang-format WASM binary
+const CLANG_FORMAT_WASM_ZST: &[u8] =
+	include_bytes!("../wasm/clang-format.wasm.zst");
 
 const ARTIFACT_PREFIX: &str = "clang-format";
 
-/// Compile-time sha256 prefix of `wasm/clang-format.wasm`; binds precompiled
-/// artifacts to the exact module with zero runtime hashing overhead.
+/// Compile-time sha256 prefix of `wasm/clang-format.wasm.zst`; binds precompiled
+/// artifacts to the exact module with zero runtime decompression or hashing.
 fn artifact_hash() -> &'static str {
 	env!("CLANG_FORMAT_WASM_HASH")
+}
+
+fn decompress_wasm() -> Cow<'static, [u8]> {
+	Cow::Owned(
+		fama_wasm::decompress_zstd(CLANG_FORMAT_WASM_ZST)
+			.expect("failed to decompress clang-format module"),
+	)
 }
 
 /// Generate clang-format style configuration based on fama's FormatConfig
@@ -78,7 +86,7 @@ fn get_cached_module() -> &'static CachedInstance {
 			&engine,
 			ARTIFACT_PREFIX,
 			artifact_hash(),
-			|| Cow::Borrowed(CLANG_FORMAT_WASM),
+			decompress_wasm,
 		)
 		.expect("Failed to compile WASM module");
 
@@ -375,13 +383,35 @@ impl Formatter for ClangFormatter {
 
 	fn extensions(&self) -> &'static [&'static str] {
 		&[
-			"c", "h", "cpp", "cc", "cxx", "hpp", "hxx", "hh", "cs", "m", "mm",
-			"java", "proto",
+			"c", "h", "cpp", "cc", "cxx", "hpp", "hxx", "hh", "m", "mm",
+			"java", "proto", "cu", "cuh", "hlsl", "hlsli", "metal", "glsl",
+			"vert", "frag", "comp", "geom", "tesc", "tese", "sv", "svh", "vh",
+			"v",
 		]
 	}
 
+	fn needs_content_check(&self, ext: &str) -> bool {
+		matches!(ext, "v" | "m")
+	}
+
+	fn match_confidence(&self, path: &Path, content: &str) -> u8 {
+		match path.extension().and_then(|e| e.to_str()) {
+			Some("v") => verilog_confidence(content),
+			Some("m") => objc_confidence(content),
+			_ => 50,
+		}
+	}
+
 	fn format(&self, content: &str, path: &Path) -> Result<String, String> {
-		format_file(content, path.to_str().unwrap_or(""))
+		let ext = path.extension().and_then(|e| e.to_str());
+		// LLVM clang-format maps .v/.sv/.svh to Verilog, while .vh may need an
+		// explicit .svh hint so it doesn't fall back to C++.
+		let assumed_path = if ext == Some("vh") {
+			Cow::Owned(path.with_extension("svh"))
+		} else {
+			Cow::Borrowed(path)
+		};
+		format_file(content, assumed_path.to_str().unwrap_or(""))
 	}
 
 	fn precompile(&self, output_dir: &Path) -> Option<Result<PathBuf, String>> {
@@ -392,12 +422,93 @@ impl Formatter for ClangFormatter {
 					&engine,
 					ARTIFACT_PREFIX,
 					artifact_hash(),
-					|| Cow::Borrowed(CLANG_FORMAT_WASM),
+					decompress_wasm,
 					output_dir,
 				)
 			});
 		Some(result)
 	}
+}
+
+fn verilog_confidence(content: &str) -> u8 {
+	const COQ_MARKERS: &[&str] = &[
+		"Theorem ",
+		"Lemma ",
+		"Proof.",
+		"Qed.",
+		"Require Import",
+		"Inductive ",
+		"Definition ",
+		"Fixpoint ",
+	];
+	if COQ_MARKERS.iter().any(|m| content.contains(m)) {
+		return 0;
+	}
+
+	// V language uses `module <name>` too, so check V markers before `module `.
+	let has_verilog_end = content.contains("endmodule");
+	if !has_verilog_end
+		&& (content.contains("fn main(")
+			|| content.contains("pub fn ")
+			|| (content.lines().any(|l| l.trim_start().starts_with("import "))
+				&& !content.contains("import pkg")))
+	{
+		return 0;
+	}
+
+	const VERILOG_MARKERS: &[&str] = &[
+		"module ",
+		"endmodule",
+		"wire ",
+		"reg ",
+		"logic ",
+		"always",
+		"assign ",
+		"`timescale",
+		"`include",
+		"input ",
+		"output ",
+		"parameter ",
+		"localparam ",
+	];
+	if VERILOG_MARKERS.iter().any(|m| content.contains(m)) {
+		return 90;
+	}
+
+	50
+}
+
+fn objc_confidence(content: &str) -> u8 {
+	const OBJC_MARKERS: &[&str] = &[
+		"@interface",
+		"@implementation",
+		"@protocol",
+		"#import",
+		"@property",
+		"@end",
+		"NSString",
+		"NSObject",
+		"#include",
+	];
+	if OBJC_MARKERS.iter().any(|m| content.contains(m)) {
+		return 90;
+	}
+
+	let has_matlab_comment =
+		content.lines().any(|l| l.trim_start().starts_with('%'));
+	let has_matlab_end = content.lines().any(|l| l.trim() == "end");
+	let has_c_syntax = content.contains('{')
+		|| content.contains('}')
+		|| content.contains('@')
+		|| content.contains("#include");
+	if !has_c_syntax
+		&& (has_matlab_comment
+			|| (content.contains("function ") && has_matlab_end))
+	{
+		return 0;
+	}
+
+	50
 }
 
 /// Format code using clang-format WASM
@@ -563,5 +674,93 @@ mod tests {
 				"call {i} wrong body: {formatted}"
 			);
 		});
+	}
+
+	#[test]
+	fn test_format_cuda_hlsl_metal_glsl_verilog() {
+		let cases = [
+			(
+				"kernel.cu",
+				"__global__ void k(int*a){int i=threadIdx.x;a[i]=i;}",
+				"threadIdx.x",
+			),
+			(
+				"shader.hlsl",
+				"float4 main(float4 pos:SV_POSITION):SV_TARGET{return pos;}",
+				"SV_POSITION",
+			),
+			(
+				"shader.metal",
+				"kernel void add(device float*a[[buffer(0)]],uint i[[thread_position_in_grid]]){a[i]+=1;}",
+				"buffer(0)",
+			),
+			(
+				"shader.frag",
+				"void main(){vec4 c=vec4(1.0);gl_FragColor=c;}",
+				"gl_FragColor",
+			),
+			(
+				"top.sv",
+				"module top(input logic a,output logic b);assign b=a;endmodule",
+				"endmodule",
+			),
+			(
+				"defs.vh",
+				"module defs(input wire a,output wire b);assign b=a;endmodule",
+				"endmodule",
+			),
+		];
+		for (name, input, expected) in cases {
+			let once = ClangFormatter
+				.format(input, Path::new(name))
+				.unwrap_or_else(|e| panic!("{name} failed: {e}"));
+			assert!(once.contains(expected), "{name}: {once}");
+			let twice = ClangFormatter
+				.format(&once, Path::new(name))
+				.unwrap_or_else(|e| panic!("{name} idempotence failed: {e}"));
+			assert_eq!(once, twice, "{name} not idempotent");
+		}
+	}
+
+	#[test]
+	fn test_disambiguation_confidence_for_v_and_m() {
+		assert!(ClangFormatter.needs_content_check("v"));
+		assert!(ClangFormatter.needs_content_check("m"));
+		assert!(!ClangFormatter.needs_content_check("cpp"));
+
+		assert!(
+			ClangFormatter.match_confidence(
+				Path::new("top.v"),
+				"module top(input wire a); endmodule"
+			) > 0
+		);
+		assert_eq!(
+			ClangFormatter.match_confidence(
+				Path::new("proof.v"),
+				"Theorem foo : 1 = 1. Proof. reflexivity. Qed."
+			),
+			0
+		);
+		assert_eq!(
+			ClangFormatter.match_confidence(
+				Path::new("main.v"),
+				"module main\nfn main() {\n\tprintln('hi')\n}"
+			),
+			0
+		);
+
+		assert!(
+			ClangFormatter.match_confidence(
+				Path::new("App.m"),
+				"#import <Foundation/Foundation.h>\n@interface App : NSObject\n@end"
+			) > 0
+		);
+		assert_eq!(
+			ClangFormatter.match_confidence(
+				Path::new("calc.m"),
+				"% MATLAB script\nfunction y = calc(x)\n  y = x + 1;\nend"
+			),
+			0
+		);
 	}
 }

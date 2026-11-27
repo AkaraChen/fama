@@ -1,32 +1,25 @@
-//! Consolidated built-in formatters (pure Rust & lightweight CLI wrappers).
+//! Native pure-Rust built-in formatters.
 
-#[allow(clippy::all)]
-pub mod biome;
 pub mod cmake;
 pub mod dockerfile;
-#[allow(clippy::all)]
-pub mod dprint;
-pub mod elixir;
+pub mod gdscript;
+pub mod kdl;
+pub mod latex;
 pub mod lua;
 pub mod nix;
 pub mod php;
 pub mod python;
-pub mod r;
-pub mod rust;
-pub mod scala;
 pub mod sql;
 pub mod toml;
+pub mod typst;
 pub mod wgsl;
 pub mod xml;
 
 use fama_common::Formatter;
 
-/// All built-in formatters registered by `fama`.
+/// All native pure-Rust built-in formatters registered by `fama`.
 pub const FORMATTERS: &[&dyn Formatter] = &[
-	&biome::BiomeFormatter,
-	&dprint::DprintFormatter,
 	&toml::TomlFormatter,
-	&rust::RustFormatter,
 	&python::PythonFormatter,
 	&lua::LuaFormatter,
 	&dockerfile::DockerfileFormatter,
@@ -35,8 +28,9 @@ pub const FORMATTERS: &[&dyn Formatter] = &[
 	&php::PhpFormatter,
 	&cmake::CmakeFormatter,
 	&nix::NixFormatter,
-	&scala::ScalaFormatter,
-	&r::RFormatter,
-	&elixir::ElixirFormatter,
 	&wgsl::WgslFormatter,
+	&typst::TypstFormatter,
+	&kdl::KdlFormatter,
+	&gdscript::GdscriptFormatter,
+	&latex::LatexFormatter,
 ];

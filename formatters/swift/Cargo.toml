@@ -10,7 +10,6 @@ crate-type = [ "staticlib", "rlib" ]
 [dependencies]
 fama-common = { path = "../../common" }
 fama-wasm = { path = "../wasm-runtime" }
-ruzstd = "0.7"
 wasmtime = "51.0.0"
 
 [build-dependencies]

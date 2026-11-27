@@ -11,46 +11,12 @@ crate-type = ["rlib"]
 [dependencies]
 fama-common = { path = "../../common" }
 
-# Biome (lock all biome crates to git commit for HTML support compatibility)
-biome_js_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_js_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_js_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_json_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_json_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_json_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_html_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_html_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_html_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_rowan = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_console = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_diagnostics = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_text_size = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_unicode_table = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_analyze = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_js_analyze = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_module_graph = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_project_layout = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_graphql_formatter = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_graphql_parser = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-biome_graphql_syntax = { git = "https://github.com/biomejs/biome", rev = "871b45e66824dea905579d5270911cfed0254433" }
-
-# Markdown, YAML, CSS/SCSS/LESS/Sass, Dockerfile
-dprint-plugin-markdown = "0.20"
-dprint-core = "0.67"
+# Dockerfile
 dprint-core-dockerfile = { package = "dprint-core", version = "0.65" }
 dprint-plugin-dockerfile = { git = "https://github.com/dprint/dprint-plugin-dockerfile.git", rev = "c20fd3ee7851e1c0263c0b04322303ac24373e52" }
-pretty_yaml = "0.6"
-anyhow = "1.0"
-malva = "0.10"
 
 # TOML
 taplo = "0.14"
-
-# Rust, Scala, R, Elixir (batched CLI wrappers)
-rust-format = "0.3"
-tempfile = "3.14"
 
 # Python
 ruff_python_formatter = { git = "https://github.com/astral-sh/ruff.git", rev = "8d4d782e16b126d89a2a6d43bdcaa5450d67b804" }
@@ -83,3 +49,16 @@ alejandra = "3.1.0"
 # WGSL
 wgsl-formatter = { git = "https://github.com/wgsl-analyzer/wgsl-analyzer.git", rev = "963ec16ba47e33a99e613ef6231f6d8dff72ab63" }
 wgsl-syntax = { git = "https://github.com/wgsl-analyzer/wgsl-analyzer.git", rev = "963ec16ba47e33a99e613ef6231f6d8dff72ab63", package = "syntax" }
+
+# Typst
+typstyle-core = "0.15.3"
+
+# KDL
+kdl = { version = "6.7.1", default-features = false, features = ["span"] }
+
+# GDScript
+gdck-format = "0.8.0"
+gdck-config = "0.8.0"
+
+# LaTeX
+tex-fmt = "0.5.7"

@@ -51,14 +51,8 @@ const MAX_POOL_INSTANCES: usize = 4;
 /// is intentionally NOT cached in a global so the 15-60 MiB raw WASM bytes are
 /// freed immediately after Cranelift compilation finishes.
 fn decompress_module_bytes() -> Vec<u8> {
-	let cursor = std::io::Cursor::new(SWIFTFORMAT_WASM_ZST);
-	let mut decoder =
-		ruzstd::StreamingDecoder::new(cursor).expect("valid zstd stream");
-	let mut out =
-		Vec::with_capacity(SWIFTFORMAT_WASM_ZST.len().saturating_mul(4));
-	std::io::Read::read_to_end(&mut decoder, &mut out)
-		.expect("failed to decompress swift-format module");
-	out
+	fama_wasm::decompress_zstd(SWIFTFORMAT_WASM_ZST)
+		.expect("failed to decompress swift-format module")
 }
 
 /// Compile-time sha256 prefix of `wasm/swiftformat.wasm.zst`; binds precompiled

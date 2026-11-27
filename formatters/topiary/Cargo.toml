@@ -1,0 +1,18 @@
+[package]
+name = "fama-topiary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "fama_topiary"
+crate-type = ["rlib"]
+
+[dependencies]
+fama-common = { path = "../../common" }
+topiary-core = "0.8.0"
+topiary-queries = { version = "0.8.0", features = ["nickel", "openscad"] }
+topiary-tree-sitter-facade = "0.8.0"
+tree-sitter = "=0.26.12"
+tree-sitter-nickel = "0.5.0"
+tree-sitter-openscad-ng = "0.7.1"

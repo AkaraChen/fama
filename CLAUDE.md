@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Fama is a unified cross-language code formatter written in Rust that aggregates multiple specialized formatters into a single CLI tool. It formats 30+ languages (JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Dart, Scala, Nix, CMake, R, Elixir, Swift, WGSL, C, C++, C#, Objective-C, Java, Protobuf) through a unified interface while respecting a centralized configuration.
+Fama is a unified cross-language code formatter written in Rust that aggregates multiple specialized formatters into a single CLI tool. It formats 50+ languages (JavaScript, TypeScript, JSX, TSX, JSON, JSONC, JSON5, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, Jinja2, Twig, Nunjucks, Mustache, Handlebars, Vento, YAML, TOML, KDL, Markdown, Jupyter `.ipynb`, LaTeX, BibTeX, Typst, Rust, Python, Lua, Ruby, PHP, Shell, Nushell, Go, Zig, HCL, Starlark/Bazel, CUE, Jsonnet, Rego, Dockerfile, SQL, XML, Kotlin, Dart, Scala, Nix, Nickel, OpenSCAD, CMake, Just, R, Elixir, Swift, WGSL, C, C++, C#, VB.NET, Objective-C, Java, Protobuf, CUDA, HLSL, Metal, GLSL, SystemVerilog/Verilog, GDScript, Solidity, Gleam, Prisma, Cairo, Move) through a unified interface while respecting a centralized configuration.
 
 ## Build Commands
 
@@ -29,25 +29,28 @@ fama --export    # Generate .editorconfig plus tool configs (rustfmt.toml,
 
 ### Workspace Structure
 
-The project is a Cargo workspace with 11 crates:
+The project is a Cargo workspace with 14 crates:
 
-- `cli/` - Main CLI application with file discovery, formatter `Registry`, routing, and `--export` / `--precompile`
-- `common/` - Shared types: `Formatter` trait, `ExportedConfig`, `FormatConfig`, indentation/quote styles, and `.editorconfig` renderer
+- `cli/` - Main CLI application with file discovery, formatter `Registry` (with content-based extension disambiguation), routing, and `--export` / `--precompile`
+- `common/` - Shared types: `Formatter` trait (including `needs_content_check` & `match_confidence`), `format_embedded` host callback, `ExportedConfig`, `FormatConfig`, indentation/quote styles, and `.editorconfig` renderer
 - `formatters/` - Language-specific formatter implementations:
-  - `builtin/` (`fama-builtin`) - Consolidated pure-Rust & lightweight CLI formatters (1 module each): Biome (JS/TS/JSX/TSX/JSON/JSONC/HTML/Vue/Svelte/Astro/GraphQL), dprint/Malva (Markdown/YAML/CSS/SCSS/Less/Sass), TOML (Taplo), Rust (`rustfmt`, batched), Python (Ruff), Lua (StyLua), Dockerfile, XML (`quick-xml`), SQL (`sqruff`), PHP (Mago), CMake (`cmakefmt-rust`), Nix (Alejandra), Scala (`scalafmt`, batched), R (`air`, batched), Elixir (`mix format`, batched), WGSL (`wgsl-formatter`)
-  - `wasm-runtime/` (`fama-wasm`) - Shared wasmtime engine configuration, `.wasmu` artifact caching, and precompilation helpers
-  - `clang/` - C/C++/C#/Objective-C/Java/Protobuf (via clang-format WASM)
-  - `dart/` - Dart via dart_style compiled to WASM (dart2wasm output hosted in-process on wasmtime)
+  - `builtin/` (`fama-builtin`) - Native pure-Rust formatters (1 module each): TOML (Taplo), Python (Ruff), Lua (StyLua), Dockerfile, XML (`quick-xml`), SQL (`sqruff`), PHP (Mago), CMake (`cmakefmt-rust`), Nix (Alejandra), WGSL (`wgsl-formatter`), Typst (`typstyle-core`), KDL (`kdl`), GDScript (`gdck-format`), LaTeX/BibTeX (`tex-fmt`)
+  - `web/` (`fama-web`) - Web, style, markup, data, and document-container formatters: Biome (JS/TS/JSX/TSX/JSON/JSONC/HTML/Vue/Svelte/Astro/GraphQL), dprint/Malva (Markdown/YAML/CSS/SCSS/Less/Sass), `dprint-plugin-json` (JSON5), `dprint-plugin-jupyter` (`.ipynb` via `format_embedded`), and `markup_fmt` (Jinja2/Twig/Nunjucks/Mustache/Handlebars/Vento)
+  - `process/` (`fama-process`) - External CLI ("process mode") wrappers sharing `process.rs`: batched wrappers (`rustfmt`, `scalafmt`, `air`, `mix format`) and single-file wrappers (`forge` Solidity, `gleam`, `prisma-fmt`, `just`, `cairo-format`, `movefmt`, `nufmt`)
+  - `dprint-wasm/` (`fama-dprint-wasm`) - Compatibility runtime for dprint Schema v4 WASM plugins on `wasmtime` (`fama-wasm`), hosting `dprint-plugin-csharpier` (C#), `dprint-plugin-roslyn` (VB.NET), and `dprint-plugin-zig` (Zig / `.zon`)
+  - `topiary/` (`fama-topiary`) - Declarative Tree-sitter formatters powered by `topiary-core` (Nickel, OpenSCAD; see `formatters/topiary/README.md`)
+  - `wasm-runtime/` (`fama-wasm`) - Shared wasmtime engine configuration, zstd decompression (`ruzstd`), `.wasmu` artifact caching, and precompilation helpers
+  - `clang/` - C/C++/Objective-C/Java/Protobuf/CUDA/HLSL/Metal/GLSL/SystemVerilog/Verilog (via zstd-compressed clang-format WASM)
+  - `dart/` - Dart via dart_style compiled to WASM (zstd-compressed dart2wasm output hosted in-process on wasmtime)
   - `swift/` - Swift via swift-format compiled to WASM (SwiftWasm wasip1 build of swift-format 603.0.0 plus a C-ABI shim, hosted in-process on wasmtime with a hand-rolled WASI p1 host; see formatters/swift/README.md)
-  - `goffi/` - Shell scripts, Go, and HCL/Terraform (Go FFI wrapper around mvdan/sh, go/format, and hclwrite)
-  - `zigffi/` - Zig (Zig FFI wrapper around `zig fmt`)
+  - `goffi/` - Shell (`mvdan/sh`), Go (`go/format`), HCL/Terraform (`hclwrite`), Starlark/Bazel (`buildifier`), CUE (`cue/format`), Jsonnet (`go-jsonnet`), and Rego (`opa/v1/format`) via Go FFI
   - `ruby/` - Ruby (via `rubyfmt` submodule)
   - `kotlin-worker/` - Kotlin via the persistent `ktfmt-worker` protocol (with built-in process fallback via `ktfmt`)
 
 ### Data Flow
 
 1. **Discovery** (`cli/src/discovery.rs`): Walk filesystem, filter via `cli/src/registry.rs`, respect `.gitignore`
-2. **Resolution** (`cli/src/registry.rs`): Map extension or special filename → `&'static dyn Formatter`
+2. **Resolution** (`cli/src/registry.rs`): Map extension or special filename → `&'static dyn Formatter` (with 4KB prefix content disambiguation when `ResolveOutcome::NeedsContent`)
 3. **Routing** (`cli/src/formatter.rs`): Run batchable formatters (`supports_batch()`) in chunks concurrently with LPT-ordered single-file formatters
 4. **Formatting**: Each `Formatter::format` / `Formatter::format_batch` receives content `&str` and returns formatted `String`
 5. **Write-back**: If changed, write to disk; track stats (formatted, unchanged, errors)
@@ -102,15 +105,12 @@ cargo test -p fama-common <test_name> # Run single test in specific crate
 
 ## Adding a New Formatter
 
-For pure-Rust or lightweight CLI formatters:
-1. Add any new crate dependency to `formatters/builtin/Cargo.toml`
-2. Add a module under `formatters/builtin/src/<lang>.rs` implementing `fama_common::Formatter`
-3. Export the module and register `&<lang>::<Lang>Formatter` in `FORMATTERS` in `formatters/builtin/src/lib.rs`
-
-For formatters requiring custom FFI, WASM, submodules, or sidecar binaries:
-1. Create a crate under `formatters/<lang>/` implementing `fama_common::Formatter` (and exporting `pub static FORMATTER`)
-2. Add it to workspace `members` in root `Cargo.toml` and `cli/Cargo.toml`
-3. Register `&<crate>::FORMATTER` in `cli/src/registry.rs`
+Choose the crate matching the formatter's dependency model:
+1. Pure-Rust language/config formatter → `formatters/builtin/` (`src/<lang>.rs` + `FORMATTERS` in `src/lib.rs`)
+2. Web/style/markup/document formatter → `formatters/web/` (`src/<lang>.rs` + `FORMATTERS` in `src/lib.rs`)
+3. External CLI ("process mode") wrapper → `formatters/process/` (`src/<lang>.rs` reusing `process.rs` + `FORMATTERS` in `src/lib.rs`)
+4. Official dprint Schema v4 `.wasm` plugin → compress with `zstd -19` into `formatters/dprint-wasm/wasm/<name>.wasm.zst` and register a `DprintWasmFormatter` static in `formatters/dprint-wasm/src/lib.rs`
+5. Custom FFI, custom WASM runtime, Tree-sitter query (`topiary`), or sidecar → create a crate under `formatters/<lang>/`, add it to `Cargo.toml` and `cli/Cargo.toml`, and register it in `cli/src/registry.rs`
 
 ## Key Dependencies
 

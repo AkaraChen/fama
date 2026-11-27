@@ -1,11 +1,15 @@
 // formatter.rs - Format routing logic
 
-use crate::registry::registry;
+use crate::registry::{registry, ResolveOutcome};
 use fama_common::Formatter;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
+
+/// Maximum bytes read when disambiguating shared or content-guarded extensions.
+const DISAMBIGUATION_PREFIX_BYTES: usize = 4096;
 
 /// Number of files formatted per batch process invocation. Larger batches
 /// amortize process startup further but hold more content in memory.
@@ -69,6 +73,32 @@ fn record(
 	}
 }
 
+/// Read at most `max_bytes` from `path` for extension disambiguation.
+fn read_prefix(path: &Path, max_bytes: usize) -> std::io::Result<String> {
+	let file = fs::File::open(path)?;
+	let mut buf = Vec::with_capacity(max_bytes.min(4096));
+	file.take(max_bytes as u64).read_to_end(&mut buf)?;
+	Ok(String::from_utf8_lossy(&buf).into_owned())
+}
+
+fn route_resolved<'a>(
+	id: usize,
+	fmt: &'static dyn Formatter,
+	file: &'a PathBuf,
+	batch_groups: &mut HashMap<usize, (&'static dyn Formatter, Vec<&'a PathBuf>)>,
+	other_files: &mut Vec<(&'a PathBuf, Option<&'static dyn Formatter>)>,
+) {
+	if fmt.supports_batch() {
+		batch_groups
+			.entry(id)
+			.or_insert_with(|| (fmt, Vec::new()))
+			.1
+			.push(file);
+	} else {
+		other_files.push((file, Some(fmt)));
+	}
+}
+
 /// Format all files, parallelizing per file and batching batchable formatters
 /// concurrently, with large single files scheduled first (LPT) to minimize
 /// tail latency.
@@ -82,18 +112,47 @@ pub fn format_files(
 		HashMap::new();
 	let mut other_files: Vec<(&PathBuf, Option<&'static dyn Formatter>)> =
 		Vec::new();
+	let mut pre_stats = FormatStats::default();
 
 	for file in files {
-		match reg.resolve(file) {
-			Some((id, fmt)) if fmt.supports_batch() => {
-				batch_groups
-					.entry(id)
-					.or_insert_with(|| (fmt, Vec::new()))
-					.1
-					.push(file);
+		match reg.resolve_path(file) {
+			ResolveOutcome::Unique(id, fmt) => {
+				route_resolved(
+					id,
+					fmt,
+					file,
+					&mut batch_groups,
+					&mut other_files,
+				);
 			}
-			resolved => {
-				other_files.push((file, resolved.map(|(_, fmt)| fmt)));
+			ResolveOutcome::NeedsContent => {
+				match read_prefix(file, DISAMBIGUATION_PREFIX_BYTES) {
+					Ok(prefix) => {
+						if let Some((id, fmt)) =
+							reg.resolve_with_content(file, &prefix)
+						{
+							route_resolved(
+								id,
+								fmt,
+								file,
+								&mut batch_groups,
+								&mut other_files,
+							);
+						}
+						// If all candidates declined (score == 0), skip gracefully.
+					}
+					Err(e) => {
+						record(
+							&mut pre_stats,
+							file,
+							Err(format!("{}: {}", file.display(), e)),
+							debug,
+						);
+					}
+				}
+			}
+			ResolveOutcome::None => {
+				other_files.push((file, None));
 			}
 		}
 	}
@@ -151,7 +210,7 @@ pub fn format_files(
 	);
 
 	let _ = &mut sized_others;
-	batched_stats.merge(other_stats)
+	pre_stats.merge(batched_stats).merge(other_stats)
 }
 
 /// Format a chunk of same-language files with a single batch invocation
@@ -226,7 +285,17 @@ fn format_file_with_formatter(
 /// Returns true if the file was changed (or would be changed in check mode)
 #[cfg(test)]
 pub fn format_file(file_path: &Path, check: bool) -> anyhow::Result<bool> {
-	let formatter = registry().resolve(file_path).map(|(_, fmt)| fmt);
+	let formatter = match registry().resolve_path(file_path) {
+		ResolveOutcome::Unique(_, fmt) => Some(fmt),
+		ResolveOutcome::NeedsContent => {
+			let prefix = read_prefix(file_path, DISAMBIGUATION_PREFIX_BYTES)
+				.unwrap_or_default();
+			registry()
+				.resolve_with_content(file_path, &prefix)
+				.map(|(_, fmt)| fmt)
+		}
+		ResolveOutcome::None => None,
+	};
 	format_file_with_formatter(file_path, formatter, check)
 }
 
@@ -234,7 +303,7 @@ pub fn format_file(file_path: &Path, check: bool) -> anyhow::Result<bool> {
 #[cfg(test)]
 fn format_content(content: &str, path: &str) -> Result<String, String> {
 	let path = Path::new(path);
-	match registry().resolve(path) {
+	match registry().resolve_with_content(path, content) {
 		Some((_, fmt)) => fmt.format(content, path),
 		None => Err("Unknown file type".to_string()),
 	}
@@ -653,5 +722,48 @@ mod tests {
 		let result = format_content(content, "test.sass");
 
 		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn test_format_content_jupyter_python_and_markdown() {
+		let notebook = r##"{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "#   Title\n",
+        "\n",
+        "*  item"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "x=1+2\n",
+        "def f( a , b ): return a+b"
+      ]
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "display_name": "Python 3",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}
+"##;
+		let formatted = format_content(notebook, "notebook.ipynb").unwrap();
+		assert!(formatted.contains("x = 1 + 2"), "{formatted}");
+		assert!(formatted.contains("def f(a, b):"), "{formatted}");
 	}
 }

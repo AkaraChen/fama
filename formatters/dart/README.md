@@ -58,8 +58,9 @@ cd formatters/dart
 ./build-wasm.sh
 ```
 
-The script clones wasm-fmt/dart_fmt and runs
-`dart pub get && dart compile wasm ./lib/binding.dart -o wasm/dart_fmt.wasm`.
+The script clones wasm-fmt/dart_fmt, runs
+`dart pub get && dart compile wasm ./lib/binding.dart -o wasm/dart_fmt.wasm`,
+and compresses it with `zstd -19` into `wasm/dart_fmt.wasm.zst`.
 
 To ship a precompiled artifact for faster startup, release CI runs
 `cargo run --bin dart-precompile -- <dir>`, producing

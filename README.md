@@ -44,11 +44,11 @@ Fama makes a decision so you don't have to. It picks sensible defaults and appli
 
 **Convention over configuration.** There is one style. It works. Use it.
 
-**Universal.** One tool formats 30+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, YAML, TOML, Markdown, Rust, Python, Lua, Ruby, PHP, Shell, Go, Zig, HCL, Dockerfile, SQL, XML, Kotlin, Scala, Nix, CMake, R, Elixir, WGSL, Dart, Swift, C, C++, C#, Objective-C, Java, and Protobuf. Same command everywhere.
+**Universal.** One tool formats 50+ languages: JavaScript, TypeScript, JSX, TSX, JSON, JSONC, JSON5, CSS, SCSS, Less, Sass, HTML, Vue, Svelte, Astro, GraphQL, Jinja2, Twig, Nunjucks, Mustache, Handlebars, Vento, YAML, TOML, KDL, Markdown, Jupyter (`.ipynb`), LaTeX, BibTeX, Typst, Rust, Python, Lua, Ruby, PHP, Shell, Nushell, Go, Zig, HCL, Starlark/Bazel, CUE, Jsonnet, Rego, Dockerfile, SQL, XML, Kotlin, Scala, Nix, Nickel, OpenSCAD, CMake, Just, R, Elixir, WGSL, Dart, Swift, C, C++, C#, VB.NET, Objective-C, Java, Protobuf, CUDA, HLSL, Metal, GLSL, SystemVerilog/Verilog, GDScript, Solidity, Gleam, Prisma, Cairo, and Move. Same command everywhere.
 
 **Fast.** Formatting should never be the thing you're waiting for.
 
-**Small.** A single static binary for built-in formatters — no toolchains to install at runtime. Process-mode languages can also rely on host-installed formatter CLIs, such as `ktfmt-worker`/`ktfmt` for Kotlin, `scalafmt` for Scala, `air` for R and `mix` for Elixir — or the bundled `ktfmt-worker` native image for the fastest Kotlin runs. Drop it in your PATH and it just works. Update anytime by running the install script again.
+**Small.** A single static binary for built-in formatters — no toolchains to install at runtime. Process-mode languages can also rely on host-installed formatter CLIs, such as `ktfmt-worker`/`ktfmt` for Kotlin, `scalafmt` for Scala, `air` for R, `mix` for Elixir, `forge` for Solidity, `gleam` for Gleam, `prisma-fmt` for Prisma, `just` for Just, `cairo-format` for Cairo, `movefmt` for Move, and `nufmt` for Nushell — or the bundled `ktfmt-worker` native image for the fastest Kotlin runs. Drop it in your PATH and it just works. Update anytime by running the install script again.
 
 **Quiet.** It formats what changed and tells you what it did. Nothing more.
 
@@ -106,6 +106,8 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 | **TypeScript**  | Biome        | ✅           | ✅    | ✅             | ✅         | ✅              | Includes TSX                      |
 | **JSON**        | Biome        | ✅           | ❌    | ✅             | N/A        | N/A             | Trailing comma = All/None         |
 | **JSONC**       | Biome        | ✅           | ❌    | ❌             | N/A        | N/A             | Comments allowed                  |
+| **JSON5**       | dprint-json  | ✅           | N/A   | ✅             | N/A        | N/A             | Native crate (`dprint-plugin-json`) |
+| **Jupyter**     | dprint-jupyter | ✅*        | N/A   | N/A            | N/A        | N/A             | `.ipynb` cells routed through Fama formatters |
 | **HTML**        | Biome        | ✅           | N/A   | N/A            | N/A        | N/A             | Includes Vue/Svelte/Astro         |
 | **GraphQL**     | Biome        | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
 | **CSS**         | dprint/Malva | ✅           | ✅    | ✅             | N/A        | N/A             | Includes SCSS, LESS, Sass         |
@@ -121,7 +123,7 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 | **Shell**       | goffi        | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_style, indent_width only  |
 | **Go**          | goffi        | ❌           | ❌    | ❌             | ❌         | ❌              | Uses gofmt defaults (tabs)        |
 | **HCL**         | goffi        | ❌           | ❌    | ❌             | ❌         | ❌              | Uses hclwrite defaults (2 spaces) |
-| **Zig**         | zigffi       | ❌           | ❌    | ❌             | ❌         | ❌              | Uses Zig defaults                 |
+| **Zig**         | dprint-zig   | ❌           | ❌    | ❌             | ❌         | ❌              | Via dprint WASM (`dprint-plugin-zig`, `.zig` / `.zon`) |
 | **SQL**         | sqruff       | ✅           | N/A   | N/A            | N/A        | N/A             | Keywords capitalized              |
 | **XML**         | quick-xml    | ✅           | N/A   | N/A            | N/A        | N/A             |                                   |
 | **Kotlin**      | ktfmt (worker)  | ✅*       | N/A   | N/A            | N/A        | N/A             | *Uses generated `.editorconfig`; via the persistent `ktfmt-worker` (recommended) or host `ktfmt` CLI |
@@ -132,10 +134,32 @@ Fama uses a unified configuration that applies across all formatters. Below is t
 | **Elixir**      | mix format   | ✅*          | N/A   | N/A            | N/A        | N/A             | *line_length via generated `.formatter.exs`; requires Elixir on PATH |
 | **Dart**        | dart_style   | ✅*          | N/A   | N/A            | N/A        | N/A             | *line_width, line_ending only; via WASM (dart2wasm + wasmtime) |
 | **C/C++**       | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
-| **C#**          | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
+| **C#**          | CSharpier    | ✅*          | N/A   | N/A            | N/A        | N/A             | Via dprint WASM (`dprint-plugin-csharpier`) |
+| **VB.NET**      | Roslyn       | ✅*          | N/A   | N/A            | N/A        | N/A             | Via dprint WASM (`dprint-plugin-roslyn`) |
 | **Objective-C** | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
 | **Java**        | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
 | **Protobuf**    | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM                          |
+| **CUDA**        | clang-format | ✅           | N/A   | N/A            | N/A        | N/A             | Via WASM (`.cu`, `.cuh`)          |
+| **HLSL / GLSL / Metal** | clang-format | ✅   | N/A   | N/A            | N/A        | N/A             | Via WASM (`.hlsl`, `.glsl`, `.vert`, `.frag`, `.comp`, `.metal`, etc.) |
+| **SystemVerilog / Verilog** | clang-format | ✅ | N/A | N/A            | N/A        | N/A             | Via WASM; `.v` uses content disambiguation |
+| **Starlark / Bazel** | goffi   | ❌           | ❌    | ❌             | ❌         | ❌              | Uses `buildifier` defaults (`BUILD`, `WORKSPACE`, `MODULE.bazel`, `.bzl`, `.star`) |
+| **CUE**         | goffi        | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_style, indent_width via `cue/format` |
+| **Jsonnet**     | goffi        | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_width via `go-jsonnet`    |
+| **Rego**        | goffi        | ❌           | ❌    | ❌             | ❌         | ❌              | Uses `opa fmt` defaults (v1 + v0 fallback) |
+| **Nickel**      | topiary      | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_style, indent_width via Topiary |
+| **OpenSCAD**    | topiary      | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_style, indent_width via Topiary |
+| **Typst**       | typstyle     | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_width, line_width, line_ending |
+| **Templates**   | markup_fmt   | ✅           | N/A   | N/A            | N/A        | N/A             | Jinja2, Twig, Nunjucks, Mustache, Handlebars, Vento |
+| **KDL**         | kdl          | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_style, indent_width       |
+| **GDScript**    | gdck-format  | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_style, indent_width, line_width |
+| **LaTeX / BibTeX** | tex-fmt   | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent_style, indent_width, line_width; `.cls` uses content disambiguation |
+| **Solidity**    | forge fmt    | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `forge` or `FAMA_FORGE_PATH` |
+| **Gleam**       | gleam format | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `gleam` or `FAMA_GLEAM_PATH` |
+| **Prisma**      | prisma-fmt   | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `prisma-fmt` or `FAMA_PRISMA_FMT_PATH` |
+| **Just**        | just --fmt   | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `just` or `FAMA_JUST_PATH` |
+| **Cairo**       | cairo-format | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `cairo-format` or `FAMA_CAIRO_FORMAT_PATH` |
+| **Move**        | movefmt      | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `movefmt` or `FAMA_MOVEFMT_PATH` |
+| **Nushell**     | nufmt        | ❌           | N/A   | N/A            | N/A        | N/A             | Process mode; host `nufmt` or `FAMA_NUFMT_PATH` |
 | **WGSL**        | wgsl-formatter | ✅         | N/A   | N/A            | N/A        | N/A             | Native crate from wgsl-analyzer   |
 | **Swift**       | swift-format | ✅*          | N/A   | N/A            | N/A        | N/A             | *indent style/width, line_width via generated config JSON, line_ending host-side; via WASM (SwiftWasm + wasmtime) |
 
@@ -145,6 +169,8 @@ Some formatters use hardcoded styles that cannot be configured:
 
 - **Go**: Uses `gofmt` defaults (tabs for indentation)
 - **HCL**: Uses `hclwrite` defaults (2 spaces)
+- **Starlark / Bazel**: Uses `buildifier` canonical defaults
+- **Rego**: Uses `opa fmt` canonical defaults
 - **Nix**: Uses alejandra's fixed, opinionated style
 - **CMake**: Uses cmakefmt defaults (lowercased commands, capitalized spec keywords)
 - **Scala**: scalafmt has no tab mode — Scala is indented with 4 spaces even though fama's default is tabs; `maxColumn` and indent follow fama's config
@@ -153,6 +179,7 @@ Some formatters use hardcoded styles that cannot be configured:
 - **Swift**: Uses Apple's swift-format (603.0.0, unpatched) with fama's `indent_style`/`indent_width`/`line_width` via a generated config JSON; `line_ending` is applied host-side because swift-format has no line-ending knob; runs in-process as a WASM module
 - **Zig**: Uses Zig's built-in formatter with default style
 - **Ruby**: Uses embedded `rubyfmt` with fixed style
+- **Solidity / Gleam / Prisma / Just / Cairo / Move / Nushell**: Process-mode formatters delegating to their official ecosystem CLIs with canonical defaults
 
 ### Configuration Export
 
