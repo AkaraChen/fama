@@ -212,13 +212,13 @@ func FormatCue(source *C.char, sourceLen C.size_t, useTabs C.uint, indentWidth C
 
 	var opt cueformat.Option
 	if useTabs != 0 {
-		opt = cueformat.TabIndent(true)
+		opt = cueformat.Indent("\t")
 	} else {
 		width := int(indentWidth)
 		if width <= 0 {
 			width = 4
 		}
-		opt = cueformat.UseSpaces(width)
+		opt = cueformat.Indent(strings.Repeat(" ", width))
 	}
 
 	formatted, err := cueformat.Source(goSource, opt)

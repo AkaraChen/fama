@@ -45,7 +45,7 @@ fn build_bicep_args(config: &FormatConfig) -> Vec<String> {
 			args.push(config.indent_width.to_string());
 		}
 	}
-	args.push("--newline".to_string());
+	args.push("--newline-kind".to_string());
 	args.push(
 		match config.line_ending {
 			LineEnding::Lf => "LF",
@@ -113,7 +113,9 @@ mod tests {
 		assert!(tab_args.contains(&"--stdout".to_string()));
 		assert!(tab_args.windows(2).any(|w| w == ["--indent-kind", "Tab"]));
 		assert!(!tab_args.contains(&"--indent-size".to_string()));
-		assert!(tab_args.windows(2).any(|w| w == ["--newline", "LF"]));
+		assert!(tab_args
+			.windows(2)
+			.any(|w| w == ["--newline-kind", "LF"]));
 		assert!(tab_args.contains(&"--insert-final-newline".to_string()));
 
 		let space_cfg = FormatConfig {
@@ -127,7 +129,9 @@ mod tests {
 			.windows(2)
 			.any(|w| w == ["--indent-kind", "Space"]));
 		assert!(space_args.windows(2).any(|w| w == ["--indent-size", "2"]));
-		assert!(space_args.windows(2).any(|w| w == ["--newline", "CRLF"]));
+		assert!(space_args
+			.windows(2)
+			.any(|w| w == ["--newline-kind", "CRLF"]));
 	}
 
 	#[test]
